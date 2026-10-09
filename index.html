@@ -1,40 +1,8 @@
-<!doctype html><html lang="en"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
-<meta name="theme-color" content="#0b1410"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Trakway Trail">
-<title>Trakway Trail</title><link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./icon-192.png"><link rel="icon" href="./icon-192.png"><link rel="stylesheet" href="./styles.css">
-</head><body>
-<div id="app">
-  <div class="topbar">
-    <div class="brand"><img src="./sunbelt-sun.png" alt=""><div><b>TRAKWAY</b><span>TRAIL</span><small>SUNBELT RENTALS · TRAKWAY</small></div></div>
-    <button id="menuBtn" class="iconBtn" aria-label="Menu">☰</button>
-  </div>
-  <div class="hud">
-    <div><small>SHIFT</small><b id="shift">07:00</b></div>
-    <div><small>SCORE</small><b id="score">000000</b></div>
-    <div><small>PANELS</small><b id="panels">12/30</b></div>
-    <div><small>SAFE ×</small><b id="mult">1</b></div>
-  </div>
-  <div class="stage"><canvas id="game" width="343" height="418" aria-label="Trakway Trail game"></canvas><div id="toast"></div><button id="lockBtn" class="lockBtn" hidden>🔒 LOCK OFF</button></div>
-  <div class="status">
-    <div class="meter"><label>TRACTION</label><span><i id="tractionBar"></i></span></div>
-    <div class="meter"><label>VEHICLE</label><span><i id="vehicleBar"></i></span></div>
-    <div class="count"><small>CLEAN</small><b id="clean">12</b></div><div class="count dirty"><small>DIRTY</small><b id="dirty">0</b></div>
-  </div>
-  <div class="controls">
-    <button id="leftBtn" class="roundBtn side">◀</button>
-    <button id="actionBtn" class="roundBtn action"><span>⚙</span><b>GRAB / LAY</b></button>
-    <button id="rightBtn" class="roundBtn side">▶</button>
-  </div>
-
-  <div id="home" class="overlay home">
-    <div class="heroArt"><img src="./truck.svg" alt="Cartoon Trakway lorry"></div>
-    <div class="logoLockup"><img src="./sunbelt-sun.png" alt=""><h1>TRAKWAY<br><em>TRAIL</em></h1><p>BUILD THE ROAD. HOLD THE LINE.</p></div>
-    <button class="primary" data-action="play">START SHIFT</button>
-    <button class="secondary" data-action="how">HOW TO PLAY</button>
-    <button class="secondary" data-action="scores">HIGH SCORES</button>
-    <div class="disclaimer"><b>⚠ GAME / AWARENESS USE ONLY</b><br>Vehicle speed, timing, distances, crane movements and gameplay are deliberately stylised and do not represent actual Trakway operations. Do not recreate game actions on site. Real work must follow the current job pack, method statement, DRA, lift plan, site controls and Responsible Person instructions.</div>
-  </div>
-
-  <div id="panel" class="overlay panel" hidden><div class="panelHead"><h2 id="panelTitle">MENU</h2><button id="closePanel">×</button></div><div id="panelBody" class="panelBody"></div></div>
-</div>
-<script src="./game.js"></script></body></html>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"><meta name="theme-color" content="#07140d"><meta name="apple-mobile-web-app-capable" content="yes"><title>Trakway Trail</title><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon.svg"><link rel="stylesheet" href="styles.css"></head><body>
+<main id="app"><header><div class="brand"><span class="sun">☀</span><div><b>TRAKWAY <i>TRAIL</i></b><small>KEEP THE ROUTE MOVING</small></div></div><button id="pause" aria-label="Pause">Ⅱ</button></header>
+<section class="hud"><div><small>DISTANCE</small><strong><span id="distance">0</span>m</strong></div><div><small>PANELS</small><strong id="panels">0</strong></div><div><small>SCORE</small><strong id="score">00000</strong></div><div><small>BEST</small><strong id="best">0m</strong></div></section>
+<section class="stage"><canvas id="game" width="390" height="570" aria-label="Three lane Trakway driving game"></canvas><div id="message"></div><div class="hint" id="hint">SWIPE OR USE THE BUTTONS</div></section>
+<nav><button id="left" aria-label="Move left">◀</button><div><b>MOVE</b><small>AVOID GAPS · COLLECT PANELS</small></div><button id="right" aria-label="Move right">▶</button></nav>
+<section class="overlay" id="overlay"><div class="heroTruck"><div class="crane"></div><div class="deck"></div><div class="cab"><span>☀</span></div><i class="wheel w1"></i><i class="wheel w2"></i><i class="wheel w3"></i><i class="wheel w4"></i></div><span class="eyebrow">A SIMPLE THREE-LANE RUNNER</span><h1>TRAKWAY<br><em>TRAIL</em></h1><p id="overlayText">Move left and right. Stay on the Trakway. Avoid missing sections and collect panel stacks.</p><button class="start" id="start">START RUN</button><button class="how" id="how">HOW TO PLAY</button><p class="note">Stylised game only. Not operational guidance.</p></section>
+<section class="modal" id="modal" hidden><div><span class="eyebrow" id="modalEyebrow">RUN PAUSED</span><h2 id="modalTitle">PAUSED</h2><p id="modalText"></p><button id="resume" class="start">RESUME</button><button id="restart" class="how">RESTART</button><button id="home" class="how">MAIN MENU</button></div></section>
+</main><script src="game.js"></script></body></html>
