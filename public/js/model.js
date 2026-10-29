@@ -3,6 +3,8 @@ import {normalize,deliveryBonus} from './upgrades.js';
 export const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export const themes=['THE TOWN RUN','COUNTRY MILES','SUBURBAN SHORTCUT','HARD HAT HAUL'];
 export const ROAD_TYPES=['lowbridge','weakbridge','bus','noentry','narrow','grass','house','works'];
+/* Hazards that end the shift outright, each with its own comic vignette (see COMICS in game.js) and result-sheet line. */
+export const CRASHES={car:'Not a bumper car.',lowbridge:'Height restriction. Not a suggestion.',weakbridge:'Weight limit: less than you.',oil:'Slick move, driver.',sheep:'Ewe had one job.'};
 export const PICKUPS=['job','crumb','finish','taco','coin','night','boost'];
 export function seeded(seed){const fn=()=>{seed|=0;seed=(seed+0x6D2B79F5)|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;fn.state=seed;return((t^t>>>14)>>>0)/4294967296;};fn.state=seed;return fn;}
 export function jobPath(lane,rng,count=10){const p=[];for(let i=0;i<count;i++){if(i%2)lane=clamp(lane+(rng()>.5?1:-1),0,4);p.push(lane);}return p;}
@@ -16,7 +18,7 @@ export class Drive {
   this.events=[];this.items=[];this.distance=0;this.time=0;this.money=500;this.earned=0;this.fines=0;this.jobs=0;this.crumbs=0;this.horns=0;this.near=0;
   this.lane=2;this.x=2;this.trailer=2;this.rear=2;this.sway=0;this.angle=0;this.rapid=0;this.lastMove=-10;this.invulnerable=0;this.speed=180;
   this.row=900;this.nextJob=600;this.nextSheep=5200;this.nextNight=5600;this.nextBoost=2100;this.night=null;this.nights=0;this.boost=0;this.rested=this.upgrades.bunk?20+8*this.upgrades.bunk:0;
-  this.job=null;this.sheep=null;this.finished=false;this.endReason='';this.stage=0;this.slow=0;this.multiplier=1;this.id=0;this.sheepFail=0;this.combo=0;
+  this.job=null;this.sheep=null;this.finished=false;this.endReason='';this.stage=0;this.slow=0;this.multiplier=1;this.id=0;this.sheepFail=0;this.combo=0;this.crashKind='';this.lives=this.upgrades.insurance>=3?1:0;
  }
  snapshot(){const d={...this,rngState:this.rng.state};delete d.rng;d.events=[];return d;}
  static restore(data){if(!data||data.finished||!Number.isFinite(data.distance)||data.distance<0||!Array.isArray(data.items)||data.items.length>600||!Number.isFinite(data.money))return null;const g=new Drive();for(const k of Object.keys(g))if(k!=='rng'&&k!=='events'&&Object.hasOwn(data,k))g[k]=data[k];g.upgrades=normalize(g.upgrades);g.rng=seeded(data.rngState||1);g.events=[];return g;}
@@ -39,12 +41,14 @@ export class Drive {
   case 'finish':if(this.job){const pay=this.job.pay,dbl=this.job.double;this.jobs++;this.award(pay,'DELIVERY BANKED');this.emit('delivery',{pay,perfect:this.job.count===10,double:dbl});this.job=null;this.multiplier=1;}break;
   case 'taco':this.award(100+20*this.upgrades.washroom,'TACO BREAK. PAID.');this.slow=2.4;this.emit('taco');break;
   case 'coin':this.award(Math.round(15*(this.night?2:1)*(1+.05*this.upgrades.exhaust)),this.night?'DOUBLE BUBBLE':'ROAD BONUS');break;
-  case 'car':this.fine(110,'That’ll buff out.');break;case 'cone':case 'barrier':case 'works':this.fine(70,'Cones are not a slalom.');break;
-  case 'lowbridge':this.fine(180,'Low bridge. Tall invoice.');break;case 'weakbridge':this.fine(150,'Not rated for your dinner.');break;
+  case 'car':case 'lowbridge':case 'weakbridge':case 'oil':this.crash(e.type);break;case 'cone':case 'barrier':case 'works':this.fine(70,'Cones are not a slalom.');break;
   case 'narrow':this.fine(80,'Mirrors are wider than optimism.');break;case 'bus':this.fine(90,'You are not a bus.');break;
   case 'noentry':this.fine(120,'Sat-nav says… absolutely not.');break;case 'house':this.fine(170,'The porch was not a shortcut.');break;
-  case 'grass':this.fine(65,'Lawn care: £65.');break;case 'oil':this.rapid+=.55;this.slow=.6;this.emit('skid');break;
+  case 'grass':this.fine(65,'Lawn care: £65.');break;
  }}
+ crash(kind){if(this.finished)return;
+  if(this.lives>0){this.lives--;this.money-=400;this.fines+=400;this.combo=0;this.invulnerable=2.6;this.slow=1.2;this.rapid=0;this.emit('bailout',{kind,value:400});if(this.money<=0)this.end('The float has floated away.');return;}
+  this.crashKind=kind;this.emit('crash',{kind});this.end(CRASHES[kind]);}
  end(reason){if(this.finished)return;this.finished=true;this.endReason=reason;this.emit('end',{reason});}
  spawn(){const busy=this.job||this.sheep||this.night,pending=this.items.some(e=>['job','night'].includes(e.type)&&!e.done);
   if(!busy&&!pending){if(this.distance>this.nextNight-1100){this.add('night',this.distance+700,2);this.nextNight=this.distance+6500;}else if(this.distance>this.nextJob-1100){this.add('job',Math.max(this.nextJob,this.distance+700),2,{double:this.jobs>0&&this.rng()>.5});this.nextJob+=3300;}}
@@ -66,7 +70,7 @@ export class Drive {
   this.sway=clamp(Math.abs(this.x-this.trailer)*.3+this.rapid*(this.job?.double?.72:.32),0,1);
   if(this.sway>.98&&this.job?.double){this.fine(260,'JACKKNIFE! Double trouble.');this.emit('jackknife');this.items=this.items.filter(e=>!['crumb','finish'].includes(e.type));this.job=null;this.multiplier=1;this.rapid=0;}
   if(this.night&&this.distance>this.night.end){this.night=null;this.emit('dawn');}this.spawn();
-  if(this.sheep){const s=this.sheep,ahead=s.z-this.distance;if(ahead<Math.max(375,this.speed*1.5)&&!s.baa){s.baa=true;s.baaAt=this.time;this.emit('baa');}if(ahead<65&&!s.cleared){this.sheepFail=1;this.emit('sheepFail');this.end('Ewe had one job.');}if(ahead< -200&&s.cleared)this.sheep=null;}
+  if(this.sheep){const s=this.sheep,ahead=s.z-this.distance;if(ahead<Math.max(375,this.speed*1.5)&&!s.baa){s.baa=true;s.baaAt=this.time;this.emit('baa');}if(ahead<65&&!s.cleared){this.sheepFail=1;this.crashKind='sheep';this.emit('sheepFail');this.end(CRASHES.sheep);}if(ahead< -200&&s.cleared)this.sheep=null;}
   const pose=rigPose(laneX(this.x,this.distance),0,clamp((this.lane-this.x)*.16,-.2,.2),this.angle,clamp((this.trailer-this.rear)*.55,-.8,.8));
   for(const e of this.items){if(e.done)continue;const delta=e.z-this.distance,length=e.length||0,hazard=!PICKUPS.includes(e.type);
    const cabHit=delta<22&&delta+length> -24&&Math.abs(e.lane-this.x)<.52;

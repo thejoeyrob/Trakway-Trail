@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Drive,jobPath,seeded} from '../public/js/model.js';
+import {Drive,jobPath,seeded,CRASHES} from '../public/js/model.js';
 test('one input moves one of exactly five bounded positions',()=>{
  let g=new Drive({seed:1});g.move(-1);assert.equal(g.lane,1);
  for(let i=0;i<9;i++)g.move(-1);assert.equal(g.lane,0);
@@ -81,4 +81,24 @@ test('difficulty ramps with distance: hazards bunch up and the rig speeds up, bo
 });
 test('first sheep waits until the player has had time to take a job',()=>{
  assert.ok(new Drive({seed:9}).nextSheep>=5200);
+});
+test('car, low bridge, weak bridge and oil each end the shift with their own reason',()=>{
+ for(const kind of ['car','lowbridge','weakbridge','oil']){
+  const g=new Drive({seed:3});g.collect(g.add(kind,100,2));
+  assert.ok(g.finished,kind+' ends the shift');assert.equal(g.crashKind,kind);assert.equal(g.endReason,CRASHES[kind]);
+  assert.ok(g.events.some(e=>e.type==='crash'&&e.kind===kind));
+ }
+ const reasons=new Set(Object.values(CRASHES));assert.equal(reasons.size,Object.keys(CRASHES).length,'every vignette has a distinct line');
+});
+test('cones, bridges of the fine-only kind and the rest still just cost money',()=>{
+ for(const kind of ['cone','barrier','works','narrow','bus','noentry','house','grass']){
+  const g=new Drive({seed:3});g.collect(g.add(kind,100,2));assert.ok(!g.finished,kind);assert.ok(g.fines>0,kind);
+ }
+});
+test('level-3 insurance buys exactly one bail-out per shift; daily dispatch gets none',()=>{
+ const g=new Drive({seed:3,upgrades:{insurance:3}});assert.equal(g.lives,1);
+ g.collect(g.add('car',100,2));assert.ok(!g.finished);assert.equal(g.money,100);assert.ok(g.invulnerable>2);assert.ok(g.events.some(e=>e.type==='bailout'));
+ g.collect(g.add('lowbridge',200,2));assert.ok(g.finished);assert.equal(g.crashKind,'lowbridge');
+ assert.equal(new Drive({seed:3,mode:'daily',upgrades:{insurance:3}}).lives,0);
+ assert.equal(new Drive({seed:3,upgrades:{insurance:2}}).lives,0);
 });

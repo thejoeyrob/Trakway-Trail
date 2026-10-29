@@ -1,8 +1,9 @@
 /** Zero-dependency bundle sync for locked-down and cloud-only build environments. */
-import {readFile,writeFile,copyFile,rm,mkdir} from 'node:fs/promises';
+import {readFile,writeFile,copyFile,rm,mkdir,cp} from 'node:fs/promises';
 import path from 'node:path';
 const root=path.resolve(import.meta.dirname,'..'),dst=path.join(root,'ios/Truckin/web');
 await rm(dst,{recursive:true,force:true});for(const x of ['assets','js'])await mkdir(path.join(dst,x),{recursive:true});
+await cp(path.join(root,'public/assets/comic'),path.join(dst,'assets/comic'),{recursive:true});
 for(const f of ['sprites.webp','roads.webp','restrictions.webp','cover.webp','intro-jw.png','icon.png','farmer.webp','terrain.webp','extras.webp'])await copyFile(path.join(root,'public/assets',f),path.join(dst,'assets',f));
 await copyFile(path.join(root,'public/game.css'),path.join(dst,'game.css'));
 const files=['atlas.js','geometry.js','upgrades.js','model.js','audio.js','render.js','game.js'];
