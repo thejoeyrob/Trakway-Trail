@@ -24,7 +24,7 @@ falls back to an on-device leaderboard, and uses Game Center on iOS. Nothing els
 
 ## v1.4 changes
 
-- **More ways to end a shift, each with its own comic vignette** (like the original OH, FLOCK!): car → *OH, BUMPER!*, low bridge → *SUNROOF!*, weak bridge → *PLANK YOU!*, oil slick → *SPIN CYCLE!*. Tap to skip. Level-3 Mates’ Rates insurance gives one £400 bail-out per shift. Add a new one by adding a `CRASHES` line in `model.js` and a `COMICS` entry in `game.js`.
+- **More ways to end a shift, each with its own comic vignette** (like the original OH, FLOCK!): car → *OH, BUMPER!*, low bridge → *SUNROOF!*, weak bridge → *PLANK YOU!*, oil slick → *SPIN CYCLE!*, house → *KNOCK, KNOCK!*. Tap to skip. Level-3 Mates’ Rates insurance gives one £400 bail-out per shift. Add a new one by adding a `CRASHES` line in `model.js` and a `COMICS` entry in `game.js`.
 - Home: Garage / Leaderboard / Driver’s Guide are one tap away again (the hidden “Depot menu” is gone); personal best + wallet shown on legible pills.
 - Difficulty ramp: speed and hazard density climb with distance, so long shifts end on skill rather than boredom. First sheep now arrives after the first job.
 - HONK button pulses the instant the sheep bleat, so the one time-critical input can’t be missed.

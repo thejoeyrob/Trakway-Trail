@@ -86,3 +86,14 @@
 #comic.comic-sheep .sprite{animation:sheepPop .6s cubic-bezier(.2,1.6,.4,1) .3s both}
 @keyframes sheepPop{from{scale:.2}to{scale:1}}
 @media(prefers-reduced-motion:reduce){#comic *{animation-duration:.01s!important;animation-delay:0s!important;animation-iteration-count:1!important}}
+#comic.comic-house{background:radial-gradient(ellipse,#d6f09a,#4f9a52)}
+#comic.comic-house .home{width:300px;margin-left:-150px;margin-top:-170px;animation:houseWobble .5s ease-in-out .5s 4 alternate both,archSlam .5s ease-in both}
+#comic.comic-house .cab{width:96px;margin-left:-48px;margin-top:10px;animation:houseCab .6s cubic-bezier(.2,.9,.3,1) .15s both}
+#comic.comic-house .burst{left:80%;top:22%;width:150px;font-size:18px;background:#fff;color:#2c7a3a}
+@keyframes houseWobble{from{rotate:-2deg}to{rotate:2deg;translate:3px 0}}
+@keyframes houseCab{from{translate:0 420px}to{translate:0 -40px}}
+#comic.comic-house strong{font-size:40px;white-space:nowrap}
+#comic.comic-house .home{margin-top:-118px}
+#comic.comic-house .cab{margin-top:40px}
+#comic.comic-house .burst{width:170px;font-size:15px;letter-spacing:0;left:78%;top:14%}
+@keyframes houseCab{from{translate:0 420px}to{translate:0 -10px}}

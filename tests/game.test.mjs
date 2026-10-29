@@ -83,7 +83,7 @@ test('first sheep waits until the player has had time to take a job',()=>{
  assert.ok(new Drive({seed:9}).nextSheep>=5200);
 });
 test('car, low bridge, weak bridge and oil each end the shift with their own reason',()=>{
- for(const kind of ['car','lowbridge','weakbridge','oil']){
+ for(const kind of ['car','lowbridge','weakbridge','oil','house']){
   const g=new Drive({seed:3});g.collect(g.add(kind,100,2));
   assert.ok(g.finished,kind+' ends the shift');assert.equal(g.crashKind,kind);assert.equal(g.endReason,CRASHES[kind]);
   assert.ok(g.events.some(e=>e.type==='crash'&&e.kind===kind));
@@ -91,7 +91,7 @@ test('car, low bridge, weak bridge and oil each end the shift with their own rea
  const reasons=new Set(Object.values(CRASHES));assert.equal(reasons.size,Object.keys(CRASHES).length,'every vignette has a distinct line');
 });
 test('cones, bridges of the fine-only kind and the rest still just cost money',()=>{
- for(const kind of ['cone','barrier','works','narrow','bus','noentry','house','grass']){
+ for(const kind of ['cone','barrier','works','narrow','bus','noentry','grass']){
   const g=new Drive({seed:3});g.collect(g.add(kind,100,2));assert.ok(!g.finished,kind);assert.ok(g.fines>0,kind);
  }
 });
