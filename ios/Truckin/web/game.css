@@ -20,3 +20,24 @@
 .garage-hero{background:#1d4046;padding:0 0 10px}.garage-hero canvas{display:block;width:100%;height:230px;border-radius:14px}.garage-hero h3{margin-top:0}.upgrade>.extra{width:38px}.upgrade small{display:block;line-height:1.45}.upgrade button{min-width:55px;flex-shrink:0}.decal-picker{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:18px 0 6px}.decal-option{padding:7px 2px;background:#24464a;border:2px solid transparent;border-radius:12px}.decal-option.selected{border-color:var(--teal)}.decal-option .extra,.factory{display:block;width:47px;height:47px;margin:3px auto 6px}.factory{font-size:32px;line-height:47px}.decal-option b{display:block;font-size:7px}.decal-option small{display:block;font-size:8px;color:#ffdb78;letter-spacing:0;margin-top:4px}.taco-fact{border:1px solid #ffffff2b;background:#ffffff09;border-radius:12px;padding:11px;margin-top:16px;font-size:12px;line-height:1.65}.taco-fact summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:center;gap:7px;font-size:11px;font-weight:900}.taco-fact summary .sprite{width:27px}.taco-fact p{color:#cce1dc}
 @keyframes farmerEnter{from{transform:translateX(-220px)}to{transform:translateX(0)}}
 @media(max-height:700px){.home-bottom{bottom:calc(var(--safe-bottom) + 13px)}.daily{margin-top:8px}.play-caption{margin-top:10px}.menu-toggle{margin-top:9px;padding:10px 21px}.title{top:calc(var(--safe-top) + 60px)}.sheep-warning{top:calc(var(--safe-top) + 112px)}}
+
+/* ===== v1.4 home screen: stats + one-tap nav always visible (no hidden depot menu) ===== */
+#home .stats-row{display:flex;margin-bottom:10px}
+#home .stats-row strong{font-size:22px;text-shadow:0 2px 8px #0008}
+#home .stats-row small{text-shadow:0 1px 4px #000a;font-size:9px;letter-spacing:.8px}
+#home .home-nav{position:static;display:grid;grid-template-columns:repeat(3,1fr);margin:10px 0 0;padding:6px 0;background:#123c3bcc;border:1px solid #ffffff22;border-radius:22px;box-shadow:none}
+#home .home-nav button{font-size:9px;letter-spacing:.8px;gap:3px;padding:6px 0;min-height:52px}
+#home .home-nav button>span{font-size:20px;line-height:22px}
+#home .home-foot{display:flex;margin-top:10px}
+#home .daily{margin-top:12px}
+@media(max-height:700px){#home .stats-row{margin-bottom:6px}#home .stats-row strong{font-size:18px}#home .home-nav{margin-top:7px}#home .home-nav button{min-height:44px;font-size:8px}#home .home-nav button>span{font-size:17px;line-height:18px}#home .home-foot{margin-top:6px}#home .daily{margin-top:8px}}
+
+.garage-hero canvas{height:auto;aspect-ratio:420/290}
+
+/* v1.4: HONK pulses the moment the sheep bleat, so the one critical input is impossible to miss */
+@keyframes honkPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 #ffd34f99}50%{transform:scale(1.14);box-shadow:0 0 0 14px #ffd34f00}}
+#hornButton.alert{animation:honkPulse .38s ease-in-out infinite;background:#fff0a8}
+@media(prefers-reduced-motion:reduce){#hornButton.alert{animation:none;outline:4px solid #fff}}
+#home .stats-row>div{background:#0f2e32d9;border:1px solid #ffffff1f;border-radius:16px;padding:6px 14px 7px;backdrop-filter:blur(6px)}
+#home .stats-row>div:last-child{text-align:right}
+@media(max-height:700px){#home .stats-row>div{padding:4px 11px 5px;border-radius:13px}}

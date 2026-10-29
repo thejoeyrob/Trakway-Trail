@@ -1,4 +1,4 @@
-const CACHE='truckin-v1.3.0';
+const CACHE='truckin-v1.4.0';
 const ASSETS=['./play.html','./game.css','./js/game.js','./js/model.js','./js/geometry.js','./js/upgrades.js','./js/atlas.js','./js/render.js','./js/audio.js','./assets/sprites.webp','./assets/roads.webp','./assets/restrictions.webp','./assets/cover.webp','./assets/farmer.webp','./assets/terrain.webp','./assets/extras.webp','./assets/intro-jw.png','./assets/icon.png','./audio/roadtrip.mp3','./audio/cash.wav','./audio/crumb.wav','./audio/pickup.wav','./audio/delivery.wav','./audio/horn.wav','./audio/sheep.wav','./audio/flush.wav','./audio/brake.wav','./audio/click.wav','./audio/scatter.wav','./audio/bonus.wav'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('truckin-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));

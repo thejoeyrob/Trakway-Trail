@@ -72,3 +72,13 @@ test('burst of speed and taco cooldown have priority and expire',()=>{
 test('daily dispatch has stock equipment for fair Game Center daily scores',()=>{
  const g=new Drive({mode:'daily',upgrades:{bunk:3,exhaust:3,lights:3},truck:3,decal:3});assert.deepEqual(g.upgrades,defaultUpgrades());assert.equal(g.jobValue(100),100);assert.equal(g.rested,0);
 });
+test('difficulty ramps with distance: hazards bunch up and the rig speeds up, bounded',()=>{
+ const g=new Drive({seed:5});assert.equal(g.ramp(),0);
+ g.distance=31500;assert.ok(Math.abs(g.ramp()-.5)<1e-9);
+ g.distance=1e7;assert.equal(g.ramp(),1);
+ const a=new Drive({seed:5}),b=new Drive({seed:5});b.distance=63000;a.tick(.016);b.tick(.016);
+ assert.ok(b.speed>a.speed+40,'late-shift speed exceeds opening speed');
+});
+test('first sheep waits until the player has had time to take a job',()=>{
+ assert.ok(new Drive({seed:9}).nextSheep>=5200);
+});

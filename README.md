@@ -1,10 +1,35 @@
-# TRUCKIN’ & DRIVIN’ — v1.3 release candidate
+# TRUCKIN’ & DRIVIN’ — v1.4
 
-Original artwork-first, portrait, five-position British HGV arcade game, built for iOS 17+.
+Original artwork-first, portrait, five-position British HGV arcade game. Runs as an installable web app (PWA) and as a native iOS 17+ app.
 
-**START HERE:** `docs/CLOUD-BUILD-TESTFLIGHT.md` for GitHub → cloud macOS signing → real `.ipa` → App Store Connect/TestFlight. You don't need Codespaces or Xcode on your laptop.
+## Run it
 
-The package includes the complete **Xcode source project** in `ios/Truckin.xcodeproj`, a locally bundled offline playable app in `ios/Truckin/web`, original game code and artwork in `public`, 19 passing deterministic gameplay tests, App Store Connect configuration guidance and GitHub Actions workflows.
+```bash
+npm run dev      # static server -> http://localhost:8080  (no install step, no dependencies)
+npm test         # 21 deterministic gameplay tests (Node 22+)
+npm run check    # JS syntax, manifest and service-worker asset sanity check
+npm run sync-ios # regenerate the native offline bundle in ios/Truckin/web after editing public/
+```
+
+## Deploy the web version
+
+The game is a plain static site: **the web root is `public/`** (entry `play.html`, `/` rewrites to it).
+
+- **Vercel:** import the repo; `vercel.json` already sets `outputDirectory: public`, no build step.
+- **GitHub Pages / Netlify / Cloudflare Pages / any static host:** publish the `public/` folder.
+- **iPhone (TestFlight):** see `docs/CLOUD-BUILD-TESTFLIGHT.md` (GitHub Actions on macOS, no local Xcode needed).
+
+The online leaderboard needs a backend (the old ChatGPT-hosted one is archived in `legacy-chatgpt-host/`). Without it the game automatically
+falls back to an on-device leaderboard, and uses Game Center on iOS. Nothing else depends on a server.
+
+## v1.4 changes
+
+- Home: Garage / Leaderboard / Driver’s Guide are one tap away again (the hidden “Depot menu” is gone); personal best + wallet shown on legible pills.
+- Difficulty ramp: speed and hazard density climb with distance, so long shifts end on skill rather than boredom. First sheep now arrives after the first job.
+- HONK button pulses the instant the sheep bleat, so the one time-critical input can’t be missed.
+- Offline-first leaderboard: no more failed `/api` calls on static hosts; zero-score runs no longer clutter the board; honest labels.
+- Garage preview no longer stretched; PWA manifest works from any URL path; precache version bumped.
+- Repo restructured: game, iOS app, tests and docs at the top level; the ChatGPT-hosting scaffold archived in `legacy-chatgpt-host/`. Web CI added.
 
 ## Gameplay
 

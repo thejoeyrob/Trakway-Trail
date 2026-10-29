@@ -1,1 +1,29 @@
-{"name":"Truckin’ & Drivin’","short_name":"Truckin’","start_url":"/play.html","scope":"/","display":"standalone","background_color":"#142b2e","theme_color":"#142b2e","orientation":"portrait","icons":[{"src":"/assets/icon.png","sizes":"1024x1024","type":"image/png","purpose":"any"}]}
+{
+ "id": "/play.html",
+ "name": "Truckin’ & Drivin’",
+ "short_name": "Truckin’",
+ "description": "Big rigs. Little roads. Questionable decisions.",
+ "start_url": "./play.html",
+ "scope": "./",
+ "display": "standalone",
+ "orientation": "portrait",
+ "background_color": "#142b2e",
+ "theme_color": "#142b2e",
+ "categories": [
+  "games"
+ ],
+ "icons": [
+  {
+   "src": "./assets/icon.png",
+   "sizes": "1024x1024",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "./assets/icon.png",
+   "sizes": "1024x1024",
+   "type": "image/png",
+   "purpose": "maskable"
+  }
+ ]
+}
