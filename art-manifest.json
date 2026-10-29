@@ -1,0 +1,413 @@
+{
+  "method": "Built-in image_gen; original PNGs and WebP compressed equivalents. No vector or procedural replacement art.",
+  "assets": {
+    "sprites": {
+      "path": "public/assets/sprites.webp",
+      "original": "source-art/sprites.png",
+      "width": 1254,
+      "height": 1254,
+      "columns": 4,
+      "rows": 4,
+      "alpha": true,
+      "cells": {
+        "cabTeal": {
+          "cell": [
+            0,
+            0,
+            314,
+            314
+          ],
+          "visibleBounds": [
+            59,
+            16,
+            203,
+            287
+          ]
+        },
+        "trailer": {
+          "cell": [
+            314,
+            0,
+            313,
+            314
+          ],
+          "visibleBounds": [
+            394,
+            4,
+            151,
+            310
+          ]
+        },
+        "cabOrange": {
+          "cell": [
+            627,
+            0,
+            313,
+            314
+          ],
+          "visibleBounds": [
+            678,
+            16,
+            203,
+            287
+          ]
+        },
+        "cabPurple": {
+          "cell": [
+            940,
+            0,
+            314,
+            314
+          ],
+          "visibleBounds": [
+            990,
+            16,
+            203,
+            287
+          ]
+        },
+        "carBlue": {
+          "cell": [
+            0,
+            314,
+            314,
+            313
+          ],
+          "visibleBounds": [
+            71,
+            329,
+            175,
+            285
+          ]
+        },
+        "carRed": {
+          "cell": [
+            314,
+            314,
+            313,
+            313
+          ],
+          "visibleBounds": [
+            382,
+            330,
+            175,
+            281
+          ]
+        },
+        "cones": {
+          "cell": [
+            627,
+            314,
+            313,
+            313
+          ],
+          "visibleBounds": [
+            662,
+            362,
+            235,
+            221
+          ]
+        },
+        "barrier": {
+          "cell": [
+            940,
+            314,
+            314,
+            313
+          ],
+          "visibleBounds": [
+            960,
+            386,
+            268,
+            141
+          ]
+        },
+        "taco": {
+          "cell": [
+            0,
+            627,
+            314,
+            313
+          ],
+          "visibleBounds": [
+            42,
+            638,
+            244,
+            302
+          ]
+        },
+        "groceryJob": {
+          "cell": [
+            314,
+            627,
+            313,
+            313
+          ],
+          "visibleBounds": [
+            335,
+            642,
+            273,
+            298
+          ]
+        },
+        "finish": {
+          "cell": [
+            627,
+            627,
+            313,
+            313
+          ],
+          "visibleBounds": [
+            652,
+            637,
+            263,
+            303
+          ]
+        },
+        "coin": {
+          "cell": [
+            940,
+            627,
+            314,
+            313
+          ],
+          "visibleBounds": [
+            981,
+            655,
+            228,
+            234
+          ]
+        },
+        "sheep": {
+          "cell": [
+            0,
+            940,
+            314,
+            314
+          ],
+          "visibleBounds": [
+            70,
+            940,
+            172,
+            265
+          ]
+        },
+        "sheepFace": {
+          "cell": [
+            314,
+            940,
+            313,
+            314
+          ],
+          "visibleBounds": [
+            316,
+            940,
+            310,
+            275
+          ]
+        },
+        "flatbed": {
+          "cell": [
+            627,
+            940,
+            313,
+            314
+          ],
+          "visibleBounds": [
+            693,
+            940,
+            247,
+            293
+          ]
+        },
+        "oil": {
+          "cell": [
+            940,
+            940,
+            314,
+            314
+          ],
+          "visibleBounds": [
+            940,
+            951,
+            295,
+            266
+          ]
+        }
+      }
+    },
+    "restrictions": {
+      "path": "public/assets/restrictions.webp",
+      "original": "source-art/restrictions.png",
+      "width": 1774,
+      "height": 887,
+      "columns": 4,
+      "rows": 2,
+      "alpha": true,
+      "cells": {
+        "lowBridge": {
+          "cell": [
+            0,
+            0,
+            444,
+            444
+          ],
+          "visibleBounds": [
+            16,
+            84,
+            428,
+            306
+          ]
+        },
+        "weakBridge": {
+          "cell": [
+            444,
+            0,
+            443,
+            444
+          ],
+          "visibleBounds": [
+            444,
+            13,
+            359,
+            425
+          ]
+        },
+        "busLane": {
+          "cell": [
+            887,
+            0,
+            443,
+            444
+          ],
+          "visibleBounds": [
+            978,
+            12,
+            272,
+            419
+          ]
+        },
+        "noEntry": {
+          "cell": [
+            1330,
+            0,
+            444,
+            444
+          ],
+          "visibleBounds": [
+            1423,
+            50,
+            254,
+            368
+          ]
+        },
+        "narrowRoad": {
+          "cell": [
+            0,
+            444,
+            444,
+            443
+          ],
+          "visibleBounds": [
+            59,
+            474,
+            336,
+            388
+          ]
+        },
+        "sheepWarning": {
+          "cell": [
+            444,
+            444,
+            443,
+            443
+          ],
+          "visibleBounds": [
+            495,
+            474,
+            339,
+            389
+          ]
+        },
+        "house": {
+          "cell": [
+            887,
+            444,
+            443,
+            443
+          ],
+          "visibleBounds": [
+            901,
+            454,
+            414,
+            394
+          ]
+        },
+        "grass": {
+          "cell": [
+            1330,
+            444,
+            444,
+            443
+          ],
+          "visibleBounds": [
+            1361,
+            455,
+            383,
+            417
+          ]
+        }
+      }
+    },
+    "cover": {
+      "path": "public/assets/cover.webp",
+      "original": "source-art/cover.png",
+      "width": 1024,
+      "height": 1536,
+      "alpha": false
+    },
+    "roads": {
+      "path": "public/assets/roads.webp",
+      "original": "source-art/roads.png",
+      "width": 1254,
+      "height": 1254,
+      "alpha": false,
+      "tiles": {
+        "city": [
+          0,
+          0,
+          627,
+          627
+        ],
+        "country": [
+          627,
+          0,
+          627,
+          627
+        ],
+        "residential": [
+          0,
+          627,
+          627,
+          627
+        ],
+        "construction": [
+          627,
+          627,
+          627,
+          627
+        ]
+      },
+      "guidance": "Actual asphalt is local x ~170 to 450 per tile; recommended source crop local x=110..510 to make asphalt roughly 70 percent viewport width. Normal dashed two-lane center marking. Matching road baseline on quadrant boundaries. Scroll with source wrapping or mirrored repeats; warp horizontal scanlines for curves."
+    },
+    "icon": {
+      "path": "public/assets/icon.png",
+      "webp": "public/assets/icon.webp",
+      "original": "source-art/icon-source.png",
+      "width": 1024,
+      "height": 1024,
+      "alpha": false,
+      "usage": "Native App Store icon; opaque full bleed, no pre-rounded corners; generated source resampled to exact Apple dimensions."
+    }
+  }
+}

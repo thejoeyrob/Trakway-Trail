@@ -1,0 +1,77 @@
+{
+  "music": {
+    "files": [
+      "roadtrip.m4a",
+      "roadtrip.mp3",
+      "roadtrip.wav"
+    ],
+    "duration": 32,
+    "bpm": 120,
+    "loop": true,
+    "recommended_gain": 0.22,
+    "notes": "16-bar original arcade funk with round bass, clavinet, drawbar chords, surf-like lead and stereo drums. Use decoded AudioBuffer loop for seamless scheduling."
+  },
+  "effects": {
+    "cash": {
+      "duration": 0.85,
+      "gain": 0.5,
+      "use": "Bank job/taco money; warm ka-ching."
+    },
+    "crumb": {
+      "duration": 0.16,
+      "gain": 0.16,
+      "use": "Each collected breadcrumb; throttle to one voice per 70ms."
+    },
+    "pickup": {
+      "duration": 0.48,
+      "gain": 0.42,
+      "use": "Job or special item collected."
+    },
+    "delivery": {
+      "duration": 1.25,
+      "gain": 0.58,
+      "use": "Cash-out flag; short triumphant cadence."
+    },
+    "horn": {
+      "duration": 0.85,
+      "gain": 0.4,
+      "use": "Player horn; duck music briefly by 30%."
+    },
+    "sheep": {
+      "duration": 1.1499773242630384,
+      "gain": 0.58,
+      "use": "Timed horn cue: two comic baa syllables."
+    },
+    "flush": {
+      "duration": 1.35,
+      "gain": 0.48,
+      "use": "Money drains away on a fine/collision."
+    },
+    "brake": {
+      "duration": 1.6,
+      "gain": 0.56,
+      "use": "Sheep near-miss/fail transition; visual covers contact."
+    },
+    "engine": {
+      "duration": 2.0,
+      "gain": 0.07,
+      "use": "Optional looping diesel ambience; rate 0.9\u20131.3 follows speed."
+    },
+    "click": {
+      "duration": 0.09,
+      "gain": 0.18,
+      "use": "Menu and garage button feedback."
+    },
+    "scatter": {
+      "duration": 0.48,
+      "gain": 0.28,
+      "use": "Sheep run safely away after a timed horn."
+    },
+    "bonus": {
+      "duration": 0.5,
+      "gain": 0.35,
+      "use": "Clean driving bonus or newly unlocked item."
+    }
+  },
+  "provenance": "Entirely original procedural composition and sound design. No third-party recordings; sheep is a stylised formant-synthesised baa."
+}

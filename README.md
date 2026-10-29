@@ -1,0 +1,27 @@
+# TRUCKIN’ & DRIVIN’ — v1.3 release candidate
+
+Original artwork-first, portrait, five-position British HGV arcade game, built for iOS 17+.
+
+**START HERE:** `docs/CLOUD-BUILD-TESTFLIGHT.md` for GitHub → cloud macOS signing → real `.ipa` → App Store Connect/TestFlight. You don't need Codespaces or Xcode on your laptop.
+
+The package includes the complete **Xcode source project** in `ios/Truckin.xcodeproj`, a locally bundled offline playable app in `ios/Truckin/web`, original game code and artwork in `public`, 19 passing deterministic gameplay tests, App Store Connect configuration guidance and GitHub Actions workflows.
+
+## Gameplay
+
+Rendered 2D art and character sprites rather than block geometry. Roadway and five movement locations line up. Countryside, suburban, city and construction backdrops scroll seamlessly. Road-integrated weak/low bridges, bus lanes, no-entry lanes, narrow sections, gardens and works have advance warning signs in the affected road position. Drive the bigger articulated truck; physically pivoting trailers and meaningful sway; double-trailer assignments risk jackknifing.
+
+Pick up a delivery pallet, follow a paying golden breadcrumb trail, then hit the finish flag to bank it. Pick up tacos for a paid break and temporary slowdown, thermos coffee for a turbo burst, or a glowing night-shift moon for dim-road driving and forty double-value coins. Upgrade lights, suspension, steering response, stability, insurance, washroom, bunk and exhaust. Earn two custom liveries and three decal styles. Farmer calls “BEEP THE SHEEP!” with sheep audio cue; the original **OH FLOCK!** failure vignette remains intact. An optional US-flag “Why tacos?” explainer appears on the end-of-shift receipt.
+
+All currency, earnings and equipment upgrades are fictional in-game rewards; no ads or IAP. The JW EDS splash artwork is sourced from the user's Zombie Smash project.
+
+## Source and tests
+
+`public/play.html` — browser/PWA entry. `public/js/model.js` — deterministic game model. `public/js/geometry.js` — lane/rig coordinates. `public/js/render.js` — image-based rendering. `public/js/upgrades.js` — garage upgrades. `tests/game.test.mjs` — 19 deterministic tests; run with `node --test tests/game.test.mjs` (Node 22+).
+
+`node tools/sync-ios.mjs` generates the native WKWebView offline bundle, all image sprites, and embedded audio with **no npm installation or paid tools**. Upload everything to a private GitHub repository; the included Actions workflows compile on macOS.
+
+The browser leaderboard at `app/api` / `db` is a distinct hosted backend. The iPhone version uses optional Apple **Game Center** (all-time and daily high scores). See `docs/CLOUD-BUILD-TESTFLIGHT.md` for setup.
+
+## Release honesty
+
+The 19 model tests and all JavaScript syntax checks passed in this environment. The code has not been compiled with Xcode, signed by your Apple Team, accepted into TestFlight or tested on a physical iPhone here. The real-sheep WAV download occurs during the cloud release workflow, not in this offline ZIP. This is a **cloud-build-ready source package**, not an already signed `.ipa`, and Apple review approval cannot be guaranteed.

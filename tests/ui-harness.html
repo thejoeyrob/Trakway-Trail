@@ -1,0 +1,14 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Internal viewport checks</title></head><body style="margin:0;background:#25393c;display:flex;gap:25px;padding:15px;color:white"><div><p>iPhone SE · 375 × 667</p><iframe title="iPhone SE" src="/play.html" style="width:375px;height:667px;border:0" allow="autoplay"></iframe></div><div><p>iPhone · 390 × 844</p><iframe title="iPhone modern" src="/play.html" style="width:390px;height:844px;border:0" allow="autoplay"></iframe></div></body></html>
+<div style="width:360px;font:14px system-ui"><h2>API contract checks</h2><button id="testApi">Run local leaderboard checks</button><pre id="output" style="white-space:pre-wrap"></pre><script>
+document.getElementById('testApi').onclick=async()=>{
+const out=document.getElementById('output'),log=t=>out.textContent+=t+'\n';out.textContent='';
+try {
+let r=await fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({player:'qa-local-driver-2026',mode:'endless'})});log('Start: HTTP '+r.status);const start=await r.json();if(!r.ok){log(JSON.stringify(start));return;}
+const body={id:start.id,player:'qa-local-driver-2026',nickname:'Local QA',score:400,distance:10,jobs:1};
+r=await fetch('/api/leaderboard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});log('Save: HTTP '+r.status+' '+JSON.stringify(await r.json()));
+r=await fetch('/api/leaderboard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});log('Duplicate blocked: HTTP '+r.status);
+r=await fetch('/api/leaderboard');let d=await r.json();log('Read: HTTP '+r.status);log('Stored score found: '+d.scores?.some(s=>s.nickname==='Local QA'&&s.score===400));
+r=await fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({player:'<bad>'})});log('Invalid player blocked: HTTP '+r.status);
+}catch(e){log('FAILED '+e.message);}
+};
+</script></div>
