@@ -1,0 +1,4 @@
+original archived filename: Truckin-and-Drivin-v1.0.0-iOS-and-Source.zip
+size_bytes: 30424547
+sha256: 843968639035603f1cb9a7a540c5b6816a76957b0c0d7c18b2b96a0965a50664
+NOTE: The original >30,000,000-byte archive is NOT embedded as one object; every file inside it is preserved unchanged across the two split ZIPs.

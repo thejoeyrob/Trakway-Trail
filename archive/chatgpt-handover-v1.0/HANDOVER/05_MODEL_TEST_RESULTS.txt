@@ -1,0 +1,85 @@
+Verification on 2026-10-30, exact recovered 1.0.0 source. Command: node --test tests/game.test.mjs
+
+TAP version 13
+# Subtest: one input moves one of exactly five bounded positions
+ok 1 - one input moves one of exactly five bounded positions
+  ---
+  duration_ms: 4.093031
+  type: 'test'
+  ...
+# Subtest: 1000 delivery routes are reachable by single-position steps
+ok 2 - 1000 delivery routes are reachable by single-position steps
+  ---
+  duration_ms: 25.387994
+  type: 'test'
+  ...
+# Subtest: job rewards are provisional until finish flag and pay once
+ok 3 - job rewards are provisional until finish flag and pay once
+  ---
+  duration_ms: 2.21375
+  type: 'test'
+  ...
+# Subtest: double trailer pays double for the same trail
+ok 4 - double trailer pays double for the same trail
+  ---
+  duration_ms: 0.542871
+  type: 'test'
+  ...
+# Subtest: horn rejects early and late input, accepts tight timing window
+ok 5 - horn rejects early and late input, accepts tight timing window
+  ---
+  duration_ms: 1.341709
+  type: 'test'
+  ...
+# Subtest: missed sheep ends the shift without physical collision depiction
+ok 6 - missed sheep ends the shift without physical collision depiction
+  ---
+  duration_ms: 1.792408
+  type: 'test'
+  ...
+# Subtest: fines have grace period and insurance discount; bankruptcy ends run
+ok 7 - fines have grace period and insurance discount; bankruptcy ends run
+  ---
+  duration_ms: 0.376
+  type: 'test'
+  ...
+# Subtest: trailer collides with a hazard after the cab passes
+ok 8 - trailer collides with a hazard after the cab passes
+  ---
+  duration_ms: 1.025999
+  type: 'test'
+  ...
+# Subtest: frantic double-trailer swerves trigger a jackknife
+ok 9 - frantic double-trailer swerves trigger a jackknife
+  ---
+  duration_ms: 0.731696
+  type: 'test'
+  ...
+# Subtest: checkpoints preserve RNG, delivery and money exactly
+ok 10 - checkpoints preserve RNG, delivery and money exactly
+  ---
+  duration_ms: 3.383222
+  type: 'test'
+  ...
+# Subtest: fixed seed produces identical road events
+ok 11 - fixed seed produces identical road events
+  ---
+  duration_ms: 6.860814
+  type: 'test'
+  ...
+# Subtest: model cannot accrue time or money after finishing
+ok 12 - model cannot accrue time or money after finishing
+  ---
+  duration_ms: 0.226003
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 260.132463
+

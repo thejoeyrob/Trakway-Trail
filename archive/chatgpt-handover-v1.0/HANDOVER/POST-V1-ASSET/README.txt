@@ -1,0 +1,1 @@
+Generated after the recovered v1.0.0 ZIP as part of the same work-chat request. Transparent PNG, panicked British farmer pointing right, supplied for “beep the sheep” dialogue. It is not yet integrated in the source; preserve quality and transparency.

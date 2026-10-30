@@ -1,0 +1,16 @@
+import {mkdir,readFile,writeFile,copyFile,rm} from 'node:fs/promises';
+import path from 'node:path';
+import {build} from 'vite';
+const root=path.resolve(import.meta.dirname,'..'),dest=path.join(root,'ios/Truckin/web');
+await rm(dest,{recursive:true,force:true});
+for(const d of ['assets','js'])await mkdir(path.join(dest,d),{recursive:true});
+for(const f of ['sprites.webp','roads.webp','restrictions.webp','cover.webp','intro-jw.png','icon.png'])await copyFile(path.join(root,'public/assets',f),path.join(dest,'assets',f));
+await copyFile(path.join(root,'public/game.css'),path.join(dest,'game.css'));
+let html=await readFile(path.join(root,'public/play.html'),'utf8');
+html=html.replace('<link rel="manifest" href="./manifest.webmanifest">','').replace('<script type="module" src="./js/game.js"></script>','<script src="./js/audio-data.js"></script><script src="./js/game.bundle.js"></script>');
+await writeFile(path.join(dest,'play.html'),html);
+const data={};
+for(const n of ['roadtrip','cash','crumb','pickup','delivery','horn','sheep','flush','brake','click','scatter','bonus'])data[n]=(await readFile(path.join(root,'public/audio',n+(n==='roadtrip'?'.mp3':'.wav')))).toString('base64');
+await writeFile(path.join(dest,'js/audio-data.js'),'window.TRUCKIN_AUDIO_DATA='+JSON.stringify(data)+';');
+await build({configFile:false,publicDir:false,build:{lib:{entry:path.join(root,'public/js/game.js'),name:'Truckin',formats:['iife'],fileName:()=> 'game.bundle.js'},outDir:path.join(dest,'js'),emptyOutDir:false,target:'safari17',minify:true}});
+console.log('Native bundle synced: local artwork, scripts and embedded audio; no website connection required.');
