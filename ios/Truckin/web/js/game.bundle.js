@@ -42,8 +42,21 @@ const defaults=()=>Object.fromEntries(CATALOG.map(u=>[u.id,0]));
 const normalize=(v={})=>Object.fromEntries(CATALOG.map(u=>[u.id,Math.min(3,Math.max(0,Math.floor(Number(v?.[u.id])||0)))]));
 const DECALS=[{id:0,name:'FACTORY',cost:0,icon:null},{id:1,name:'GOLD WINGS',cost:700,icon:4},{id:2,name:'HOT HAUL',cost:900,icon:5},{id:3,name:'FLOCK ROYALTY',cost:1100,icon:6}];
 const deliveryBonus=(u,truck,decal)=>u.bunk*.03+(truck===2?.02:truck===3?.04:0)+(decal>0?.02:0);
+const TRUCKS=[{id:0,name:'THE OLD FAITHFUL',desc:'Your trusty turquoise mile muncher.',cost:0},{id:2,name:'THE TANGERINE DREAM',desc:'Sunset paint · +2% delivery earnings.',cost:1200},{id:3,name:'THE NIGHT SHIFT',desc:'Midnight paint · +4% delivery earnings.',cost:2800}];
+const DECAL_TAGS=['Factory finish. Honest and humble.','Golden wings for a golden driver. +2% on deliveries.','Flames on a lorry. Speed not included. +2% on deliveries.','Flock Royalty: the sheep approve. +2% on deliveries.'];
+const STATS={
+ stability:{label:'SWAY SETTLES',f:l=>l?l*20+'% faster':'stock'},
+ suspension:{label:'TRAILER ANGLE',f:l=>l?l*8+'% less':'stock'},
+ steering:{label:'STEERING SNAP',f:l=>l?l*12+'% quicker':'stock'},
+ lights:{label:'NIGHT VISION',f:l=>l?'+'+l*65+' m':'stock'},
+ exhaust:{label:'COIN PAY',f:l=>l?'+'+l*5+'%':'stock'},
+ washroom:{label:'TACO BREAK PAY',f:l=>'£'+(100+l*20)},
+ bunk:{label:'DELIVERY BONUS',f:l=>l?'+'+l*3+'%':'stock'},
+ insurance:{label:'FINES',f:l=>l?l*12+'% smaller'+(l>=3?' + bail-out':''):'full price'},
+ horn:{label:'HORN WINDOW',f:l=>(.75+l*.16).toFixed(2)+' s'}
+};
 
-module.exports={CATALOG,defaults,normalize,DECALS,deliveryBonus};
+module.exports={CATALOG,defaults,normalize,DECALS,deliveryBonus,TRUCKS,DECAL_TAGS,STATS};
 
 },
 "./model.js":function(module,exports,require){
@@ -139,16 +152,34 @@ module.exports={clamp,themes,ROAD_TYPES,CRASHES,PICKUPS,seeded,jobPath,biomeAt,h
 },
 "./audio.js":function(module,exports,require){
 class Sound {
- constructor(settings){this.settings=settings;this.ctx=null;this.buffers={};this.active=[];this.ready=false;this.loading=null;this.music=null;this.musicOffset=0;this.musicStarted=0;this.suspended=false;}
- async unlock(){try{if(!this.ctx){this.ctx=new (window.AudioContext||window.webkitAudioContext)();this.master=this.ctx.createGain();this.master.gain.value=.8;const comp=this.ctx.createDynamicsCompressor();comp.threshold.value=-12;comp.ratio.value=3;this.master.connect(comp);comp.connect(this.ctx.destination);this.musicGain=this.ctx.createGain();this.musicGain.connect(this.master);}await this.ctx.resume();if(!this.loading)this.loading=this.load();await this.loading;return true;}catch{return false;}}
- async load(){await Promise.all(['roadtrip','cash','crumb','pickup','delivery','horn','sheep','flush','brake','click','scatter','bonus'].map(async name=>{try{let bytes;if(window.TRUCKIN_AUDIO_DATA?.[name]){let b=atob(window.TRUCKIN_AUDIO_DATA[name]);bytes=Uint8Array.from(b,c=>c.charCodeAt(0)).buffer;}else{let r=await fetch('./audio/'+name+(name==='roadtrip'?'.mp3':'.wav'));if(!r.ok)return;bytes=await r.arrayBuffer();}this.buffers[name]=await this.ctx.decodeAudioData(bytes);}catch{}}));this.ready=true;}
- play(name,volume=1){if(!this.ctx||!this.buffers[name]||this.settings.sfx<=0||this.suspended)return;let gains={cash:.45,crumb:.16,pickup:.48,delivery:.48,horn:.4,sheep:.60,flush:.46,brake:.52,click:.28,scatter:.45,bonus:.4};const s=this.ctx.createBufferSource();s.buffer=this.buffers[name];const g=this.ctx.createGain();g.gain.value=(gains[name]||.4)*this.settings.sfx*volume;s.connect(g);g.connect(this.master);s.start();this.active.push(s);s.onended=()=>{this.active=this.active.filter(x=>x!==s);s.disconnect();g.disconnect();};}
+ constructor(settings){this.settings=settings;this.ctx=null;this.buffers={};this.active=[];this.ready=false;this.loading=null;this.music=null;this.musicOffset=0;this.musicStarted=0;this.suspended=false;this.menuWanted=false;this.menu=null;this.revSrc=null;this.timers=[];}
+ init(){if(this.ctx)return;this.ctx=new (window.AudioContext||window.webkitAudioContext)();this.master=this.ctx.createGain();this.master.gain.value=.8;const comp=this.ctx.createDynamicsCompressor();comp.threshold.value=-12;comp.ratio.value=3;this.master.connect(comp);comp.connect(this.ctx.destination);this.musicGain=this.ctx.createGain();this.musicGain.connect(this.master);}
+ /* Create the context and decode everything before the first tap, so the ignition fires the instant the player taps. */
+ preload(){try{this.init();if(!this.loading)this.loading=this.load();}catch{}return this.loading;}
+ async unlock(){try{this.init();const resumed=this.ctx.resume();if(!this.loading)this.loading=this.load();await resumed;await this.loading;return true;}catch{return false;}}
+ async load(){await Promise.all(['roadtrip','menumusic','ignition','idle','rev','cash','crumb','pickup','delivery','horn','sheep','flush','brake','click','scatter','bonus','jweds-jingle'].map(async name=>{try{let bytes;if(window.TRUCKIN_AUDIO_DATA?.[name]){let b=atob(window.TRUCKIN_AUDIO_DATA[name]);bytes=Uint8Array.from(b,c=>c.charCodeAt(0)).buffer;}else{let r=await fetch('./audio/'+name+(['roadtrip','menumusic','jweds-jingle'].includes(name)?'.mp3':'.wav'));if(!r.ok)return;bytes=await r.arrayBuffer();}this.buffers[name]=await this.ctx.decodeAudioData(bytes);}catch{}}));this.ready=true;}
+ play(name,volume=1){if(!this.ctx||!this.buffers[name]||this.settings.sfx<=0||this.suspended)return;let gains={ignition:.55,rev:.42,'jweds-jingle':.7,cash:.45,crumb:.16,pickup:.48,delivery:.48,horn:.4,sheep:.60,flush:.46,brake:.52,click:.28,scatter:.45,bonus:.4};const s=this.ctx.createBufferSource();s.buffer=this.buffers[name];const g=this.ctx.createGain();g.gain.value=(gains[name]||.4)*this.settings.sfx*volume;s.connect(g);g.connect(this.master);s.start();this.active.push(s);s.onended=()=>{this.active=this.active.filter(x=>x!==s);s.disconnect();g.disconnect();};}
  duck(){if(!this.musicGain||!this.ctx)return;const t=this.ctx.currentTime;this.musicGain.gain.cancelScheduledValues(t);this.musicGain.gain.setValueAtTime(this.settings.music*.07,t);this.musicGain.gain.setTargetAtTime(this.settings.music*.26,t+.9,.15);}
  musicOn(){if(this.music||!this.ctx||!this.buffers.roadtrip||this.suspended)return;this.music=this.ctx.createBufferSource();this.music.buffer=this.buffers.roadtrip;this.music.loop=true;this.music.loopEnd=32;this.music.connect(this.musicGain);this.musicGain.gain.value=this.settings.music*.26;this.musicStarted=this.ctx.currentTime;this.music.start(0,this.musicOffset%32);}
  musicOff(){if(this.music){this.musicOffset+=(this.ctx.currentTime-this.musicStarted);this.music.stop();this.music.disconnect();this.music=null;}}
- update(){if(this.musicGain)this.musicGain.gain.setTargetAtTime(this.settings.music*.26,this.ctx.currentTime,.1);}
- pause(){this.musicOff();this.active.forEach(s=>{try{s.stop();}catch{}});this.active=[];this.suspended=true;}
- resume(){this.suspended=false;this.ctx?.resume();this.musicOn();}
+ update(){if(this.musicGain)this.musicGain.gain.setTargetAtTime(this.settings.music*.26,this.ctx.currentTime,.1);if(this.menu?.music)this.menu.music.g.gain.setTargetAtTime(this.settings.music*.27,this.ctx.currentTime,.1);}
+
+ /* ---- depot / menu: ignition -> idle ticking + lounge music, rev on every swipe, soft honk on select ---- */
+ _ramp(g,to,secs){const t=this.ctx.currentTime;g.gain.cancelScheduledValues(t);g.gain.setValueAtTime(g.gain.value,t);g.gain.linearRampToValueAtTime(to,t+secs);}
+ _loop(name,gain,to,fade,offset=0){const src=this.ctx.createBufferSource();src.buffer=this.buffers[name];src.loop=true;const g=this.ctx.createGain();g.gain.value=0;src.connect(g);g.connect(this.master);src.start(0,offset);this._ramp(g,to,fade);return {src,g};}
+ menuOn(ignite=false){if(!this.ctx||this.suspended)return;this.menuWanted=true;if(this.menu)return;const m=this.menu={music:null,idle:null};
+  const musicLevel=this.settings.music*.27,idleLevel=this.settings.sfx*.16;
+  const start=()=>{if(this.menu!==m||!this.buffers.menumusic)return;m.music=this._loop('menumusic',0,musicLevel,ignite?3:1.4);m.idle=this.buffers.idle?this._loop('idle',0,idleLevel,.5):null;};
+  if(ignite&&this.buffers.ignition&&this.settings.sfx>0){this.play('ignition');this.timers.push(setTimeout(start,1500));}else start();}
+ menuOff(fade=.7){this.menuWanted=false;this.timers.forEach(clearTimeout);this.timers=[];const m=this.menu;this.menu=null;if(!m||!this.ctx)return;
+  for(const k of ['music','idle'])if(m[k]){this._ramp(m[k].g,0,fade);const {src,g}=m[k];setTimeout(()=>{try{src.stop();}catch{}src.disconnect();g.disconnect();},fade*1000+80);}}
+ rev(dir=1){if(!this.ctx||!this.buffers.rev||this.settings.sfx<=0||this.suspended)return;
+  if(this.revSrc){const {s,g}=this.revSrc;this._ramp(g,0,.09);setTimeout(()=>{try{s.stop();}catch{}},120);}
+  const s=this.ctx.createBufferSource();s.buffer=this.buffers.rev;s.playbackRate.value=.94+Math.random()*.14+(dir>0?.02:-.02);const g=this.ctx.createGain();g.gain.value=.4*this.settings.sfx;s.connect(g);g.connect(this.master);s.start();this.revSrc={s,g};s.onended=()=>{if(this.revSrc?.s===s)this.revSrc=null;s.disconnect();g.disconnect();};}
+ honk(){this.play('horn',.6);}
+ gameStop(){this.musicOff();this.active.forEach(s=>{try{s.stop();}catch{}});this.active=[];}
+ pause(){const wanted=this.menuWanted;this.menuOff(.01);this.menuWanted=wanted;this.musicOff();this.active.forEach(s=>{try{s.stop();}catch{}});this.active=[];this.suspended=true;}
+ resume(){this.suspended=false;this.ctx?.resume();if(this.menuWanted)this.menuOn(false);else this.musicOn();}
 }
 
 module.exports={Sound};
@@ -228,11 +259,185 @@ async function loadImages(){const names=['sprites','roads','restrictions','cover
 module.exports={SPR,Renderer,loadImages};
 
 },
+"./wheel.js":function(module,exports,require){
+/* Infinite swipe wheel: the focused item sits proud in the middle, neighbours shrink away either side and the
+   list wraps round forever. Used by the home menu and the garage. No dependencies.
+   opts: items[], render(item,i)->html, spacing(width)->px, scales[], onStep(index,dir), onSelect(index), onSettle(index) */
+class Wheel {
+ constructor(el,opts){
+  this.el=el;this.opts=opts;this.items=opts.items;this.scales=opts.scales||[1,.58,.4,.3];
+  this.pos=opts.start||0;this.target=this.pos;this.last=Math.round(this.pos);this.drag=null;this.raf=0;this.t0=0;this.enabled=true;
+  this.build();
+  el.addEventListener('pointerdown',e=>this.down(e));
+  el.addEventListener('pointermove',e=>this.move(e));
+  el.addEventListener('pointerup',e=>this.up(e));
+  el.addEventListener('pointercancel',e=>this.up(e,true));
+  el.addEventListener('wheel',e=>{if(!this.enabled)return;const d=Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY;if(Math.abs(d)<12)return;e.preventDefault();if(performance.now()-this.t0>180){this.t0=performance.now();this.step(d>0?1:-1);}},{passive:false});
+  this.layout();
+ }
+ get n(){return this.items.length;}
+ get index(){return ((Math.round(this.pos)%this.n)+this.n)%this.n;}
+ build(){this.el.innerHTML='';this.nodes=this.items.map((it,i)=>{const d=document.createElement('div');d.className='wheel-item';d.dataset.i=i;d.innerHTML=this.opts.render(it,i);this.el.appendChild(d);return d;});}
+ setItems(items,keep=true){const at=keep?this.index:0;this.items=items;this.build();this.pos=this.target=at;this.last=at;this.layout();}
+ refresh(){this.nodes.forEach((d,i)=>{d.innerHTML=this.opts.render(this.items[i],i);});this.layout();}
+ spacing(){return this.opts.spacing?this.opts.spacing(this.el.clientWidth):this.el.clientWidth*.37;}
+ layout(){
+  const S=this.spacing(),n=this.n,focus=Math.round(this.pos);
+  this.nodes.forEach((node,i)=>{
+   let d=((i-this.pos)%n+n)%n;if(d>n/2)d-=n;const a=Math.abs(d);
+   const x=Math.sign(d)*(a<=1?a*S:S+(a-1)*S*.6);
+   const sc=this.scales,s=a<1?sc[0]+(sc[1]-sc[0])*a:a<2?sc[1]+(sc[2]-sc[1])*(a-1):a<3?sc[2]+(sc[3]-sc[2])*(a-2):sc[3];
+   const f=Math.max(0,1-a*1.25);
+   node.style.transform='translate3d(calc(-50% + '+x.toFixed(1)+'px),0,0) scale('+s.toFixed(3)+')';
+   node.style.opacity=a>2.6?0:String(Math.max(0,1-a*.2));
+   node.style.zIndex=String(100-Math.round(a*10));
+   node.style.setProperty('--f',f.toFixed(3));
+   node.classList.toggle('focus',((focus%n)+n)%n===i);
+   node.style.pointerEvents=a>2.2?'none':'auto';
+  });
+ }
+ tick(now){
+  const dt=Math.min(.05,(now-this.lastT)/1000||.016);this.lastT=now;
+  if(!this.drag){this.pos+=(this.target-this.pos)*(1-Math.exp(-dt*11));if(Math.abs(this.target-this.pos)<.002){this.pos=this.target;}}
+  this.emitStep();this.layout();
+  if(this.drag||this.pos!==this.target)this.raf=requestAnimationFrame(t=>this.tick(t));
+  else{this.raf=0;this.opts.onSettle?.(this.index);}
+ }
+ kick(){if(!this.raf){this.lastT=performance.now();this.raf=requestAnimationFrame(t=>this.tick(t));}}
+ emitStep(){const r=Math.round(this.pos);if(r!==this.last){const dir=r>this.last?1:-1;this.last=r;this.opts.onStep?.(this.index,dir);}}
+ step(dir){if(!this.enabled)return;this.target=Math.round(this.target)+dir;this.kick();}
+ goTo(i){const n=this.n;let d=((i-this.index)%n+n)%n;if(d>n/2)d-=n;this.target=Math.round(this.target)+d;this.kick();}
+ select(){this.opts.onSelect?.(this.index);}
+ down(e){if(!this.enabled)return;this.drag={id:e.pointerId,x:e.clientX,start:this.pos,moved:false,at:performance.now(),lx:e.clientX,lt:performance.now(),v:0,target:e.target};this.el.setPointerCapture?.(e.pointerId);this.kick();}
+ move(e){const d=this.drag;if(!d||d.id!==e.pointerId)return;const dx=e.clientX-d.x;if(Math.abs(dx)>8)d.moved=true;
+  if(d.moved){this.pos=d.start-dx/this.spacing();this.target=this.pos;const now=performance.now(),dtm=Math.max(1,now-d.lt);d.v=(e.clientX-d.lx)/dtm;d.lx=e.clientX;d.lt=now;}}
+ up(e,cancel){const d=this.drag;if(!d||d.id!==e.pointerId)return;this.drag=null;
+  if(!d.moved&&!cancel&&performance.now()-d.at<350){const node=d.target?.closest?.('.wheel-item');if(node){const i=Number(node.dataset.i);if(i===this.index)this.select();else this.goTo(i);}return this.kick();}
+  const flick=-d.v/this.spacing()*90;this.target=Math.round(this.pos+Math.max(-1.6,Math.min(1.6,flick)));this.kick();}
+}
+
+module.exports={Wheel};
+
+},
+"./garage.js":function(module,exports,require){
+const {Wheel}=require("./wheel.js");
+const {CATALOG,DECALS,TRUCKS,DECAL_TAGS,STATS}=require("./upgrades.js");
+const {Renderer}=require("./render.js");
+const LOCK="<svg class='padlock' viewBox='0 0 24 24' aria-hidden='true'><path d='M7 10V7a5 5 0 0 1 10 0v3' fill='none' stroke='currentColor' stroke-width='2.6' stroke-linecap='round'/><rect x='4.5' y='10' width='15' height='11' rx='3' fill='currentColor'/><circle cx='12' cy='15.5' r='1.7' fill='#10343a'/></svg>";
+const TABS=[['trucks','TRUCKS'],['livery','LIVERY'],['upgrades','UPGRADES']];
+/* Showroom garage: pick a tab, swipe the wheel, and watch the turntable show the truck exactly as it will drive.
+   Unaffordable items can be previewed but not bought (padlock + "keep truckin'"). */
+class Garage{
+ constructor(o){Object.assign(this,o);this.tab='trucks';this.idx={trucks:0,livery:0,upgrades:0};this.angle=0;this.spark=[];this.pop=0;this.running=false;this.drag=null;
+  const q=s=>this.root.querySelector(s);this.q=q;this.canvas=q('#showroom');
+  q('#garageBack').onclick=()=>this.close();
+  q('#garageTabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b&&b.dataset.tab!==this.tab){this.sound.play('click');this.sound.rev(1);this.setTab(b.dataset.tab);}});
+  q('#gAction').onclick=()=>this.act();
+  const c=this.canvas;c.addEventListener('pointerdown',e=>{this.drag={x:e.clientX,a:this.angle};c.setPointerCapture?.(e.pointerId);});
+  c.addEventListener('pointermove',e=>{if(this.drag)this.angle=this.drag.a+(e.clientX-this.drag.x)*.014;});
+  const end=()=>{this.drag=null;};c.addEventListener('pointerup',end);c.addEventListener('pointercancel',end);
+  document.addEventListener('keydown',e=>{if(!this.running)return;if(e.key==='ArrowLeft'){this.wheel.step(-1);e.preventDefault();}else if(e.key==='ArrowRight'){this.wheel.step(1);e.preventDefault();}else if(e.key==='Escape'){this.close();e.preventDefault();}});
+ }
+ items(tab=this.tab){
+  if(tab==='trucks')return TRUCKS.map(t=>({kind:'truck',id:t.id,name:t.name,desc:t.desc,cost:t.cost}));
+  if(tab==='livery')return DECALS.map(d=>({kind:'decal',id:d.id,name:d.name,desc:DECAL_TAGS[d.id],cost:d.cost,icon:d.icon}));
+  return CATALOG.map(u=>({kind:'upgrade',id:u.id,name:u.name,desc:u.description,cost:u.cost,icon:u.icon}));
+ }
+ st(it){const p=this.profile,w=p.wallet;
+  if(it.kind==='truck'){const owned=p.owned.includes(it.id);return {owned,selected:p.truck===it.id,price:it.cost,locked:!owned&&w<it.cost};}
+  if(it.kind==='decal'){const owned=p.ownedDecals.includes(it.id);return {owned,selected:p.decal===it.id,price:it.cost,locked:!owned&&w<it.cost};}
+  const lv=p.upgrades[it.id],maxed=lv>=3,price=maxed?0:it.cost*(lv+1);return {lv,maxed,price,owned:lv>0,locked:!maxed&&w<price};
+ }
+ art(it){if(it.kind==='truck')return "<span class='sprite' data-sprite='"+it.id+"'></span>";if(it.icon===null)return "<span class='factory-dash'>FACTORY</span>";return "<span class='extra' data-extra='"+it.icon+"'></span>";}
+ card(it){const s=this.st(it);let meta;
+  if(it.kind==='upgrade')meta=Array.from({length:3},(_,i)=>"<i class='pip "+(i<s.lv?'on':'')+"'></i>").join('');
+  else meta=s.selected?'ON THE ROAD':s.owned?'OWNED':this.money(s.price);
+  return "<div class='gcard "+(s.locked?'locked':'')+" "+(s.selected?'equipped':'')+"'>"+this.art(it)+(s.locked?"<b class='lockbadge'>"+LOCK+"</b>":'')+"<span class='gname'>"+it.name.replace(/^THE /,'')+"</span><span class='gmeta'>"+meta+"</span></div>";}
+ open(){this.root.classList.remove('hidden');this.root.classList.add('opening');setTimeout(()=>this.root.classList.remove('opening'),600);this.running=true;
+  this.preview=new Renderer(this.canvas,this.images,this.profile.settings);
+  this.setTab(this.tab,true);this.last=performance.now();const loop=t=>{if(!this.running)return;this.draw((t-this.last)/1000);this.last=t;requestAnimationFrame(loop);};requestAnimationFrame(loop);}
+ close(){this.running=false;this.root.classList.add('hidden');this.sound.play('click');this.onExit?.();}
+ setTab(tab,first){this.tab=tab;const items=this.items();
+  this.root.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  let start=0;if(tab==='trucks')start=items.findIndex(i=>i.id===this.profile.truck);else if(tab==='livery')start=items.findIndex(i=>i.id===this.profile.decal);else start=this.idx.upgrades;
+  start=Math.max(0,start);
+  const el=this.q('#garageWheel');
+  if(this.wheel){this.wheel.setItems(items,false);this.wheel.pos=this.wheel.target=start;this.wheel.last=start;this.wheel.layout();}
+  else this.wheel=new Wheel(el,{items,start,render:it=>this.card(it),spacing:w=>Math.min(w*.3,128),scales:[1,.66,.5,.4],
+   onStep:(i,dir)=>{this.sound.rev(dir);this.haptic();this.update();},onSettle:i=>{this.idx[this.tab]=i;this.update();},onSelect:()=>this.tapCenter()});
+  this.update();}
+ cur(){return this.wheel.items[this.wheel.index];}
+ pv(){const p=this.profile,it=this.cur(),pv={truck:p.truck,decal:p.decal,upgrades:{...p.upgrades}};
+  if(it.kind==='truck')pv.truck=it.id;else if(it.kind==='decal')pv.decal=it.id;else pv.upgrades[it.id]=Math.min(3,p.upgrades[it.id]+(p.upgrades[it.id]<3?1:0));return pv;}
+ update(){const it=this.cur(),s=this.st(it),q=this.q;
+  q('#garageWallet').textContent=this.money(this.profile.wallet);
+  q('#gName').textContent=it.name;q('#gDesc').textContent=it.desc;
+  // stats row
+  let stat='';
+  if(it.kind==='upgrade'){const S=STATS[it.id],now=S.f(s.lv),nxt=s.maxed?null:S.f(s.lv+1);
+   stat="<div class='statrow'><span>"+S.label+"</span><span class='pips'>"+[1,2,3].map(i=>"<i class='pip "+(i<=s.lv?'on':!s.maxed&&i===s.lv+1?'next':'')+"'></i>").join('')+"</span><b>"+now+(nxt?" <em>→ "+nxt+"</em>":" <em>MAX</em>")+"</b></div>";}
+  else{const bonus=it.kind==='truck'?({0:0,2:2,3:4})[it.id]:(it.id>0?2:0);stat="<div class='statrow'><span>DELIVERY PAY</span><span class='pips'>"+[1,2,3,4].map(i=>"<i class='pip "+(i<=bonus/1?'on':'')+"'></i>").join('')+"</span><b>"+(bonus?'+'+bonus+'%':'standard')+"</b></div>";}
+  q('#gStats').innerHTML=stat;
+  // action button + notices
+  const a=q('#gAction'),note=q('#gNote'),badge=q('#stageBadge');a.className='big-button';a.disabled=false;note.textContent='';badge.className='stage-badge hidden';
+  const gap=Math.max(0,s.price-this.profile.wallet);
+  if(s.locked){a.className='big-button locked';a.innerHTML=LOCK+"<span>KEEP TRUCKIN’ · "+this.money(gap)+" TO GO</span>";
+   note.textContent='Preview only — look, but no touching. Earn '+this.money(gap)+' more and it’s yours.';badge.className='stage-badge lock';badge.innerHTML=LOCK+"<span>PREVIEW ONLY</span>";}
+  else if(it.kind==='upgrade'){if(s.maxed){a.className='big-button done';a.innerHTML="<span>FULLY LOADED ✓</span>";a.disabled=true;}else{a.innerHTML="<span>UPGRADE · "+this.money(s.price)+"</span><b>➜</b>";badge.className='stage-badge try';badge.innerHTML="<span>NEXT LEVEL</span>";}}
+  else if(s.selected){a.className='big-button done';a.innerHTML="<span>ON THE ROAD ✓</span>";a.disabled=true;}
+  else if(s.owned){a.innerHTML="<span>"+(it.kind==='truck'?'DRIVE THIS ONE':'FIT IT')+"</span><b>➜</b>";}
+  else{a.innerHTML="<span>BUY · "+this.money(s.price)+"</span><b>➜</b>";badge.className='stage-badge try';badge.innerHTML="<span>TRYING IT ON</span>";}
+  this.locked=!!s.locked;this.wheel.refresh();
+ }
+ tapCenter(){const it=this.cur(),s=this.st(it);if(it.kind!=='upgrade'&&s.owned&&!s.selected)this.act();else{this.sound.honk();this.bump();}}
+ bump(){this.pop=1;}
+ act(){const it=this.cur(),s=this.st(it),p=this.profile;
+  if(s.locked){this.sound.play('flush',.6);this.bump();this.root.classList.add('shake');setTimeout(()=>this.root.classList.remove('shake'),400);this.haptic('heavy');return;}
+  if(it.kind==='upgrade'){if(s.maxed)return;p.wallet-=s.price;p.upgrades[it.id]++;this.celebrate();}
+  else if(it.kind==='truck'){if(!s.owned){p.wallet-=s.price;p.owned.push(it.id);this.celebrate();}else this.sound.honk();p.truck=it.id;}
+  else{if(!s.owned){p.wallet-=s.price;p.ownedDecals.push(it.id);this.celebrate();}else this.sound.honk();p.decal=it.id;}
+  this.save();this.onChange?.();this.update();}
+ celebrate(){this.sound.play('cash');this.sound.honk();this.sound.rev(1);this.haptic('heavy');this.bump();
+  for(let i=0;i<46;i++){const a=Math.random()*6.283,v=70+Math.random()*190;this.spark.push({x:0,y:0,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:.8+Math.random()*.7,age:0,r:2+Math.random()*4});}
+  this.root.classList.add('flash');setTimeout(()=>this.root.classList.remove('flash'),500);}
+ draw(dt){const r=this.preview,c=r.ctx,W=420,H=r.H;if(!W||!H||!isFinite(H))return;dt=Math.min(.05,Math.max(0,dt||0));
+  r.time+=dt;if(!this.drag)this.angle+=dt*.55;this.pop=Math.max(0,this.pop-dt*2.4);
+  c.clearRect(0,0,W,H);
+  // showroom floor + spotlight
+  const bg=c.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#0d2a30');bg.addColorStop(1,'#123b40');c.fillStyle=bg;c.fillRect(0,0,W,H);
+  const cx=W/2,cy=H*.5,R=Math.min(W*.44,H*.47);
+  const pool=c.createRadialGradient(cx,cy,R*.2,cx,cy,R*1.9);pool.addColorStop(0,'#3aa6a6aa');pool.addColorStop(.5,'#1c5b5f55');pool.addColorStop(1,'#0d2a3000');c.fillStyle=pool;c.fillRect(0,0,W,H);
+  c.strokeStyle='#ffffff10';c.lineWidth=1;for(let x=-W;x<2*W;x+=42){c.beginPath();c.moveTo(cx+(x-cx)*1.0,0);c.lineTo(cx+(x-cx)*1.9,H);c.stroke();}
+  // turntable
+  c.save();c.translate(cx,cy);
+  c.fillStyle='#04141a';c.beginPath();c.arc(0,6,R+10,0,6.283);c.fill();
+  const rim=c.createLinearGradient(0,-R,0,R);rim.addColorStop(0,'#9fb7bd');rim.addColorStop(.5,'#4f666d');rim.addColorStop(1,'#243a40');c.fillStyle=rim;c.beginPath();c.arc(0,0,R+7,0,6.283);c.fill();
+  const plate=c.createRadialGradient(0,-R*.3,R*.1,0,0,R);plate.addColorStop(0,this.locked?'#1f6f86':'#2b6a70');plate.addColorStop(1,'#10343a');c.fillStyle=plate;c.beginPath();c.arc(0,0,R,0,6.283);c.fill();
+  c.rotate(this.angle);c.strokeStyle='#ffffff22';c.lineWidth=2;for(let i=0;i<48;i++){c.rotate(Math.PI/24);c.beginPath();c.moveTo(R-(i%4?6:14),0);c.lineTo(R-1,0);c.stroke();}
+  c.strokeStyle=this.locked?'#7be7ff':'#ffd35b';c.globalAlpha=.55;c.lineWidth=3;c.setLineDash(this.locked?[8,7]:[]);c.beginPath();c.arc(0,0,R*.9,0,6.283);c.stroke();c.setLineDash([]);c.globalAlpha=1;
+  c.restore();
+  // truck on the turntable
+  const pv=this.pv(),k=(R*1.7)/175*(1+this.pop*.07);
+  c.save();c.translate(cx,cy);c.rotate(this.angle);c.scale(k,k);
+  if(this.locked){c.shadowColor='#6fe6ff';c.shadowBlur=18;}else{c.shadowColor='#000b';c.shadowBlur=14;c.shadowOffsetY=7;}
+  r.rig({x:2,lane:2,trailer:2,rear:2,angle:0,upgrades:pv.upgrades,decal:pv.decal},pv.truck,0,-44,this.locked?.92:1);
+  c.restore();
+  if(this.locked){c.save();c.beginPath();c.arc(cx,cy,R,0,6.283);c.clip();c.fillStyle='#8ff3ff1f';const off=(r.time*28)%6;for(let y=-R+off;y<R;y+=6)c.fillRect(cx-R,cy+y,R*2,2);c.restore();}
+  // sparkles
+  c.save();c.translate(cx,cy);for(const s of this.spark){s.age+=dt;s.x+=s.vx*dt;s.y+=s.vy*dt;s.vy+=140*dt;const a=Math.max(0,1-s.age/s.life);c.globalAlpha=a;c.fillStyle='#fff3b0';c.beginPath();c.moveTo(s.x,s.y-s.r*2);c.lineTo(s.x+s.r*.6,s.y-s.r*.6);c.lineTo(s.x+s.r*2,s.y);c.lineTo(s.x+s.r*.6,s.y+s.r*.6);c.lineTo(s.x,s.y+s.r*2);c.lineTo(s.x-s.r*.6,s.y+s.r*.6);c.lineTo(s.x-s.r*2,s.y);c.lineTo(s.x-s.r*.6,s.y-s.r*.6);c.closePath();c.fill();}c.restore();this.spark=this.spark.filter(s=>s.age<s.life);
+ }
+}
+
+module.exports={Garage};
+
+},
 "./game.js":function(module,exports,require){
 const {CATALOG,DECALS,defaults : defaultUpgrades,normalize : normalizeUpgrades}=require("./upgrades.js");
 const {Drive,clamp,themes,CRASHES}=require("./model.js");
 const {Renderer,loadImages}=require("./render.js");
 const {Sound}=require("./audio.js");
+const {Wheel}=require("./wheel.js");
+const {Garage}=require("./garage.js");
 const $=id=>document.getElementById(id),money=v=>'£'+Math.max(0,Math.round(v)).toLocaleString('en-GB');
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const KEY='truckin-save-v1';
@@ -244,19 +449,19 @@ profile.scores=Array.isArray(profile.scores)?profile.scores.slice(0,30):[];
 profile.owned=Array.isArray(profile.owned)?profile.owned.filter(v=>[0,2,3].includes(v)):[0];if(!profile.owned.includes(0))profile.owned.push(0);if(!profile.owned.includes(profile.truck))profile.truck=0;
 profile.ownedDecals=Array.isArray(profile.ownedDecals)?profile.ownedDecals.filter(v=>[0,1,2,3].includes(v)):[0];if(!profile.ownedDecals.includes(0))profile.ownedDecals.push(0);if(!profile.ownedDecals.includes(profile.decal))profile.decal=0;
 let storageWarning=false;function save(){if(game&&!game.finished&&['playing','paused','countdown'].includes(state)){profile.active={data:game.snapshot(),id:onlineId};}else if(game?.finished){delete profile.active;}try{localStorage.setItem(KEY,JSON.stringify(profile));bridge('saveProgress',{data:JSON.stringify(profile)});}catch{storageWarning=true;}}
-const sound=new Sound(profile.settings);let renderer,game=null,state='home',activeSheet='',lastTime=0,toastUntil=0,onlineId=null,runRequest=null,runSerial=0,ending=false,scoreMode='all',leaderTimer=null,wasFocus=null,lastHorn=-10,comicTimer=null,countdownTimer=null;
+const sound=new Sound(profile.settings);sound.preload();let renderer,game=null,state='home',activeSheet='',lastTime=0,toastUntil=0,onlineId=null,runRequest=null,runSerial=0,ending=false,scoreMode='all',leaderTimer=null,wasFocus=null,lastHorn=-10,comicTimer=null,countdownTimer=null;
 const native=()=>!!window.webkit?.messageHandlers?.truckin;
 let backendUp=true;/* flips false after the first failed /api call so static hosts don't spam 404s */
 function bridge(action,data={}){if(native())window.webkit.messageHandlers.truckin.postMessage({action,...data});}
 function haptic(type='light'){if(!profile.settings.haptics)return;if(native())bridge('haptic',{style:type});else navigator.vibrate?.(type==='heavy'?[25,30,20]:12);}
-function updateHome(){if(renderer)$('playLabel').textContent=profile.active?'RESUME YOUR SHIFT':'HIT THE ROAD';$('homeBest').textContent=money(profile.best);$('homeWallet').textContent=money(profile.wallet);}
+function updateHome(){if(menuWheel)refreshMenu();$('menuStats').textContent='PERSONAL BEST '+money(profile.best)+'  ·  GARAGE WALLET '+money(profile.wallet);}
 function toast(text,detail='',seconds=2){$('floatingToast').innerHTML=escape(text)+(detail?'<small>'+escape(detail)+'</small>':'');$('floatingToast').classList.remove('hidden');toastUntil=performance.now()+seconds*1000;}
 function openSheet(title,eyebrow,body,name){activeSheet=name;wasFocus=document.activeElement;$('sheetTitle').textContent=title;$('sheetEyebrow').textContent=eyebrow;$('sheetBody').innerHTML=body;$('sheet').classList.remove('hidden');$('closeSheet').classList.remove('hidden');setTimeout(()=>$('closeSheet').focus(),10);}
 function closeSheet(){if(activeSheet==='pause'){resume();return;}if(activeSheet==='result'){home();return;}clearInterval(leaderTimer);leaderTimer=null;$('sheet').classList.add('hidden');activeSheet='';if(wasFocus?.isConnected)wasFocus.focus();}
-function home(){runSerial++;clearTimeout(comicTimer);clearTimeout(countdownTimer);ending=false;state='home';game=null;onlineId=null;$('comic').classList.add('hidden');$('hud').classList.add('hidden');$('home').classList.remove('hidden');$('sheet').classList.add('hidden');activeSheet='';clearInterval(leaderTimer);sound.pause();updateHome();}
+function home(){runSerial++;clearTimeout(comicTimer);clearTimeout(countdownTimer);ending=false;state='home';game=null;onlineId=null;$('comic').classList.add('hidden');$('hud').classList.add('hidden');$('home').classList.remove('hidden');$('sheet').classList.add('hidden');activeSheet='';clearInterval(leaderTimer);sound.gameStop();sound.suspended=false;updateHome();if(homeMode==='menu')enterMenu(false);}
 function askStart(mode){sound.unlock();if(mode==='endless'&&profile.active){restoreShift();return;}if(!profile.name){openSheet('YOUR SHIFT STARTS HERE','SIGN THE TACHO',"<p class='sheet-copy'>A full tank, a £500 float, and a sat-nav with questionable judgement. Let’s make a living.</p><label class='field-label' for='driverName'>DRIVER NAME</label><input id='driverName' type='text' maxlength='16' autocomplete='nickname' placeholder='Road legend' value=''><p class='status-note'>Your name appears on the leaderboard. Game earnings are fictional.</p><button class='big-button' id='nameGo'>LET’S GET TRUCKIN’ <b>➜</b></button>",'name');$('nameGo').onclick=()=>{profile.name=$('driverName').value.replace(/[^a-zA-Z0-9 _.-]/g,'').trim().slice(0,16)||'Road legend';save();begin(mode);};$('driverName').onkeydown=e=>{if(e.key==='Enter')$('nameGo').click();};}else begin(mode);}
-function restoreShift(){const restored=Drive.restore(profile.active?.data);if(!restored){delete profile.active;save();begin();return;}game=restored;onlineId=profile.active.id||null;runRequest=null;runSerial++;ending=false;state='playing';$('home').classList.add('hidden');$('hud').classList.remove('hidden');$('tutorialHint').classList.add('hidden');renderer.draw(game,0,profile.truck);updateHud();sound.suspended=false;sound.unlock().then(()=>{if(state==='playing')sound.musicOn();});toast('WELCOME BACK, DRIVER','Right where you parked it.',2);}
-function begin(mode='endless'){delete profile.active;if(!renderer)return;clearInterval(leaderTimer);clearTimeout(comicTimer);ending=false;lastHorn=-10;const stamp=Date.now();const seed=mode==='daily'?Number(new Date().toISOString().slice(0,10).replace(/-/g,'')):stamp;game=new Drive({seed,mode,upgrades:profile.upgrades,truck:profile.truck,decal:profile.decal});onlineId=null;const serial=++runSerial;state='countdown';$('home').classList.add('hidden');$('sheet').classList.add('hidden');$('comic').classList.add('hidden');$('hud').classList.remove('hidden');$('jobBox').classList.add('hidden');$('sheepWarning').classList.add('hidden');$('tutorialHint').classList.toggle('hidden',profile.tutorial);activeSheet='';sound.suspended=false;sound.unlock().then(()=>{if(serial===runSerial&&state!=='paused'&&state!=='home')sound.musicOn();});if(!native()&&backendUp){runRequest=fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({player:profile.player,mode}),signal:AbortSignal.timeout(8000)}).then(r=>r.ok?r.json():null).then(d=>{if(!d)backendUp=false;if(serial===runSerial)onlineId=d?.id||null;return d?.id||null;}).catch(()=>{backendUp=false;return null;});}else runRequest=null;toast('SHINY SIDE UP!',mode==='daily'?'120 seconds · same route · stock handling':'£500 float · swipe one position at a time',1.5);renderer.fx=[];renderer.shake=0;renderer.draw(game,0,profile.truck);updateHud();countdownTimer=setTimeout(()=>{if(state==='countdown'){state='playing';$('road').focus();}},1100);}
+function restoreShift(){const restored=Drive.restore(profile.active?.data);if(!restored){delete profile.active;save();begin();return;}game=restored;onlineId=profile.active.id||null;runRequest=null;runSerial++;ending=false;state='playing';$('home').classList.add('hidden');$('hud').classList.remove('hidden');$('tutorialHint').classList.add('hidden');renderer.draw(game,0,profile.truck);updateHud();sound.suspended=false;sound.menuOff(.6);sound.unlock().then(()=>{if(state==='playing')sound.musicOn();});toast('WELCOME BACK, DRIVER','Right where you parked it.',2);}
+function begin(mode='endless'){delete profile.active;if(!renderer)return;clearInterval(leaderTimer);clearTimeout(comicTimer);ending=false;lastHorn=-10;const stamp=Date.now();const seed=mode==='daily'?Number(new Date().toISOString().slice(0,10).replace(/-/g,'')):stamp;game=new Drive({seed,mode,upgrades:profile.upgrades,truck:profile.truck,decal:profile.decal});onlineId=null;const serial=++runSerial;state='countdown';$('home').classList.add('hidden');$('sheet').classList.add('hidden');$('comic').classList.add('hidden');$('hud').classList.remove('hidden');$('jobBox').classList.add('hidden');$('sheepWarning').classList.add('hidden');$('tutorialHint').classList.toggle('hidden',profile.tutorial);activeSheet='';sound.suspended=false;sound.menuOff(.8);sound.rev(1);sound.unlock().then(()=>{if(serial===runSerial&&state!=='paused'&&state!=='home')sound.musicOn();});if(!native()&&backendUp){runRequest=fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({player:profile.player,mode}),signal:AbortSignal.timeout(8000)}).then(r=>r.ok?r.json():null).then(d=>{if(!d)backendUp=false;if(serial===runSerial)onlineId=d?.id||null;return d?.id||null;}).catch(()=>{backendUp=false;return null;});}else runRequest=null;toast('SHINY SIDE UP!',mode==='daily'?'120 seconds · same route · stock handling':'£500 float · swipe one position at a time',1.5);renderer.fx=[];renderer.shake=0;renderer.draw(game,0,profile.truck);updateHud();countdownTimer=setTimeout(()=>{if(state==='countdown'){state='playing';$('road').focus();}},1100);}
 function pause(){if(!['playing','countdown'].includes(state))return;clearTimeout(countdownTimer);state='paused';save();sound.pause();openSheet('PARKED UP','TAKE A BREATHER',"<p class='sheet-copy'>Your truck is safe here. The clock and the road are stopped.</p><button class='big-button' id='resumeButton'>BACK ON THE ROAD <b>➜</b></button><button class='secondary' id='finishShift'>Finish shift & bank earnings</button><p class='status-note'>An unfinished delivery won’t be paid.</p>",'pause');$('resumeButton').onclick=resume;$('finishShift').onclick=()=>{if(game){game.end('Clocked off. Kettle on.');handleEvents();}};}
 function resume(){if(!game||game.finished)return;state='playing';$('sheet').classList.add('hidden');activeSheet='';lastTime=performance.now();sound.resume();$('road').focus();}
 function honk(){if(state!=='playing'||!game)return;let now=performance.now()/1000;if(now-lastHorn<.6)return;lastHorn=now;game.horn();haptic();handleEvents();}
@@ -307,40 +512,48 @@ async function finish(reason,kind=''){if(ending)return;ending=true;state='ended'
  if(kind){$('comic').onclick=()=>{if(performance.now()-comicAt>900){clearTimeout(comicTimer);show();}};comicTimer=setTimeout(show,3200);}else show();
  if(!native()&&backendUp){let id=onlineId||await runRequest;let msg='Saved on this device. Online board is unavailable.';if(id){try{const r=await fetch('/api/leaderboard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,player:profile.player,nickname:profile.name,score:result.score,distance:result.distance,jobs:result.jobs}),signal:AbortSignal.timeout(8000)});msg=r.ok?'Your shift is on the live leaderboard.':'Saved on this device. This run could not be posted.';}catch{}}const waitStatus=()=>{if(activeSheet==='result'&&$('saveStatus'))$('saveStatus').textContent=msg;};waitStatus();if(kind)setTimeout(waitStatus,3300);}
 }
-const trucks=[{id:0,name:'THE OLD FAITHFUL',desc:'Your trusty turquoise mile muncher.',cost:0},{id:2,name:'THE TANGERINE DREAM',desc:'Sunset paint · +2% delivery earnings.',cost:1200},{id:3,name:'THE NIGHT SHIFT',desc:'Midnight paint · +4% delivery earnings.',cost:2800}];
-function garage(){
- const t=trucks.find(t=>t.id===profile.truck);
- const picks=trucks.map(t=>"<button class='truck-option "+(profile.truck===t.id?'selected':'')+"' data-truck='"+t.id+"'><span class='sprite' data-sprite='"+t.id+"'></span>"+t.name.split('THE ')[1]+"<small>"+(profile.owned.includes(t.id)?profile.truck===t.id?'SELECTED':'OWNED':money(t.cost))+"</small></button>").join('');
- const decals=DECALS.map(d=>"<button class='decal-option "+(profile.decal===d.id?'selected':'')+"' data-decal='"+d.id+"'>"+(d.icon!==null?"<span class='extra' data-extra='"+d.icon+"'></span>":"<span class='factory'>—</span>")+"<b>"+d.name+"</b><small>"+(profile.ownedDecals.includes(d.id)?profile.decal===d.id?'FITTED':'OWNED':money(d.cost))+"</small></button>").join('');
- const upgrades=CATALOG.map(u=>{const lv=profile.upgrades[u.id],cost=u.cost*(lv+1);return "<div class='upgrade'><span class='extra' data-extra='"+u.icon+"'></span><div><b>"+u.name+" <span class='yellow'>"+lv+"/3</span></b><small>"+u.description+"</small></div><button data-upgrade='"+u.id+"' "+(lv>=3||profile.wallet<cost?'disabled':'')+">"+(lv>=3?'MAXED':money(cost))+"</button></div>";}).join('');
- openSheet('YOUR GARAGE','NIGHTING OUT, LIVING WELL',"<div class='garage-hero'><canvas id='garageRig' width='420' height='290' aria-label='Your truck and selected upgrades'></canvas><h3>"+t.name+"</h3><p>"+t.desc+"</p></div><div class='wallet-line'><span>Garage wallet</span><b>"+money(profile.wallet)+"</b></div><div class='truck-picker'>"+picks+"</div><p class='status-note'>Orange livery +2% deliveries. Purple livery +4% deliveries.</p><div class='decal-picker'>"+decals+"</div><p class='status-note'>A custom roof decal gives another 2% on deliveries.</p>"+upgrades+"<p class='status-note'>Everything is earned in game. No purchases. Upgrades are disabled in Daily Dispatch to keep it fair.</p>",'garage');
- if(renderer){const c=$('garageRig'),preview=new Renderer(c,renderer.images,profile.settings);preview.ctx.fillStyle='#1c4045';preview.ctx.fillRect(0,0,420,290);preview.rig({x:2,lane:2,trailer:2,rear:2,angle:0,upgrades:profile.upgrades,decal:profile.decal},profile.truck,210,70,1);}
- document.querySelectorAll('[data-truck]').forEach(btn=>btn.onclick=()=>{const t=trucks.find(x=>x.id===Number(btn.dataset.truck));if(!profile.owned.includes(t.id)){if(profile.wallet<t.cost)return;profile.wallet-=t.cost;profile.owned.push(t.id);}profile.truck=t.id;save();sound.play('click');updateHome();garage();});
- document.querySelectorAll('[data-decal]').forEach(btn=>btn.onclick=()=>{const d=DECALS.find(x=>x.id===Number(btn.dataset.decal));if(!profile.ownedDecals.includes(d.id)){if(profile.wallet<d.cost)return;profile.wallet-=d.cost;profile.ownedDecals.push(d.id);}profile.decal=d.id;save();sound.play('click');updateHome();garage();});
- document.querySelectorAll('[data-upgrade]').forEach(btn=>btn.onclick=()=>{const u=CATALOG.find(x=>x.id===btn.dataset.upgrade),lv=profile.upgrades[u.id],cost=u.cost*(lv+1);if(lv<3&&profile.wallet>=cost){profile.wallet-=cost;profile.upgrades[u.id]++;save();sound.play('cash');haptic();updateHome();const scroll=$('sheetBody').parentElement.scrollTop;garage();$('sheetBody').parentElement.scrollTop=scroll;}});
-}
-
 function guide(){openSheet('DRIVER’S GUIDE','KEEP IT SHINY SIDE UP',"<div class='guide-row'><span class='guide-symbol'>‹ ›</span><div><b>One swipe. One position.</b><p>Five steering positions, one rolling road. Swipe left or right. Keyboard: arrow keys or A / D.</p></div></div><div class='guide-row'><span class='sprite' data-sprite='4'></span><div><b>It’s not just the sheep.</b><p>Cars, low bridges, weak bridges, oil slicks and garden-path shortcuts (houses) end your shift on the spot. Cones, bus lanes, no-entry signs and the rest only cost a fine. Mates’ Rates insurance level 3 bails you out of one crash per shift.</p></div></div><div class='guide-row'><span class='sprite' data-sprite='9'></span><div><b>Green glow? Get that job.</b><p>Drive into the pallet. Every golden breadcrumb adds £25. Collect the finish flag to bank the whole job.</p></div></div><div class='guide-row'><span class='sprite' data-sprite='8'></span><div><b>A very important taco break.</b><p>Grab a shiny taco for £100 and a short breather. The tacho joke practically wrote itself.</p></div></div><div class='guide-row'><span class='sprite' data-sprite='12'></span><div><b>Wait for BAA. Then honk!</b><p>Double-tap, use HONK or press Space within the short yellow warning window. Early horns don’t count.</p></div></div><div class='guide-row'><span class='sprite' data-sprite='14'></span><div><b>Double trailer. Double trouble.</b><p>Purple jobs pay double. Rapid swerves can jackknife the outfit. Let the sway settle between moves.</p></div></div><p class='sheet-copy'>Warnings appear on the lane ahead of actual rolling-road features: low bridges, weak bridges, bus lanes, no-entry sections, gardens and roadworks. Change position early—and keep your trailer clear. Fines eat your £500 float. Bank your shift from Pause whenever you like.</p><div class='guide-row'><span class='extra' data-extra='0'></span><div><b>Night shift. Double bubble.</b><p>Pick up the glowing moon. Follow a dimly lit trail of coins worth twice as much; lighting upgrades improve your view.</p></div></div><div class='guide-row'><span class='extra' data-extra='1'></span><div><b>Thermos turbo!</b><p>Coffee means a burst of speed; tacos slow things down. Garage equipment improves earnings, comfort and control.</p></div></div><button class='secondary' id='guideDone'>Got it. Let’s roll.</button>",'guide');$('guideDone').onclick=closeSheet;}
 function settings(){openSheet('IN THE CAB','JUST HOW YOU LIKE IT',"<div class='setting'><label for='musicVolume'>Road-trip music</label><input id='musicVolume' type='range' min='0' max='1' step='.05' value='"+profile.settings.music+"'></div><div class='setting'><label for='sfxVolume'>Sound effects</label><input id='sfxVolume' type='range' min='0' max='1' step='.05' value='"+profile.settings.sfx+"'></div><div class='setting'><label for='hapticSetting'>Haptic feedback</label><input id='hapticSetting' type='checkbox' "+(profile.settings.haptics?'checked':'')+"></div><div class='setting'><label for='motionSetting'>Extra motion & screen shake</label><input id='motionSetting' type='checkbox' "+(profile.settings.motion?'checked':'')+"></div><label class='field-label' for='editName'>DRIVER NAME</label><input id='editName' type='text' maxlength='16' value='"+escape(profile.name)+"' placeholder='Road legend'><button class='secondary' id='saveSettings'>Save settings</button><button class='quiet' id='privacyButton'>Privacy & your progress</button><p class='status-note'>v1.3.0 · Original art & music · No ads or in-app purchases</p>",'settings');$('musicVolume').oninput=e=>{profile.settings.music=Number(e.target.value);sound.update();};$('sfxVolume').oninput=e=>{profile.settings.sfx=Number(e.target.value);sound.play('click');};$('hapticSetting').onchange=e=>profile.settings.haptics=e.target.checked;$('motionSetting').onchange=e=>profile.settings.motion=e.target.checked;$('saveSettings').onclick=()=>{profile.name=$('editName').value.replace(/[^a-zA-Z0-9 _.-]/g,'').trim().slice(0,16)||'Road legend';save();closeSheet();};$('privacyButton').onclick=privacy;}
 function privacy(){openSheet('YOUR DATA','SMALL PRINT. SHORT VERSION.',"<p class='sheet-copy'>Your truck unlocks, upgrades, settings and recent shifts are stored on this device. Clearing website data or removing the app can remove that progress.</p><p class='sheet-copy'>The online board stores your chosen driver name and submitted run results with an app-specific player ID. Never use a real name if you don’t want it shown. No advertising, analytics, location tracking, payments or contact permissions are used by this game.</p><p class='sheet-copy'>On iPhone, Game Center is optional and uses your Apple gaming profile. You can play offline without it.</p><p class='status-note'>"+(storageWarning?'This browser could not save progress. Check available storage and private browsing settings.':'Progress is saved after each finished shift and garage purchase.')+"</p>",'privacy');}
 async function refreshScores(){if(activeSheet!=='leaderboard')return;const target=$('scores');try{if(!backendUp)throw Error();let r=await fetch('/api/leaderboard?mode='+scoreMode,{signal:AbortSignal.timeout(6000)});if(!r.ok)throw Error();let d=await r.json();if(activeSheet!=='leaderboard')return;target.innerHTML=d.scores.length?d.scores.map((s,i)=>"<div class='score-row'><span class='rank'>"+(i+1)+"</span><span class='name'>"+escape(s.nickname)+"</span><b>"+money(s.score)+"</b></div>").join(''):"<div class='empty'>A clear road ahead.<br>Finish a shift to set the first score.</div>";$('boardStatus').textContent='LIVE · best shift per driver · refreshes every 15 seconds';}catch{backendUp=false;if(activeSheet!=='leaderboard')return;$('sheetEyebrow').textContent='YOUR BEST SHIFTS';const list=profile.scores.filter(s=>s.score>0&&(scoreMode!=='daily'||(s.mode==='daily'&&s.date.slice(0,10)===new Date().toISOString().slice(0,10)))).sort((a,b)=>b.score-a.score).slice(0,10);target.innerHTML=list.length?list.map((s,i)=>"<div class='score-row'><span class='rank'>"+(i+1)+"</span><span class='name'>"+escape(s.name)+"</span><b>"+money(s.score)+"</b></div>").join(''):"<div class='empty'>No shifts saved on this device yet.<br>Time to get truckin’.</div>";$('boardStatus').textContent='ON THIS DEVICE · the online board isn’t connected';}}
 function leaderboard(){if(native()){bridge('leaderboard',{mode:scoreMode});return;}openSheet('ROAD LEGENDS','THE LIVE LEADERBOARD',"<div class='score-tabs'><button id='allScores' class='"+(scoreMode==='all'?'active':'')+"'>All time</button><button id='dailyScores' class='"+(scoreMode==='daily'?'active':'')+"'>Daily dispatch</button></div><div id='scores'><div class='empty'>Checking the dispatch board…</div></div><p class='status-note' id='boardStatus'>Best net earnings wins. No invented drivers.</p>",'leaderboard');$('allScores').onclick=()=>{scoreMode='all';leaderboard();};$('dailyScores').onclick=()=>{scoreMode='daily';leaderboard();};clearInterval(leaderTimer);refreshScores();leaderTimer=setInterval(refreshScores,15000);}
 window.truckinNativeMessage=(message)=>{if(message==='scoreSubmitted'&&$('saveStatus'))$('saveStatus').textContent='Your shift is on Game Center.';if(message==='pause')pause();if(message==='gameCenterUnavailable')openSheet('ROAD LEGENDS','GAME CENTER',"<p class='sheet-copy'>Game Center isn’t available right now. Sign in to Game Center in iPhone Settings to post scores. Your best shift is safely saved on this device.</p><div class='result-score'><span class='eyebrow'>PERSONAL BEST</span><strong>"+money(profile.best)+"</strong></div>",'nativeboard');};
-$('playButton').onclick=()=>askStart('endless');$('dailyButton').onclick=()=>askStart('daily');$('pauseButton').onclick=pause;$('hornButton').onclick=honk;$('closeSheet').onclick=closeSheet;
+$('pauseButton').onclick=pause;$('hornButton').onclick=honk;$('closeSheet').onclick=closeSheet;
 document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>{sound.unlock();sound.play('click');({garage,leaderboard,guide,settings,intro:()=>{$('intro').classList.remove('hidden');setTimeout(()=>$('intro').classList.add('hidden'),2500);}})[b.dataset.action]?.();});
-$('intro').onclick=()=>{$('intro').classList.add('hidden');sound.unlock();};setTimeout(()=>$('intro').classList.add('hidden'),2400);
+/* JW EDS intro. If public/audio/jweds-jingle.mp3 exists the intro waits for a tap (browsers need one to allow sound) and plays it. */
+let introTimer=setTimeout(()=>$('intro').classList.add('hidden'),2400),jinglePending=false;
+sound.preload()?.then(()=>{if(sound.buffers['jweds-jingle']&&!$('intro').classList.contains('hidden')){clearTimeout(introTimer);jinglePending=true;$('intro').querySelector('small').textContent='TAP TO START';}});
+$('intro').onclick=async()=>{clearTimeout(introTimer);if(jinglePending){jinglePending=false;await sound.unlock();sound.play('jweds-jingle');setTimeout(()=>$('intro').classList.add('hidden'),2600);}else{$('intro').classList.add('hidden');sound.unlock();}};
+
+/* ---------- Home: tap to start -> ignition -> swipe wheel ---------- */
+let homeMode='splash',menuWheel=null,menuBusy=false,garageUI=null;
+const menuItems=()=>[
+ {id:'start',art:'keys',name:profile.active?'RESUME SHIFT':'START SHIFT',tag:profile.active?'Right where you parked it.':'Keys in. Common sense out.',run:()=>askStart('endless')},
+ {id:'daily',art:'daily',name:'DAILY DISPATCH',tag:'120 seconds. One brew’s worth.',run:()=>askStart('daily')},
+ {id:'garage',art:'garage',name:'THE GARAGE',tag:'Pimp your haulage.',run:()=>openGarage()},
+ {id:'board',art:'trophy',name:'LEADERBOARD',tag:'Glory. Mostly sheep-based.',run:leaderboard},
+ {id:'guide',art:'guide',name:'DRIVER’S GUIDE',tag:'The sat-nav says “good luck”.',run:guide},
+ {id:'cab',art:'settings',name:'IN THE CAB',tag:'Spanners out. Volume up. Or down.',run:settings}];
+function menuText(i){const it=menuWheel.items[i];if(!it)return;const n=$('menuName'),t=$('menuTag');if(n.textContent===it.name&&t.textContent===it.tag)return;n.textContent=it.name;t.textContent=it.tag;const l=document.querySelector('.menu-label');l.classList.remove('swap');void l.offsetWidth;l.classList.add('swap');}
+function buildMenu(){menuWheel=new Wheel($('menuWheel'),{items:menuItems(),start:0,render:it=>"<div class='micon'><img src='./assets/menu/"+it.art+".webp' alt='"+it.name+"' draggable='false'></div>",spacing:w=>Math.min(w*.4,170),scales:[1,.56,.38,.28],
+ onStep:(i,dir)=>{sound.rev(dir);haptic();menuText(i);},onSettle:menuText,onSelect:chooseMenu});menuText(0);}
+function refreshMenu(){menuWheel.items=menuItems();menuText(menuWheel.index);}
+function enterMenu(ignite){homeMode='menu';$('home').classList.add('menu-on');$('menu').setAttribute('aria-hidden','false');$('tapPrompt').classList.add('hidden');if(!menuWheel)buildMenu();else refreshMenu();menuWheel.layout();updateHome();sound.menuOn(ignite);}
+function chooseMenu(i){const it=menuWheel.items[i];if(menuBusy||!it)return;menuBusy=true;sound.honk();haptic('heavy');$('menu').classList.add('chosen');setTimeout(()=>{$('menu').classList.remove('chosen');menuBusy=false;it.run();},it.id==='start'||it.id==='daily'?430:280);}
+function openGarage(){sound.rev(1);if(!garageUI)garageUI=new Garage({root:$('garage'),profile,images:renderer.images,sound,money,save,haptic,onChange:updateHome,onExit:()=>{updateHome();}});garageUI.open();}
+$('tapPrompt').onclick=async()=>{if(homeMode!=='splash')return;$('tapPrompt').disabled=true;await sound.unlock();enterMenu(true);};
 let pointer=null,lastTap=0,lastTapPoint=null;
 $('road').addEventListener('pointerdown',e=>{if(state!=='playing')return;e.preventDefault();$('road').setPointerCapture(e.pointerId);pointer={id:e.pointerId,x:e.clientX,y:e.clientY,at:performance.now(),moved:false};});
 $('road').addEventListener('pointermove',e=>{if(!pointer||pointer.id!==e.pointerId||state!=='playing')return;const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;if(!pointer.moved&&Math.abs(dx)>Math.max(23,$('road').clientWidth*.06)&&Math.abs(dx)>Math.abs(dy)*.65){game.move(Math.sign(dx));pointer.moved=true;lastTap=0;handleEvents();}});
 $('road').addEventListener('pointerup',e=>{if(!pointer||pointer.id!==e.pointerId)return;const now=performance.now(),dist=Math.hypot(e.clientX-pointer.x,e.clientY-pointer.y);if(!pointer.moved&&dist<18&&now-pointer.at<260){if(now-lastTap<320&&lastTapPoint&&Math.hypot(e.clientX-lastTapPoint.x,e.clientY-lastTapPoint.y)<80){honk();lastTap=0;}else{lastTap=now;lastTapPoint={x:e.clientX,y:e.clientY};}}pointer=null;});
 $('road').addEventListener('pointercancel',()=>pointer=null);
-document.addEventListener('keydown',e=>{if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName))return;if(e.key==='Escape'){e.preventDefault();if(activeSheet)closeSheet();else pause();return;}if(e.key==='Tab'&&activeSheet){const focus=[...$('sheet').querySelectorAll('button:not(:disabled),input')].filter(el=>el.offsetParent!==null);if(e.shiftKey&&document.activeElement===focus[0]){e.preventDefault();focus.at(-1)?.focus();}else if(!e.shiftKey&&document.activeElement===focus.at(-1)){e.preventDefault();focus[0]?.focus();}}if(state!=='playing')return;if(['ArrowLeft','a','A','ArrowRight','d','D',' ','p','P'].includes(e.key))e.preventDefault();if(e.repeat)return;if(['ArrowLeft','a','A'].includes(e.key))game.move(-1);if(['ArrowRight','d','D'].includes(e.key))game.move(1);if(e.key===' ')honk();if(e.key.toLowerCase()==='p')pause();handleEvents();});
-document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();sound.pause();if(game)save();}});window.addEventListener('pagehide',()=>{pause();if(game)save();});
+document.addEventListener('keydown',e=>{if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName))return;if(e.key==='Escape'){e.preventDefault();if(activeSheet)closeSheet();else pause();return;}if(e.key==='Tab'&&activeSheet){const focus=[...$('sheet').querySelectorAll('button:not(:disabled),input')].filter(el=>el.offsetParent!==null);if(e.shiftKey&&document.activeElement===focus[0]){e.preventDefault();focus.at(-1)?.focus();}else if(!e.shiftKey&&document.activeElement===focus.at(-1)){e.preventDefault();focus[0]?.focus();}}if(state==='home'&&!activeSheet&&!garageUI?.running){if(homeMode==='splash'&&['Enter',' '].includes(e.key)){e.preventDefault();$('tapPrompt').click();return;}if(homeMode==='menu'&&menuWheel){if(['ArrowLeft','a','A'].includes(e.key)){e.preventDefault();menuWheel.step(-1);}else if(['ArrowRight','d','D'].includes(e.key)){e.preventDefault();menuWheel.step(1);}else if(['Enter',' '].includes(e.key)){e.preventDefault();menuWheel.select();}return;}}if(state!=='playing')return;if(['ArrowLeft','a','A','ArrowRight','d','D',' ','p','P'].includes(e.key))e.preventDefault();if(e.repeat)return;if(['ArrowLeft','a','A'].includes(e.key))game.move(-1);if(['ArrowRight','d','D'].includes(e.key))game.move(1);if(e.key===' ')honk();if(e.key.toLowerCase()==='p')pause();handleEvents();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();sound.pause();if(game)save();}else if(state==='home'&&homeMode==='menu'){sound.suspended=false;sound.ctx?.resume();sound.menuOn(false);}});window.addEventListener('pagehide',()=>{pause();if(game)save();});
 function resize(){renderer?.resize();if(window.innerWidth>window.innerHeight&&window.innerHeight<550)pause();if(game)renderer?.draw(game,0,profile.truck);}
 window.addEventListener('resize',resize);window.visualViewport?.addEventListener('resize',resize);
 let hudAccumulator=0,checkpointClock=0;function frame(now){const dt=clamp((now-lastTime)/1000,0,.04);lastTime=now;if(game&&state==='playing'){game.tick(dt);handleEvents();checkpointClock+=dt;if(checkpointClock>5){save();checkpointClock=0;}renderer.draw(game,dt,profile.truck);hudAccumulator+=dt;if(hudAccumulator>.05){updateHud();hudAccumulator=0;}}requestAnimationFrame(frame);}
 updateHome();
-loadImages().then(images=>{renderer=new Renderer($('road'),images,profile.settings);$('playButton').disabled=false;$('dailyButton').disabled=false;updateHome();requestAnimationFrame(frame);}).catch(()=>$('loadError').classList.remove('hidden'));
+loadImages().then(images=>{renderer=new Renderer($('road'),images,profile.settings);$('tapPrompt').disabled=false;$('tapLabel').textContent='TAP TO START';updateHome();requestAnimationFrame(frame);}).catch(()=>$('loadError').classList.remove('hidden'));
 if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
 
 module.exports={};

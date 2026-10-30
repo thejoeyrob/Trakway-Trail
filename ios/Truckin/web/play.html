@@ -3,22 +3,34 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#142b2e"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Truckin’ & Drivin’</title><meta name="description" content="Big rigs. Little roads. Questionable decisions.">
-<link rel="apple-touch-icon" href="./assets/icon.png"><link rel="icon" href="./assets/icon.png">
+<link rel="apple-touch-icon" href="./assets/icon-180.png"><link rel="icon" href="./assets/icon.png">
 <link rel="stylesheet" href="./game.css">
 </head><body>
 <main id="app">
  <canvas id="road" aria-label="Top-down truck driving game. Swipe left or right to move one position. Double tap to sound your horn." tabindex="0"></canvas>
  <section id="home" class="screen">
-  <div class="cover"></div><div class="cover-shade"></div>
-  <header class="home-top"><span class="tiny">A LITTLE ROAD. A LOT OF TRUCK.</span><button class="round" data-action="settings" aria-label="Settings">⚙</button></header>
+  <div class="cover"></div><div class="cover-shade"></div><div class="menu-dim"></div>
+  <header class="home-top"><span class="tiny">A LITTLE ROAD. A LOT OF TRUCK.</span></header>
   <div class="title"><span class="title-kicker">GOOD MILES. BAD IDEAS.</span><h1>TRUCKIN’<span><i>&</i> DRIVIN’</span></h1><div class="tagline">Keep it shiny side up.</div></div>
-  <div class="home-bottom">
-   <div class="stats-row"><div><small>PERSONAL BEST</small><strong id="homeBest">£0</strong></div><div><small>GARAGE WALLET</small><strong class="yellow" id="homeWallet">£0</strong></div></div>
-   <button class="big-button" id="playButton" disabled><span id="playLabel">LOADING THE LORRY…</span><b>➜</b></button>
-   <div class="play-caption">Swipe to steer. Double-tap to honk.</div>
-   <button id="dailyButton" class="daily" disabled><span>120-SECOND SHIFT</span><b>Daily dispatch <span>↗</span></b></button>
-   <nav class="home-nav" id="depotMenu" aria-label="Game menu"><button data-action="garage"><span>▤</span>GARAGE</button><button data-action="leaderboard"><span>♛</span>LEADERBOARD</button><button data-action="guide"><span>?</span>DRIVER’S GUIDE</button></nav>
-   <div class="home-foot"><span>NO ADS. JUST BAD TURNS.</span><button data-action="intro" aria-label="Replay JW EDS intro">JW EDS ↗</button></div>
+  <button id="tapPrompt" class="tap-prompt" disabled><span id="tapLabel">LOADING THE LORRY…</span></button>
+  <nav id="menu" class="menu" aria-label="Main menu" aria-hidden="true">
+   <div class="wheel" id="menuWheel" role="listbox" aria-label="Menu options"></div>
+   <div class="menu-label"><h2 id="menuName"></h2><p id="menuTag"></p></div>
+   <div class="menu-hint"><span>‹</span> SWIPE · TAP TO SELECT <span>›</span></div>
+   <div class="menu-stats" id="menuStats"></div>
+  </nav>
+  <div class="home-foot"><span>NO ADS. JUST BAD TURNS.</span><button data-action="intro" aria-label="Replay JW EDS intro">JW EDS ↗</button></div>
+ </section>
+ <section id="garage" class="hidden" aria-label="Garage">
+  <div class="garage-bg"></div>
+  <header class="garage-top"><button class="back-btn" id="garageBack" aria-label="Back to the depot">‹ DEPOT</button><div class="wallet-chip"><small>GARAGE WALLET</small><b id="garageWallet">£0</b></div></header>
+  <div class="stage"><canvas id="showroom" aria-label="Your truck on a showroom turntable. Drag to spin it."></canvas><div id="stageBadge" class="stage-badge hidden"></div></div>
+  <div class="garage-panel">
+   <div class="gtabs" id="garageTabs" role="tablist"><button data-tab="trucks" role="tab">TRUCKS</button><button data-tab="livery" role="tab">LIVERY</button><button data-tab="upgrades" role="tab">UPGRADES</button></div>
+   <div class="wheel gwheel" id="garageWheel" role="listbox"></div>
+   <div class="ginfo"><h3 id="gName"></h3><p id="gDesc"></p><div id="gStats"></div></div>
+   <button id="gAction" class="big-button"></button>
+   <p id="gNote" class="gnote"></p>
   </div>
  </section>
  <section id="hud" class="hidden">

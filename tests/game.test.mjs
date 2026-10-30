@@ -102,3 +102,10 @@ test('level-3 insurance buys exactly one bail-out per shift; daily dispatch gets
  assert.equal(new Drive({seed:3,mode:'daily',upgrades:{insurance:3}}).lives,0);
  assert.equal(new Drive({seed:3,upgrades:{insurance:2}}).lives,0);
 });
+
+test('garage catalogue: every truck, decal and upgrade has display copy and stats',async()=>{
+ const {TRUCKS,DECAL_TAGS,STATS,CATALOG,DECALS}=await import('../public/js/upgrades.js');
+ assert.equal(TRUCKS.length,3);assert.equal(DECAL_TAGS.length,DECALS.length);
+ for(const u of CATALOG){assert.ok(STATS[u.id],u.id+' has a stat line');for(let l=0;l<=3;l++)assert.ok(String(STATS[u.id].f(l)).length>0);}
+ assert.ok(STATS.insurance.f(3).includes('bail-out'));
+});

@@ -24,6 +24,9 @@ falls back to an on-device leaderboard, and uses Game Center on iOS. Nothing els
 
 ## v1.4 changes
 
+- **New home experience.** Clean cover art with a flashing TAP TO START; tapping fires the truck’s ignition, darkens the scene a touch and raises a continuous swipe wheel of illustrated icons (keys, tea + stopwatch, showroom, trophy-sheep, sat-nav, spanners). Revs on every swipe, a soft honk on select, lounge menu music over engine idle that hands over to the road-trip track when a shift starts. See `docs/MENU-ART-AND-AUDIO.md`.
+- **Showroom garage.** Spinning turntable that shows your truck exactly as it will drive (drag to spin), wheel-picker for trucks, liveries and upgrades, stat before→after, and padlocked *preview-only* items with “Keep truckin’ · £X to go”.
+- **One button system** across every screen, and proper home-screen icons (180/192/512 + maskable).
 - **More ways to end a shift, each with its own comic vignette** (like the original OH, FLOCK!): car → *OH, BUMPER!*, low bridge → *SUNROOF!*, weak bridge → *PLANK YOU!*, oil slick → *SPIN CYCLE!*, house → *KNOCK, KNOCK!*. Tap to skip. Level-3 Mates’ Rates insurance gives one £400 bail-out per shift. Add a new one by adding a `CRASHES` line in `model.js` and a `COMICS` entry in `game.js`.
 - Home: Garage / Leaderboard / Driver’s Guide are one tap away again (the hidden “Depot menu” is gone); personal best + wallet shown on legible pills.
 - Difficulty ramp: speed and hazard density climb with distance, so long shifts end on skill rather than boredom. First sheep now arrives after the first job.
