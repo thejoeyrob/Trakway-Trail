@@ -22,6 +22,12 @@ The game is a plain static site: **the web root is `public/`** (entry `play.html
 The online leaderboard needs a backend (the old ChatGPT-hosted one is archived in `legacy-chatgpt-host/`). Without it the game automatically
 falls back to an on-device leaderboard, and uses Game Center on iOS. Nothing else depends on a server.
 
+## v1.5 (branch `rolling-road-v1.5`)
+
+- **Painted five-lane road** in all four environments (lane dividers now part of the art; the overlay guides default to off). Lane spacing widened to 70 px so the rig fits a lane.
+- **Rolling-road encounters:** seeded, varied lane closures — narrowing, split, contraflow (moving oncoming car), one-way, roadworks, bus lane, chicane — always leaving at least two lanes open. Scenery order is now non-repeating.
+- Fixed a bug in the supplied scenery-order hash (signed XOR could yield scene −1 / repeats). See `docs/ROLLING-ROAD-v1.5.md`.
+
 ## v1.4 changes
 
 - **New home experience.** Clean cover art with a flashing TAP TO START; tapping fires the truck’s ignition, darkens the scene a touch and raises a continuous swipe wheel of illustrated icons (keys, tea + stopwatch, showroom, trophy-sheep, sat-nav, spanners). Revs on every swipe, a soft honk on select, lounge menu music over engine idle that hands over to the road-trip track when a shift starts. See `docs/MENU-ART-AND-AUDIO.md`.

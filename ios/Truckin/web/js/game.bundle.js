@@ -10,9 +10,12 @@ module.exports={SPRITE_RECTS,HAZARD_RECTS,TERRAIN_RECTS,EXTRAS_RECTS};
 
 },
 "./geometry.js":function(module,exports,require){
-function roadShape(z){const stage=Math.max(0,Math.floor(Math.max(0,z)/5400))%4;const width=stage===1?610:630;return {width,stage};}
+// Rolling road patch v1.5 — same atlas boundaries as the five-lane rendered road.
+const THEME_SEQUENCE=[0,1,2,3];
+function roadTheme(z){const sector=Math.floor(Math.max(0,z)/5400);for(let n=THEME_SEQUENCE.length;n<=sector;n++){let x=Math.imul(n^0x9e3779b9,0x85ebca6b)>>>0;x=(x^(x>>>16))>>>0;THEME_SEQUENCE.push((THEME_SEQUENCE[n-1]+1+x%3)%4);}return THEME_SEQUENCE[sector];}
+function roadShape(z){const stage=roadTheme(z);const width=stage===1?610:630;return {width,stage};}
 function roadCurve(z){return Math.sin(z/650)*23+Math.sin(z/1600)*12;}
-function laneX(lane,z){const width=roadShape(z).width;return 210+roadCurve(z)+(lane-2)*width*(280/627)/5;}
+function laneX(lane,z){const width=roadShape(z).width;return 210+roadCurve(z)+(lane-2)*width*.56/5;}
 function rigPose(x,y,cabAngle,trailerAngle,rearAngle){
  const back=(p,d,a)=>({x:p.x-Math.sin(a)*d,y:p.y+Math.cos(a)*d});
  // 5th wheel is behind, not inside the tractor cab; both trailers rotate about connected hitches.
@@ -23,7 +26,45 @@ function rigPose(x,y,cabAngle,trailerAngle,rearAngle){
  return {hitch,trailer,rearHitch,rear};
 }
 
-module.exports={roadShape,roadCurve,laneX,rigPose};
+module.exports={roadTheme,roadShape,roadCurve,laneX,rigPose};
+
+},
+"./road-events.js":function(module,exports,require){
+/* Deterministic lane-specific rolling road encounters. No static pre-scripted sequence.
+   Scenarios change with the seeded session; at least two of five lanes remain open.
+   All world positions are measured in the same units as Drive.items. */
+const choice=(rng,values)=>values[Math.floor(rng()*values.length)];
+const SCENARIO_NAMES=['narrow','split','contraflow','oneway','works','bus','chicane'];
+function chooseRoadScenario(rng,z,previous='',difficulty=0){
+ const allowed=difficulty>=.18?SCENARIO_NAMES:SCENARIO_NAMES.filter(n=>n!=='chicane');
+ const options=allowed.filter(n=>n!==previous);
+ const name=choice(rng,options);
+ const side=rng()<.5?0:4;
+ const fromEdge=side===0?[0,1]:[4,3];
+ const width=rng()<.6?1:2;
+ const p=[];
+ const section=(type,lane,at=z,length=340)=>p.push({type,lane,z:at,length,warning:620});
+ const vehicle=(lane,at=z+175)=>p.push({type:'car',lane,z:at,oncoming:true});
+ switch(name){
+  case 'narrow':section('grass',0);section('grass',4);break;
+  case 'split':section('works',2);section('noentry',rng()<.5?1:3);break;
+  case 'contraflow':section('noentry',side);vehicle(side);if(width===2)section('noentry',fromEdge[1]);break;
+  case 'oneway':for(const lane of fromEdge)section('noentry',lane);break;
+  case 'works':section('works',choice(rng,[1,2,3]));section('narrow',side,z+95,175);break;
+  case 'bus':section('bus',side);if(width===2)section('noentry',fromEdge[1],z+115,190);break;
+  case 'chicane':{
+   const pivot=choice(rng,[1,2,3]);section('works',pivot,z,170);
+   const next= pivot===1?3:pivot===3?1:choice(rng,[0,4]);
+   section('narrow',next,z+210,170);break;
+  }
+ }
+ // Never emit a complete full-width blockade, even at max difficulty.
+ const lanes=new Set(p.filter(e=>e.length).map(e=>e.lane));
+ if(lanes.size>3)throw Error('Scenario blocks too many lanes');
+ return {name,items:p};
+}
+
+module.exports={SCENARIO_NAMES,chooseRoadScenario};
 
 },
 "./upgrades.js":function(module,exports,require){
@@ -60,7 +101,8 @@ module.exports={CATALOG,defaults,normalize,DECALS,deliveryBonus,TRUCKS,DECAL_TAG
 
 },
 "./model.js":function(module,exports,require){
-const {laneX,rigPose}=require("./geometry.js");
+const {laneX,rigPose,roadTheme}=require("./geometry.js");
+const {chooseRoadScenario}=require("./road-events.js");
 const {normalize,deliveryBonus}=require("./upgrades.js");
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const themes=['THE TOWN RUN','COUNTRY MILES','SUBURBAN SHORTCUT','HARD HAT HAUL'];
@@ -70,7 +112,7 @@ const CRASHES={car:'Not a bumper car.',lowbridge:'Height restriction. Not a sugg
 const PICKUPS=['job','crumb','finish','taco','coin','night','boost'];
 function seeded(seed){const fn=()=>{seed|=0;seed=(seed+0x6D2B79F5)|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;fn.state=seed;return((t^t>>>14)>>>0)/4294967296;};fn.state=seed;return fn;}
 function jobPath(lane,rng,count=10){const p=[];for(let i=0;i<count;i++){if(i%2)lane=clamp(lane+(rng()>.5?1:-1),0,4);p.push(lane);}return p;}
-function biomeAt(z){return Math.floor(Math.max(0,z)/5400)%4;}
+function biomeAt(z){return roadTheme(z);}
 function hazardKinds(z){return [['car','cone','bus','noentry','lowbridge'],['grass','weakbridge','oil','lowbridge','narrow'],['house','car','noentry','narrow'],['barrier','cone','oil','works']][biomeAt(z)];}
 class Drive {
  constructor(options={}){
@@ -79,7 +121,7 @@ class Drive {
   this.truck=this.mode==='daily'?0:(options.truck||0);this.decal=this.mode==='daily'?0:(options.decal||0);
   this.events=[];this.items=[];this.distance=0;this.time=0;this.money=500;this.earned=0;this.fines=0;this.jobs=0;this.crumbs=0;this.horns=0;this.near=0;
   this.lane=2;this.x=2;this.trailer=2;this.rear=2;this.sway=0;this.angle=0;this.rapid=0;this.lastMove=-10;this.invulnerable=0;this.speed=180;
-  this.row=900;this.nextJob=600;this.nextSheep=5200;this.nextNight=5600;this.nextBoost=2100;this.night=null;this.nights=0;this.boost=0;this.rested=this.upgrades.bunk?20+8*this.upgrades.bunk:0;
+  this.lastScenario='';this.row=900;this.nextJob=600;this.nextSheep=5200;this.nextNight=5600;this.nextBoost=2100;this.night=null;this.nights=0;this.boost=0;this.rested=this.upgrades.bunk?20+8*this.upgrades.bunk:0;
   this.job=null;this.sheep=null;this.finished=false;this.endReason='';this.stage=0;this.slow=0;this.multiplier=1;this.id=0;this.sheepFail=0;this.combo=0;this.crashKind='';this.lives=this.upgrades.insurance>=3?1:0;
  }
  snapshot(){const d={...this,rngState:this.rng.state};delete d.rng;d.events=[];return d;}
@@ -116,7 +158,17 @@ class Drive {
   if(!busy&&!pending){if(this.distance>this.nextNight-1100){this.add('night',this.distance+700,2);this.nextNight=this.distance+6500;}else if(this.distance>this.nextJob-1100){this.add('job',Math.max(this.nextJob,this.distance+700),2,{double:this.jobs>0&&this.rng()>.5});this.nextJob+=3300;}}
   if(!busy&&this.distance>this.nextBoost-700){this.add('boost',this.distance+550,Math.floor(this.rng()*5));this.nextBoost=this.distance+4200;}
   while(this.row<this.distance+1300){if(!this.job&&!this.night){const kinds=hazardKinds(this.row),kind=kinds[Math.floor(this.rng()*kinds.length)];let lane=Math.floor(this.rng()*5);if(['house','grass','bus'].includes(kind))lane=this.rng()>.5?0:4;
-    const blocked=this.items.some(e=>['job','night'].includes(e.type)&&!e.done&&Math.abs(e.z-this.row)<580);if(!blocked){this.add(kind,this.row,lane);if(this.rng()>.45)this.add(this.rng()>.65?'taco':'coin',this.row+80,(lane+2)%5);}}
+    const blocked=this.items.some(e=>['job','night'].includes(e.type)&&!e.done&&Math.abs(e.z-this.row)<580);if(!blocked){
+     if(this.rng()<.27+.20*this.ramp()){
+      const encounter=chooseRoadScenario(this.rng,this.row,this.lastScenario,this.ramp());
+      this.lastScenario=encounter.name;
+      for(const section of encounter.items)this.add(section.type,section.z,section.lane,section);
+      this.row+=170+this.rng()*95; // room to steer before the next surprise
+     }else{
+      this.add(kind,this.row,lane);
+      if(this.rng()>.45)this.add(this.rng()>.65?'taco':'coin',this.row+80,(lane+2)%5);
+     }
+    }}
    const r=this.ramp();this.row+=(540-190*r)+this.rng()*(170-50*r);}
   if(this.distance>this.nextSheep-850&&!busy&&!this.items.some(e=>e.type==='night'&&!e.done)){this.sheep={z:this.distance+850,baa:false,baaAt:Infinity,cleared:false};this.emit('sheepWarning');for(const e of this.items)if(e.type==='job'&&!e.done&&e.z>this.distance)e.z=this.sheep.z+900;this.items=this.items.filter(e=>e.type==='job'||e.z+(e.length||0)<this.sheep.z-450||e.z>this.sheep.z+400);this.nextSheep=this.distance+5200;}
  }
@@ -133,6 +185,8 @@ class Drive {
   if(this.sway>.98&&this.job?.double){this.fine(260,'JACKKNIFE! Double trouble.');this.emit('jackknife');this.items=this.items.filter(e=>!['crumb','finish'].includes(e.type));this.job=null;this.multiplier=1;this.rapid=0;}
   if(this.night&&this.distance>this.night.end){this.night=null;this.emit('dawn');}this.spawn();
   if(this.sheep){const s=this.sheep,ahead=s.z-this.distance;if(ahead<Math.max(375,this.speed*1.5)&&!s.baa){s.baa=true;s.baaAt=this.time;this.emit('baa');}if(ahead<65&&!s.cleared){this.sheepFail=1;this.crashKind='sheep';this.emit('sheepFail');this.end(CRASHES.sheep);}if(ahead< -200&&s.cleared)this.sheep=null;}
+  // Contraflow traffic approaches against the scrolling road; same collision rules as cars.
+  for(const e of this.items)if(!e.done&&e.oncoming)e.z-=this.speed*dt*.55;
   const pose=rigPose(laneX(this.x,this.distance),0,clamp((this.lane-this.x)*.16,-.2,.2),this.angle,clamp((this.trailer-this.rear)*.55,-.8,.8));
   for(const e of this.items){if(e.done)continue;const delta=e.z-this.distance,length=e.length||0,hazard=!PICKUPS.includes(e.type);
    const cabHit=delta<22&&delta+length> -24&&Math.abs(e.lane-this.x)<.52;
@@ -189,7 +243,7 @@ module.exports={Sound};
 },
 "./render.js":function(module,exports,require){
 const {clamp,ROAD_TYPES,PICKUPS}=require("./model.js");
-const {rigPose,roadShape,roadCurve,laneX}=require("./geometry.js");
+const {rigPose,roadShape,roadCurve,laneX,roadTheme}=require("./geometry.js");
 const {SPRITE_RECTS,HAZARD_RECTS,TERRAIN_RECTS,EXTRAS_RECTS}=require("./atlas.js");
 const SPR={truck:0,trailer:1,orange:2,purple:3,car:4,redcar:5,cone:6,barrier:7,taco:8,job:9,finish:10,coin:11,sheep:12,face:13,flatbed:14,oil:15,crumb:11};
 const HAZ={lowbridge:0,weakbridge:1,bus:2,noentry:3,narrow:4,sheepWarning:5,house:6,grass:7};
@@ -203,7 +257,7 @@ class Renderer {
  sprite(id,x,y,w,h=w,angle=0,alpha=1,sheet='sprites'){const img=this.images[sheet];if(!img)return;let cols=4,rows=sheet==='extras'?3:sheet==='terrain'||sheet==='restrictions'?2:4;let cw=img.width/cols,ch=img.height/rows;const c=this.ctx;c.save();c.globalAlpha=alpha;c.translate(x,y);c.rotate(angle);const rect=(sheet==='extras'?EXTRAS_RECTS:sheet==='terrain'?TERRAIN_RECTS:sheet==='restrictions'?HAZARD_RECTS:SPRITE_RECTS)[id]||[(id%4)*cw,Math.floor(id/4)*ch,cw,ch];c.drawImage(img,...rect,-w/2,-h/2,w,h);c.restore();}
  label(text,x,y,color='#fff5cd',size=10){const c=this.ctx;c.save();c.textAlign='center';c.font='900 '+size+'px -apple-system, sans-serif';c.lineWidth=4;c.strokeStyle='#173235';c.strokeText(text,x,y);c.fillStyle=color;c.fillText(text,x,y);c.restore();}
  effect(kind,x,y,text){for(let i=0;i<(this.settings.motion?9:3);i++)this.fx.push({kind,x,y,life:.7+Math.random()*.5,age:0,vx:(Math.random()-.5)*140,vy:-40-Math.random()*110,rot:Math.random()*6});if(text)this.fx.push({kind:'text',x,y:y-20,life:1,age:0,vy:-42,vx:0,text});}
- road(distance){const c=this.ctx,img=this.images.roads;if(!img)return;const tile=img.width/2;for(let y=0;y<this.H;y+=6){const z=distance+this.playerY-y;let phase=((z%5400)+5400)%5400;let theme=Math.max(0,Math.floor(z/5400))%4;const raw=((z%(tile*2))+tile*2)%(tile*2);let sy=clamp(raw>=tile?tile*2-raw:raw-6,0,tile-6);const h=6;const curve=this.curve(z),width=this.shape(z).width;const draw=(idx,a=1)=>{c.globalAlpha=a;if(raw<tile){c.save();c.translate(0,y+6);c.scale(1,-1);c.drawImage(img,(idx%2)*tile,Math.floor(idx/2)*tile+sy,tile,h,(420-width)/2+curve,0,width,6);c.restore();}else{c.drawImage(img,(idx%2)*tile,Math.floor(idx/2)*tile+sy,tile,h,(420-width)/2+curve,y,width,6);}};draw(theme);if(phase<360&&z>=5400){draw((theme+3)%4,1-phase/360);}c.globalAlpha=1;}}
+ road(distance){const c=this.ctx,img=this.images.roads;if(!img)return;const tile=img.width/2;for(let y=0;y<this.H;y+=6){const z=distance+this.playerY-y;let phase=((z%5400)+5400)%5400;let theme=roadTheme(z);const raw=((z%(tile*2))+tile*2)%(tile*2);let sy=clamp(raw>=tile?tile*2-raw:raw-6,0,tile-6);const h=6;const curve=this.curve(z),width=this.shape(z).width;const draw=(idx,a=1)=>{c.globalAlpha=a;if(raw<tile){c.save();c.translate(0,y+6);c.scale(1,-1);c.drawImage(img,(idx%2)*tile,Math.floor(idx/2)*tile+sy,tile,h,(420-width)/2+curve,0,width,6);c.restore();}else{c.drawImage(img,(idx%2)*tile,Math.floor(idx/2)*tile+sy,tile,h,(420-width)/2+curve,y,width,6);}};draw(theme);if(phase<360&&z>=5400){draw(roadTheme(z-5400),1-phase/360);}c.globalAlpha=1;}}
  /* The painted road only has one centre dash, but steering is five-position. Draw the five lanes: soft dashed dividers that scroll and curve with the road,
     plus a faint glow in the lane the truck is heading for. Hazards, pickups and breadcrumbs all share these lane centres. */
  laneGuides(g){const c=this.ctx;c.save();
@@ -220,7 +274,7 @@ class Renderer {
    const len=e.length||190;
    for(let offset=0;offset<len;offset+=6){const z=e.z+offset,y=this.playerY-(z-g.distance),h=Math.min(6,len-offset);
     if(y< -8||y>this.H+8)continue;
-    const laneWidth=roadShape(z).width*(280/627)/5;
+    const laneWidth=roadShape(z).width*.56/5;
     const sy=rect[1]+rect[3]*(1-(offset+h)/len),sh=Math.max(1,rect[3]*h/len);
     c.drawImage(img,rect[0],sy,rect[2],sh,this.x(e.lane,z)-laneWidth/2,y-h,laneWidth,h+.7);
    }
@@ -254,11 +308,11 @@ class Renderer {
    m.fillStyle=gr;m.beginPath();m.arc(0,0,reach*.70,0,Math.PI*2);m.fill();m.restore();}
   m.globalCompositeOperation='source-over';c.drawImage(this.dark,0,0,420,this.H);
  }
- draw(g,dt,truckIndex){const c=this.ctx;this.time+=dt;c.save();if(this.shake>0&&this.settings.motion){c.translate((Math.random()-.5)*this.shake,(Math.random()-.5)*this.shake);this.shake*=Math.exp(-dt*12);}this.road(g.distance);if(this.settings.guides!==false)this.laneGuides(g);this.terrain(g);
+ draw(g,dt,truckIndex){const c=this.ctx;this.time+=dt;c.save();if(this.shake>0&&this.settings.motion){c.translate((Math.random()-.5)*this.shake,(Math.random()-.5)*this.shake);this.shake*=Math.exp(-dt*12);}this.road(g.distance);if(this.settings.guides===true)this.laneGuides(g);this.terrain(g);
  for(const e of g.items){if(e.done||e.road)continue;const y=this.playerY-(e.z-g.distance),x=this.x(e.lane,e.z);if(y< -100||y>this.H+100)continue;const collectible=PICKUPS.includes(e.type);const bob=collectible&&this.settings.motion?Math.sin(this.time*5+e.id)*5:0;let w=e.type==='crumb'?23:e.type==='coin'?31:e.type==='car'?46:e.type==='finish'?58:e.type==='job'?54:49;let h=e.type==='car'?68:w;
  if(collectible){c.save();c.shadowBlur=e.type==='crumb'?13:24;c.shadowColor=e.type==='job'?(e.double?'#d89bff':'#55ffda'):e.type==='finish'?'#55ffae':'#ffe69a';this.sprite(e.type==='night'?0:e.type==='boost'?1:SPR[e.type],x,y+bob,w,h,0,1,['night','boost'].includes(e.type)?'extras':'sprites');c.restore();if(e.type==='job')this.label(e.double?'DOUBLE ×2':'JOB',x,y-39,e.double?'#e4b9ff':'#a5ffe3',9);if(e.type==='night')this.label('NIGHT ×2',x,y-38,'#bde0ff',10);if(e.type==='boost')this.label('TURBO',x,y-38,'#ffe59a',10);if(e.type==='finish')this.label('CASH OUT',x,y-40,'#a5ffe3',9);}
  else if(HAZ[e.type]!==undefined){w=e.type.includes('bridge')?64:55;this.sprite(HAZ[e.type],x,y,w,w,0,1,'restrictions');if(LABELS[e.type])this.label(LABELS[e.type],x,y-34,'#fff2d2',7);}
- else this.sprite(SPR[e.type]??6,x,y,w,h);
+ else this.sprite(SPR[e.type]??6,x,y,w,h,e.oncoming?Math.PI:0);
  }
  if(g.sheep){const s=g.sheep,y=this.playerY-(s.z-g.distance);for(let i=0;i<5;i++){let x=this.x(i,s.z),rot=Math.sin(this.time*5+i)*.12;let sy=y+Math.sin(i*3)*17;if(s.cleared){const move=Math.max(0,(g.time-s.baaAt-.3))*120;x+=(i<2?-1:1)*move;rot=i<2?-1.5:1.5;sy+=Math.sin(this.time*20+i)*5;}this.sprite(12,x,sy,50,52,rot);}}
  const px=this.x(g.x,g.distance);let alpha=g.invulnerable>0&&Math.floor(this.time*13)%2===0?.55:1;this.nightLight(g);this.rig(g,truckIndex,px,this.playerY,alpha);

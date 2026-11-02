@@ -53,7 +53,7 @@ test('tractor and both trailers remain attached at their hitch points',()=>{
  for(let a=-.75;a<.75;a+=.05){const r=rigPose(210,410,.2,a,-a);assert.ok(Math.abs(r.trailer.x+Math.sin(a)*38-r.hitch.x)<1e-7);assert.ok(Math.abs(r.trailer.y-Math.cos(a)*38-r.hitch.y)<1e-7);assert.ok(Math.abs(r.rear.x+Math.sin(-a)*45-r.rearHitch.x)<1e-7);}
 });
 test('lane positions correspond to five evenly spaced sections of the road',()=>{
- for(let z=0;z<24000;z+=87){const w=roadShape(z).width,step=w*(280/627)/5,left=210+roadCurve(z)-2.5*step;for(let lane=0;lane<5;lane++)assert.ok(Math.abs(laneX(lane,z)-(left+(lane+.5)*step))<1e-8);}
+ for(let z=0;z<24000;z+=87){const w=roadShape(z).width,step=w*.56/5,left=210+roadCurve(z)-2.5*step;for(let lane=0;lane<5;lane++)assert.ok(Math.abs(laneX(lane,z)-(left+(lane+.5)*step))<1e-8);}
 });
 test('night shift creates forty coins at double value and resumes',()=>{
  const g=new Drive({seed:18});g.collect(g.add('night',100,2));assert.ok(g.night);assert.equal(g.items.filter(x=>x.nightCoin).length,40);let c=g.items.find(x=>x.nightCoin);g.collect(c);assert.equal(g.money,530);g.collect(c);assert.equal(g.money,530);
@@ -108,4 +108,16 @@ test('garage catalogue: every truck, decal and upgrade has display copy and stat
  assert.equal(TRUCKS.length,3);assert.equal(DECAL_TAGS.length,DECALS.length);
  for(const u of CATALOG){assert.ok(STATS[u.id],u.id+' has a stat line');for(let l=0;l<=3;l++)assert.ok(String(STATS[u.id].f(l)).length>0);}
  assert.ok(STATS.insurance.f(3).includes('bail-out'));
+});
+
+// Rolling road v1.5 — no repeat patterns, safe exits and genuinely approaching traffic.
+import {chooseRoadScenario,SCENARIO_NAMES} from '../public/js/road-events.js';
+test('the seeded road scenarios vary without immediate repeats and always leave safe lanes',()=>{
+ for(let seed=1;seed<=150;seed++){const rng=seeded(seed);let last='',seen=new Set();for(let i=0;i<30;i++){const event=chooseRoadScenario(rng,1000+i*740,last,.55);assert.notEqual(event.name,last);assert.ok(SCENARIO_NAMES.includes(event.name));const closed=new Set(event.items.filter(x=>x.length).map(x=>x.lane));assert.ok(closed.size<=3);assert.ok(event.items.every(x=>x.lane>=0&&x.lane<5));seen.add(event.name);last=event.name;}assert.ok(seen.size>=4);}
+});
+test('approaching traffic advances towards the truck and survives checkpoint restore',()=>{
+ const g=new Drive({seed:21});const car=g.add('car',2000,0,{oncoming:true});const initial=car.z;g.tick(.05);assert.ok(car.z<initial);const restored=Drive.restore(JSON.parse(JSON.stringify(g.snapshot())));assert.ok(restored.items.some(e=>e.oncoming));
+});
+test('scenery theme sequence does not mechanically loop every four zones',()=>{
+ const first=Array.from({length:24},(_,i)=>roadShape(i*5400).stage);assert.deepEqual(first.slice(0,4),[0,1,2,3]);assert.ok(first.some((x,i)=>i>=4&&x!==i%4));for(let i=1;i<first.length;i++)assert.notEqual(first[i],first[i-1]);
 });
