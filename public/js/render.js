@@ -14,6 +14,15 @@ export class Renderer {
  label(text,x,y,color='#fff5cd',size=10){const c=this.ctx;c.save();c.textAlign='center';c.font='900 '+size+'px -apple-system, sans-serif';c.lineWidth=4;c.strokeStyle='#173235';c.strokeText(text,x,y);c.fillStyle=color;c.fillText(text,x,y);c.restore();}
  effect(kind,x,y,text){for(let i=0;i<(this.settings.motion?9:3);i++)this.fx.push({kind,x,y,life:.7+Math.random()*.5,age:0,vx:(Math.random()-.5)*140,vy:-40-Math.random()*110,rot:Math.random()*6});if(text)this.fx.push({kind:'text',x,y:y-20,life:1,age:0,vy:-42,vx:0,text});}
  road(distance){const c=this.ctx,img=this.images.roads;if(!img)return;const tile=img.width/2;for(let y=0;y<this.H;y+=6){const z=distance+this.playerY-y;let phase=((z%5400)+5400)%5400;let theme=Math.max(0,Math.floor(z/5400))%4;const raw=((z%(tile*2))+tile*2)%(tile*2);let sy=clamp(raw>=tile?tile*2-raw:raw-6,0,tile-6);const h=6;const curve=this.curve(z),width=this.shape(z).width;const draw=(idx,a=1)=>{c.globalAlpha=a;if(raw<tile){c.save();c.translate(0,y+6);c.scale(1,-1);c.drawImage(img,(idx%2)*tile,Math.floor(idx/2)*tile+sy,tile,h,(420-width)/2+curve,0,width,6);c.restore();}else{c.drawImage(img,(idx%2)*tile,Math.floor(idx/2)*tile+sy,tile,h,(420-width)/2+curve,y,width,6);}};draw(theme);if(phase<360&&z>=5400){draw((theme+3)%4,1-phase/360);}c.globalAlpha=1;}}
+ /* The painted road only has one centre dash, but steering is five-position. Draw the five lanes: soft dashed dividers that scroll and curve with the road,
+    plus a faint glow in the lane the truck is heading for. Hazards, pickups and breadcrumbs all share these lane centres. */
+ laneGuides(g){const c=this.ctx;c.save();
+  const lane=clamp(Math.round(g.lane),0,4);
+  for(let y=0;y<this.H;y+=5){const z=g.distance+this.playerY-y,ahead=clamp(1-y/(this.playerY+30),0,1);
+   const l=this.x(g.x-.5,z),r=this.x(g.x+.5,z);c.fillStyle='rgba(120,235,222,'+(.05+.09*ahead).toFixed(3)+')';c.fillRect(l,y,r-l,5.5);}
+  c.fillStyle='rgba(255,255,255,.34)';
+  for(let b=0;b<4;b++)for(let y=0;y<this.H;y+=4){const z=g.distance+this.playerY-y;if(((z%52)+52)%52<26)c.fillRect(this.x(b+.5,z)-1.1,y,2.2,4.4);}
+  c.restore();}
  terrain(g){
   const c=this.ctx,img=this.images.terrain;if(!img)return;
   for(const e of g.items){if(!e.road)continue;
@@ -55,7 +64,7 @@ export class Renderer {
    m.fillStyle=gr;m.beginPath();m.arc(0,0,reach*.70,0,Math.PI*2);m.fill();m.restore();}
   m.globalCompositeOperation='source-over';c.drawImage(this.dark,0,0,420,this.H);
  }
- draw(g,dt,truckIndex){const c=this.ctx;this.time+=dt;c.save();if(this.shake>0&&this.settings.motion){c.translate((Math.random()-.5)*this.shake,(Math.random()-.5)*this.shake);this.shake*=Math.exp(-dt*12);}this.road(g.distance);this.terrain(g);
+ draw(g,dt,truckIndex){const c=this.ctx;this.time+=dt;c.save();if(this.shake>0&&this.settings.motion){c.translate((Math.random()-.5)*this.shake,(Math.random()-.5)*this.shake);this.shake*=Math.exp(-dt*12);}this.road(g.distance);if(this.settings.guides!==false)this.laneGuides(g);this.terrain(g);
  for(const e of g.items){if(e.done||e.road)continue;const y=this.playerY-(e.z-g.distance),x=this.x(e.lane,e.z);if(y< -100||y>this.H+100)continue;const collectible=PICKUPS.includes(e.type);const bob=collectible&&this.settings.motion?Math.sin(this.time*5+e.id)*5:0;let w=e.type==='crumb'?23:e.type==='coin'?31:e.type==='car'?46:e.type==='finish'?58:e.type==='job'?54:49;let h=e.type==='car'?68:w;
  if(collectible){c.save();c.shadowBlur=e.type==='crumb'?13:24;c.shadowColor=e.type==='job'?(e.double?'#d89bff':'#55ffda'):e.type==='finish'?'#55ffae':'#ffe69a';this.sprite(e.type==='night'?0:e.type==='boost'?1:SPR[e.type],x,y+bob,w,h,0,1,['night','boost'].includes(e.type)?'extras':'sprites');c.restore();if(e.type==='job')this.label(e.double?'DOUBLE ×2':'JOB',x,y-39,e.double?'#e4b9ff':'#a5ffe3',9);if(e.type==='night')this.label('NIGHT ×2',x,y-38,'#bde0ff',10);if(e.type==='boost')this.label('TURBO',x,y-38,'#ffe59a',10);if(e.type==='finish')this.label('CASH OUT',x,y-40,'#a5ffe3',9);}
  else if(HAZ[e.type]!==undefined){w=e.type.includes('bridge')?64:55;this.sprite(HAZ[e.type],x,y,w,w,0,1,'restrictions');if(LABELS[e.type])this.label(LABELS[e.type],x,y-34,'#fff2d2',7);}
