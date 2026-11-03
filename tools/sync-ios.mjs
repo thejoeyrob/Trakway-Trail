@@ -7,7 +7,7 @@ await cp(path.join(root,'public/assets/comic'),path.join(dst,'assets/comic'),{re
 await cp(path.join(root,'public/assets/menu'),path.join(dst,'assets/menu'),{recursive:true});
 for(const f of ['sprites.webp','roads.webp','restrictions.webp','cover.webp','intro-jw.png','icon.png','farmer.webp','terrain.webp','extras.webp'])await copyFile(path.join(root,'public/assets',f),path.join(dst,'assets',f));
 await copyFile(path.join(root,'public/game.css'),path.join(dst,'game.css'));
-const files=['atlas.js','geometry.js','upgrades.js','model.js','audio.js','render.js','wheel.js','garage.js','game.js'];
+const files=['atlas.js','geometry.js','road-events.js','upgrades.js','model.js','audio.js','render.js','wheel.js','garage.js','game.js'];
 const functions=[];
 for(const name of files){let source=await readFile(path.join(root,'public/js',name),'utf8');const exports=[];
  source=source.replace(/import\s*\{([^}]+)\}\s*from\s*['"]([^'"]+)['"];?/g,(_,names,loc)=>{

@@ -1,4 +1,5 @@
-import {laneX,rigPose} from './geometry.js';
+import {laneX,rigPose,roadTheme} from './geometry.js';
+import {chooseRoadScenario} from './road-events.js';
 import {normalize,deliveryBonus} from './upgrades.js';
 export const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export const themes=['THE TOWN RUN','COUNTRY MILES','SUBURBAN SHORTCUT','HARD HAT HAUL'];
@@ -8,7 +9,7 @@ export const CRASHES={car:'Not a bumper car.',lowbridge:'Height restriction. Not
 export const PICKUPS=['job','crumb','finish','taco','coin','night','boost'];
 export function seeded(seed){const fn=()=>{seed|=0;seed=(seed+0x6D2B79F5)|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;fn.state=seed;return((t^t>>>14)>>>0)/4294967296;};fn.state=seed;return fn;}
 export function jobPath(lane,rng,count=10){const p=[];for(let i=0;i<count;i++){if(i%2)lane=clamp(lane+(rng()>.5?1:-1),0,4);p.push(lane);}return p;}
-export function biomeAt(z){return Math.floor(Math.max(0,z)/5400)%4;}
+export function biomeAt(z){return roadTheme(z);}
 export function hazardKinds(z){return [['car','cone','bus','noentry','lowbridge'],['grass','weakbridge','oil','lowbridge','narrow'],['house','car','noentry','narrow'],['barrier','cone','oil','works']][biomeAt(z)];}
 export class Drive {
  constructor(options={}){
@@ -17,7 +18,7 @@ export class Drive {
   this.truck=this.mode==='daily'?0:(options.truck||0);this.decal=this.mode==='daily'?0:(options.decal||0);
   this.events=[];this.items=[];this.distance=0;this.time=0;this.money=500;this.earned=0;this.fines=0;this.jobs=0;this.crumbs=0;this.horns=0;this.near=0;
   this.lane=2;this.x=2;this.trailer=2;this.rear=2;this.sway=0;this.angle=0;this.rapid=0;this.lastMove=-10;this.invulnerable=0;this.speed=180;
-  this.row=900;this.nextJob=600;this.nextSheep=5200;this.nextNight=5600;this.nextBoost=2100;this.night=null;this.nights=0;this.boost=0;this.rested=this.upgrades.bunk?20+8*this.upgrades.bunk:0;
+  this.lastScenario='';this.cruise=240;this.row=900;this.nextJob=600;this.nextSheep=6500;this.nextNight=5600;this.nextBoost=2100;this.night=null;this.nights=0;this.boost=0;this.rested=this.upgrades.bunk?20+8*this.upgrades.bunk:0;
   this.job=null;this.sheep=null;this.finished=false;this.endReason='';this.stage=0;this.slow=0;this.multiplier=1;this.id=0;this.sheepFail=0;this.combo=0;this.crashKind='';this.lives=this.upgrades.insurance>=3?1:0;
  }
  snapshot(){const d={...this,rngState:this.rng.state};delete d.rng;d.events=[];return d;}
@@ -50,18 +51,45 @@ export class Drive {
   if(this.lives>0){this.lives--;this.money-=400;this.fines+=400;this.combo=0;this.invulnerable=2.6;this.slow=1.2;this.rapid=0;this.emit('bailout',{kind,value:400});if(this.money<=0)this.end('The float has floated away.');return;}
   this.crashKind=kind;this.emit('crash',{kind});this.end(CRASHES[kind]);}
  end(reason){if(this.finished)return;this.finished=true;this.endReason=reason;this.emit('end',{reason});}
+ /* ---- lane occupancy: hazards, pickups and oncoming traffic are never placed on top of each other ---- */
+ laneBusy(lane,z0,z1,pad=110){return this.items.some(e=>!e.done&&e.lane===lane&&e.z-pad<z1&&e.z+(e.length||40)+pad>z0);}
+ openLanes(z0,z1,pad=60){return [0,1,2,3,4].filter(l=>!this.laneBusy(l,z0,z1,pad));}
+ shuffled(){const a=[0,1,2,3,4];for(let i=4;i>0;i--){const j=Math.floor(this.rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+ /* One row of 1-3 hazards. At least two lanes stay open and one of them is reachable (one swipe per ~0.34s) from the lanes that were open just before. Returns the row's length. */
+ makeRow(z,gapSec){const r=this.ramp(),kinds=hazardKinds(z),reach=Math.max(2,Math.floor(gapSec/.34));
+  const roll=this.rng(),want=this.distance<2500?1:roll<.40-.18*r?1:roll<.86-.12*r?2:3,picked=[];
+  for(const lane of this.shuffled()){if(picked.length>=want)break;
+   const edge=lane===0||lane===4,pool=kinds.filter(k=>edge||!['house','grass','bus'].includes(k));if(!pool.length)continue;
+   const kind=pool[Math.floor(this.rng()*pool.length)],len=ROAD_TYPES.includes(kind)?(['bus','noentry','works'].includes(kind)?310:190):40;
+   if(!this.laneBusy(lane,z,z+len))picked.push({lane,kind,len});}
+  const span=Math.max(40,...picked.map(p=>p.len)),prev=this.openLanes(z-this.cruise*gapSec*1.1,z-60);
+  const free=()=>[0,1,2,3,4].filter(l=>!picked.some(p=>p.lane===l)&&!this.laneBusy(l,z,z+span,60));
+  while(picked.length&&(free().length<2||!free().some(f=>prev.some(p=>Math.abs(f-p)<=reach))))picked.pop();
+  for(const p of picked)this.add(p.kind,z+this.rng()*50,p.lane);
+  // a short coin ribbon weaving through the open lanes gives a reason to move even when nothing is in your way
+  const open=free();if(open.length&&this.rng()<.6){let lane=open[Math.floor(this.rng()*open.length)];
+   for(let k=0;k<4;k++){const cz=z+120+k*95;if(!this.laneBusy(lane,cz,cz,45))this.add(k===0&&this.rng()<.12?'taco':'coin',cz,lane);
+    const next=[lane-1,lane+1].filter(l=>open.includes(l));if(next.length&&this.rng()<.7)lane=next[Math.floor(this.rng()*next.length)];}}
+  return span;}
+ spawnEncounter(z){const e=chooseRoadScenario(this.rng,z,this.lastScenario,this.ramp());
+  // oncoming traffic needs its whole lane clear from the truck up to where it starts, so it never drives through anything
+  const clear=e.items.every(i=>!this.laneBusy(i.lane,i.oncoming?this.distance:i.z,i.z+(i.length||40),90));
+  if(!clear)return false;this.lastScenario=e.name;for(const i of e.items)this.add(i.type,i.z,i.lane,i);return true;}
  spawn(){const busy=this.job||this.sheep||this.night,pending=this.items.some(e=>['job','night'].includes(e.type)&&!e.done);
   if(!busy&&!pending){if(this.distance>this.nextNight-1100){this.add('night',this.distance+700,2);this.nextNight=this.distance+6500;}else if(this.distance>this.nextJob-1100){this.add('job',Math.max(this.nextJob,this.distance+700),2,{double:this.jobs>0&&this.rng()>.5});this.nextJob+=3300;}}
   if(!busy&&this.distance>this.nextBoost-700){this.add('boost',this.distance+550,Math.floor(this.rng()*5));this.nextBoost=this.distance+4200;}
-  while(this.row<this.distance+1300){if(!this.job&&!this.night){const kinds=hazardKinds(this.row),kind=kinds[Math.floor(this.rng()*kinds.length)];let lane=Math.floor(this.rng()*5);if(['house','grass','bus'].includes(kind))lane=this.rng()>.5?0:4;
-    const blocked=this.items.some(e=>['job','night'].includes(e.type)&&!e.done&&Math.abs(e.z-this.row)<580);if(!blocked){this.add(kind,this.row,lane);if(this.rng()>.45)this.add(this.rng()>.65?'taco':'coin',this.row+80,(lane+2)%5);}}
-   const r=this.ramp();this.row+=(540-190*r)+this.rng()*(170-50*r);}
+  while(this.row<this.distance+1300){
+   const r=this.ramp(),gapSec=Math.max(.85,1.4-.45*r);
+   const nearJob=this.items.some(e=>['job','night'].includes(e.type)&&!e.done&&Math.abs(e.z-this.row)<580);
+   if(this.job||this.night||nearJob){this.row+=this.cruise*(gapSec+this.rng()*.55);continue;}
+   if(this.rng()<.2+.15*r&&this.spawnEncounter(this.row)){this.row+=340+this.cruise*(.9+this.rng()*.5);continue;}
+   this.row+=this.makeRow(this.row,gapSec)+this.cruise*(gapSec+this.rng()*.55);}
   if(this.distance>this.nextSheep-850&&!busy&&!this.items.some(e=>e.type==='night'&&!e.done)){this.sheep={z:this.distance+850,baa:false,baaAt:Infinity,cleared:false};this.emit('sheepWarning');for(const e of this.items)if(e.type==='job'&&!e.done&&e.z>this.distance)e.z=this.sheep.z+900;this.items=this.items.filter(e=>e.type==='job'||e.z+(e.length||0)<this.sheep.z-450||e.z>this.sheep.z+400);this.nextSheep=this.distance+5200;}
  }
  /* 0 at the depot gate -> 1 after ~7 miles: hazards bunch up and the rig gets quicker so long shifts end on skill, not boredom */
  ramp(){return clamp(this.distance/63000,0,1);}
  tick(dt){if(this.finished)return;dt=clamp(dt,0,.05);this.time+=dt;for(const k of ['invulnerable','slow','boost','rested'])this[k]=Math.max(0,this[k]-dt);
-  const base=180+Math.min(100,this.time*.7)+60*this.ramp();this.speed=base*(this.slow>0?.65:this.boost>0?1.3:1);this.distance+=this.speed*dt;this.stage=biomeAt(this.distance);
+  const base=240+Math.min(70,this.time*.7)+70*this.ramp();this.cruise=base;this.speed=base*(this.slow>0?.65:this.boost>0?1.3:1);this.distance+=this.speed*dt;this.stage=biomeAt(this.distance);
   this.rapid=Math.max(0,this.rapid-dt*(this.job?.double?.19:.43)*(1+.2*this.upgrades.stability)*(this.rested>0?1.2:1));
   this.x+=(this.lane-this.x)*(1-Math.exp(-dt*11*(1+.12*this.upgrades.steering)));
   this.trailer+=(this.x-this.trailer)*(1-Math.exp(-dt*(this.job?.double?2.2:4)));
@@ -71,6 +99,8 @@ export class Drive {
   if(this.sway>.98&&this.job?.double){this.fine(260,'JACKKNIFE! Double trouble.');this.emit('jackknife');this.items=this.items.filter(e=>!['crumb','finish'].includes(e.type));this.job=null;this.multiplier=1;this.rapid=0;}
   if(this.night&&this.distance>this.night.end){this.night=null;this.emit('dawn');}this.spawn();
   if(this.sheep){const s=this.sheep,ahead=s.z-this.distance;if(ahead<Math.max(375,this.speed*1.5)&&!s.baa){s.baa=true;s.baaAt=this.time;this.emit('baa');}if(ahead<65&&!s.cleared){this.sheepFail=1;this.crashKind='sheep';this.emit('sheepFail');this.end(CRASHES.sheep);}if(ahead< -200&&s.cleared)this.sheep=null;}
+  // Contraflow traffic approaches against the scrolling road; same collision rules as cars.
+  for(const e of this.items)if(!e.done&&e.oncoming)e.z-=this.speed*dt*.55;
   const pose=rigPose(laneX(this.x,this.distance),0,clamp((this.lane-this.x)*.16,-.2,.2),this.angle,clamp((this.trailer-this.rear)*.55,-.8,.8));
   for(const e of this.items){if(e.done)continue;const delta=e.z-this.distance,length=e.length||0,hazard=!PICKUPS.includes(e.type);
    const cabHit=delta<22&&delta+length> -24&&Math.abs(e.lane-this.x)<.52;
