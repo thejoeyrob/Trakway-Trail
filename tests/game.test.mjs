@@ -67,7 +67,7 @@ test('upgrades migrate, improve earnings and have bounded levels',()=>{
  const g=new Drive({upgrades:u,truck:3,decal:1});g.collect(g.add('taco',0,2));assert.equal(g.money,600);g.collect(g.add('coin',0,2));assert.equal(g.money,617);assert.ok(g.rested>0);
 });
 test('burst of speed and taco cooldown have priority and expire',()=>{
- const g=new Drive();g.collect(g.add('boost',0,2));g.tick(.016);assert.ok(g.speed>230);g.collect(g.add('taco',0,2));g.tick(.016);assert.ok(g.speed<130);g.slow=0;g.boost=.01;g.tick(.016);assert.ok(g.speed<190);
+ const g=new Drive();g.collect(g.add('boost',0,2));g.tick(.016);assert.ok(g.speed>g.cruise*1.25);g.collect(g.add('taco',0,2));g.tick(.016);assert.ok(g.speed<g.cruise*.7);g.slow=0;g.boost=.01;g.tick(.016);assert.ok(g.speed<g.cruise*1.05);
 });
 test('daily dispatch has stock equipment for fair Game Center daily scores',()=>{
  const g=new Drive({mode:'daily',upgrades:{bunk:3,exhaust:3,lights:3},truck:3,decal:3});assert.deepEqual(g.upgrades,defaultUpgrades());assert.equal(g.jobValue(100),100);assert.equal(g.rested,0);
@@ -80,7 +80,7 @@ test('difficulty ramps with distance: hazards bunch up and the rig speeds up, bo
  assert.ok(b.speed>a.speed+40,'late-shift speed exceeds opening speed');
 });
 test('first sheep waits until the player has had time to take a job',()=>{
- assert.ok(new Drive({seed:9}).nextSheep>=5200);
+ assert.ok(new Drive({seed:9}).nextSheep>=6500);
 });
 test('car, low bridge, weak bridge and oil each end the shift with their own reason',()=>{
  for(const kind of ['car','lowbridge','weakbridge','oil','house']){
@@ -120,4 +120,37 @@ test('approaching traffic advances towards the truck and survives checkpoint res
 });
 test('scenery theme sequence does not mechanically loop every four zones',()=>{
  const first=Array.from({length:24},(_,i)=>roadShape(i*5400).stage);assert.deepEqual(first.slice(0,4),[0,1,2,3]);assert.ok(first.some((x,i)=>i>=4&&x!==i%4));for(let i=1;i<first.length;i++)assert.notEqual(first[i],first[i-1]);
+});
+
+// v1.5 hazard flow: dense enough to keep you moving, never stacked on top of each other, always a way through.
+function flowStats(seeds,seconds){
+ const stats={overlaps:[],walls:0,maxBlocked:0,hazards:0,minutes:0,lane2:0,coins:0};
+ for(let seed=1;seed<=seeds;seed++){
+  const g=new Drive({seed:seed*1303});const seen=new Set(),pairs=new Set();let t=0;
+  while(t<seconds&&!g.finished){
+   g.lane=g.x=g.trailer=g.rear=-40;g.invulnerable=9;
+   if(g.sheep&&g.sheep.baa&&!g.sheep.cleared&&g.time-g.sheep.baaAt>.2)g.horn();
+   g.tick(.016);t+=.016;g.events.length=0;
+   const hz=g.items.filter(e=>!e.done&&!['job','crumb','finish','taco','coin','night','boost'].includes(e.type));
+   for(const e of g.items){if(e.done||seen.has(e.id))continue;seen.add(e.id);if(e.type==='coin')stats.coins++;else if(hz.includes(e)){stats.hazards++;if(e.lane===2)stats.lane2++;}}
+   if(Math.round(t*60)%15)continue;
+   for(let i=0;i<hz.length;i++)for(let j=i+1;j<hz.length;j++){const a=hz[i],b=hz[j];if(a.lane!==b.lane)continue;
+    if(a.z<b.z+(b.length||40)+60&&b.z<a.z+(a.length||40)+60){const k=Math.min(a.id,b.id)+':'+Math.max(a.id,b.id);if(!pairs.has(k)){pairs.add(k);stats.overlaps.push([a,b].map(x=>x.type+(x.oncoming?'*':'')).sort().join('+'));}}}
+   for(let z=g.distance+150;z<g.distance+1400;z+=160){const bl=new Set(hz.filter(e=>e.z<=z+120&&e.z+(e.length||40)>=z-120).map(e=>e.lane)).size;stats.maxBlocked=Math.max(stats.maxBlocked,bl);if(bl>=5)stats.walls++;}
+  }
+  stats.minutes+=t/60;
+ }
+ return stats;
+}
+test('hazards never overlap, never wall off the road, and keep a stationary truck busy',()=>{
+ const s=flowStats(14,100);
+ assert.equal(s.walls,0);assert.ok(s.maxBlocked<=3,'at most three lanes closed at once');
+ assert.deepEqual([...new Set(s.overlaps)].filter(k=>k!=='car*+noentry'),[],'only the wrong-way car inside its own No Entry lane may overlap');
+ assert.ok(s.hazards/s.minutes>=34,'at least ~34 hazards a minute');
+ assert.ok(60/(s.lane2/s.minutes)<=10,'a truck parked in one lane is threatened at least every 10 seconds');
+ assert.ok(s.coins/s.minutes>=25,'coin ribbons give plenty of reasons to weave');
+});
+test('the rig is quicker: opening speed 240, ramping towards ~380 on a long shift',()=>{
+ const g=new Drive({seed:2});g.tick(.016);assert.ok(g.cruise>=240&&g.cruise<250);
+ const h=new Drive({seed:2});h.time=200;h.distance=63000;h.tick(.016);assert.ok(h.cruise>=375&&h.cruise<=385);
 });

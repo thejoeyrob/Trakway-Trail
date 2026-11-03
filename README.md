@@ -26,6 +26,7 @@ falls back to an on-device leaderboard, and uses Game Center on iOS. Nothing els
 
 - **Painted five-lane road** in all four environments (lane dividers now part of the art; the overlay guides default to off). Lane spacing widened to 70 px so the rig fits a lane.
 - **Rolling-road encounters:** seeded, varied lane closures — narrowing, split, contraflow (moving oncoming car), one-way, roadworks, bus lane, chicane — always leaving at least two lanes open. Scenery order is now non-repeating.
+- **Faster, busier road:** the rig now starts at 240 and ramps to ~380 (was 180 → 340). Hazards come as rows of 1–3 closed lanes with a guaranteed reachable way through, nothing is ever placed on top of anything else (only a wrong-way car inside its own No Entry lane overlaps), and coin ribbons weave through the open lanes. A truck parked in one lane is threatened about every 7 s.
 - Fixed a bug in the supplied scenery-order hash (signed XOR could yield scene −1 / repeats). See `docs/ROLLING-ROAD-v1.5.md`.
 
 ## v1.4 changes
