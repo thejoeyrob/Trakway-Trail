@@ -154,3 +154,7 @@ test('the rig is quicker: opening speed 240, ramping towards ~380 on a long shif
  const g=new Drive({seed:2});g.tick(.016);assert.ok(g.cruise>=240&&g.cruise<250);
  const h=new Drive({seed:2});h.time=200;h.distance=63000;h.tick(.016);assert.ok(h.cruise>=375&&h.cruise<=385);
 });
+
+test('the road is perfectly straight: lane centres never drift sideways',()=>{
+ for(let z=0;z<40000;z+=173){assert.equal(roadCurve(z),0);assert.equal(laneX(2,z),210);for(let lane=0;lane<5;lane++)assert.ok(Math.abs((laneX(lane,z)-210)/(lane-2||1)-(laneX(4,z)-210)/2)<1e-9||lane===2);}
+});
