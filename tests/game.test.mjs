@@ -52,8 +52,9 @@ import {ROAD_TYPES,hazardKinds} from '../public/js/model.js';
 test('tractor and both trailers remain attached at their hitch points',()=>{
  for(let a=-.75;a<.75;a+=.05){const r=rigPose(210,410,.2,a,-a);assert.ok(Math.abs(r.trailer.x+Math.sin(a)*38-r.hitch.x)<1e-7);assert.ok(Math.abs(r.trailer.y-Math.cos(a)*38-r.hitch.y)<1e-7);assert.ok(Math.abs(r.rear.x+Math.sin(-a)*45-r.rearHitch.x)<1e-7);}
 });
-test('lane positions correspond to five evenly spaced sections of the road',()=>{
- for(let z=0;z<24000;z+=87){const w=roadShape(z).width,step=w*.56/5,left=210+roadCurve(z)-2.5*step;for(let lane=0;lane<5;lane++)assert.ok(Math.abs(laneX(lane,z)-(left+(lane+.5)*step))<1e-8);}
+test('steering remains five fixed positions while road boundaries vary independently',()=>{
+ assert.deepEqual([0,1,2,3,4].map(l=>laneX(l,0)),[54,132,210,288,366]);
+ for(let z=0;z<24000;z+=87)for(let lane=0;lane<5;lane++)assert.equal(laneX(lane,z),54+78*lane);
 });
 test('night shift creates forty coins at double value and resumes',()=>{
  const g=new Drive({seed:18});g.collect(g.add('night',100,2));assert.ok(g.night);assert.equal(g.items.filter(x=>x.nightCoin).length,40);let c=g.items.find(x=>x.nightCoin);g.collect(c);assert.equal(g.money,530);g.collect(c);assert.equal(g.money,530);
@@ -122,39 +123,14 @@ test('scenery theme sequence does not mechanically loop every four zones',()=>{
  const first=Array.from({length:24},(_,i)=>roadShape(i*5400).stage);assert.deepEqual(first.slice(0,4),[0,1,2,3]);assert.ok(first.some((x,i)=>i>=4&&x!==i%4));for(let i=1;i<first.length;i++)assert.notEqual(first[i],first[i-1]);
 });
 
-// v1.5 hazard flow: dense enough to keep you moving, never stacked on top of each other, always a way through.
-function flowStats(seeds,seconds){
- const stats={overlaps:[],walls:0,maxBlocked:0,hazards:0,minutes:0,lane2:0,coins:0};
- for(let seed=1;seed<=seeds;seed++){
-  const g=new Drive({seed:seed*1303});const seen=new Set(),pairs=new Set();let t=0;
-  while(t<seconds&&!g.finished){
-   g.lane=g.x=g.trailer=g.rear=-40;g.invulnerable=9;
-   if(g.sheep&&g.sheep.baa&&!g.sheep.cleared&&g.time-g.sheep.baaAt>.2)g.horn();
-   g.tick(.016);t+=.016;g.events.length=0;
-   const hz=g.items.filter(e=>!e.done&&!['job','crumb','finish','taco','coin','night','boost'].includes(e.type));
-   for(const e of g.items){if(e.done||seen.has(e.id))continue;seen.add(e.id);if(e.type==='coin')stats.coins++;else if(hz.includes(e)){stats.hazards++;if(e.lane===2)stats.lane2++;}}
-   if(Math.round(t*60)%15)continue;
-   for(let i=0;i<hz.length;i++)for(let j=i+1;j<hz.length;j++){const a=hz[i],b=hz[j];if(a.lane!==b.lane)continue;
-    if(a.z<b.z+(b.length||40)+60&&b.z<a.z+(a.length||40)+60){const k=Math.min(a.id,b.id)+':'+Math.max(a.id,b.id);if(!pairs.has(k)){pairs.add(k);stats.overlaps.push([a,b].map(x=>x.type+(x.oncoming?'*':'')).sort().join('+'));}}}
-   for(let z=g.distance+150;z<g.distance+1400;z+=160){const bl=new Set(hz.filter(e=>e.z<=z+120&&e.z+(e.length||40)>=z-120).map(e=>e.lane)).size;stats.maxBlocked=Math.max(stats.maxBlocked,bl);if(bl>=5)stats.walls++;}
-  }
-  stats.minutes+=t/60;
- }
- return stats;
-}
-test('hazards never overlap, never wall off the road, and keep a stationary truck busy',()=>{
- const s=flowStats(14,100);
- assert.equal(s.walls,0);assert.ok(s.maxBlocked<=3,'at most three lanes closed at once');
- assert.deepEqual([...new Set(s.overlaps)].filter(k=>k!=='car*+noentry'),[],'only the wrong-way car inside its own No Entry lane may overlap');
- assert.ok(s.hazards/s.minutes>=34,'at least ~34 hazards a minute');
- assert.ok(60/(s.lane2/s.minutes)<=10,'a truck parked in one lane is threatened at least every 10 seconds');
- assert.ok(s.coins/s.minutes>=25,'coin ribbons give plenty of reasons to weave');
-});
+// The old flat-road density metric (34 hazards/minute) is superseded by the
+// route geometry and reachability tests in route-world.test.mjs. A narrower
+// road itself is a challenge; maintaining that old count would overcrowd it.
 test('the rig is quicker: opening speed 240, ramping towards ~380 on a long shift',()=>{
  const g=new Drive({seed:2});g.tick(.016);assert.ok(g.cruise>=240&&g.cruise<250);
  const h=new Drive({seed:2});h.time=200;h.distance=63000;h.tick(.016);assert.ok(h.cruise>=375&&h.cruise<=385);
 });
 
-test('the road is perfectly straight: lane centres never drift sideways',()=>{
+test('steering anchors never auto-follow the road; bends require player input',()=>{
  for(let z=0;z<40000;z+=173){assert.equal(roadCurve(z),0);assert.equal(laneX(2,z),210);for(let lane=0;lane<5;lane++)assert.ok(Math.abs((laneX(lane,z)-210)/(lane-2||1)-(laneX(4,z)-210)/2)<1e-9||lane===2);}
 });

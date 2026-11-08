@@ -1,0 +1,65 @@
+{
+  "checks": [
+    "320: complete launch, menu and driver registration",
+    "320: steering keyboard",
+    "320: trailer button drops load",
+    "320: pause freezes world",
+    "320: reload resumes detached truck",
+    "320: hitch collection",
+    "320: garage drag changes rendered perspective",
+    "320: original nine upgrades retained",
+    "320: no horizontal overflow",
+    "320: garage purchase control fits viewport",
+    "320: routeDecision exists",
+    "320: trailerButton exists",
+    "320: hornButton exists",
+    "320: complete offline reload",
+    "390: complete launch, menu and driver registration",
+    "390: steering keyboard",
+    "390: trailer button drops load",
+    "390: pause freezes world",
+    "390: reload resumes detached truck",
+    "390: hitch collection",
+    "390: garage drag changes rendered perspective",
+    "390: original nine upgrades retained",
+    "390: no horizontal overflow",
+    "390: garage purchase control fits viewport",
+    "390: routeDecision exists",
+    "390: trailerButton exists",
+    "390: hornButton exists",
+    "390: complete offline reload",
+    "768: complete launch, menu and driver registration",
+    "768: steering keyboard",
+    "768: trailer button drops load",
+    "768: pause freezes world",
+    "768: reload resumes detached truck",
+    "768: hitch collection",
+    "768: garage drag changes rendered perspective",
+    "768: original nine upgrades retained",
+    "768: no horizontal overflow",
+    "768: garage purchase control fits viewport",
+    "768: routeDecision exists",
+    "768: trailerButton exists",
+    "768: hornButton exists",
+    "768: complete offline reload",
+    "generated iOS web bundle boots",
+    "zero uncaught JavaScript errors"
+  ],
+  "errors": [],
+  "screens": [],
+  "timings": [
+    {
+      "width": 320,
+      "meanDrawMs": 0.2988888888930281
+    },
+    {
+      "width": 390,
+      "meanDrawMs": 0.312222222223257
+    },
+    {
+      "width": 768,
+      "meanDrawMs": 0.3211111111100763
+    }
+  ],
+  "passed": true
+}

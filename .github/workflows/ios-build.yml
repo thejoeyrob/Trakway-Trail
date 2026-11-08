@@ -2,7 +2,7 @@ name: iOS build check
 on:
   workflow_dispatch:
   push:
-    paths: ['ios/**', '.github/workflows/ios-build.yml']
+    paths: ['ios/**', 'public/**', 'tools/**', 'tests/**', '.github/workflows/ios-build.yml']
 permissions:
   contents: read
 jobs:
@@ -11,6 +11,14 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate and refresh native web bundle
+        run: |
+          npm test
+          npm run check
+          npm run sync-ios
       - name: Show Xcode version
         run: xcodebuild -version
       - name: Build bundled offline game

@@ -218,3 +218,11 @@
 
 #home .home-top{display:block}
 #gAction.locked{font-size:14px;letter-spacing:.6px}
+
+/* Route World 2.0: compact route decisions and trailer choice. */
+.route-decision{position:absolute;top:calc(env(safe-area-inset-top) + 96px);left:12px;right:12px;display:flex;flex-direction:column;align-items:center;gap:4px;background:#123b31e8;border:1px solid #c6dec0a6;border-radius:8px;padding:8px 5px;color:#f1f4d9;box-shadow:0 3px 14px #0005;text-align:center;pointer-events:none}
+.route-decision b{font-size:clamp(8px,2.6vw,12px);letter-spacing:.03em}.route-decision small{font-size:8px;color:#c4d8b5;letter-spacing:.12em}
+#trailerButton{min-width:91px;min-height:52px;background:linear-gradient(#2e665f,#163d37);border:1px solid #bce5bd77;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#edffe5;box-shadow:0 4px 0 #071d1a;pointer-events:auto;touch-action:manipulation;padding:7px;gap:5px}#trailerButton b{font-size:10px}#trailerButton small{font-size:7px;letter-spacing:.04em}#trailerButton:disabled{opacity:.62}
+.hud-bottom{gap:9px}.hud-bottom .sway-wrap{flex:1;min-width:0}.hud-bottom #hornButton{min-width:71px;width:74px}.hud-bottom .sway-wrap small{font-size:8px}.job-box{top:calc(env(safe-area-inset-top) + 163px)}
+.truck-card-art{display:block;width:58px;height:94px;margin:auto;background-image:url('./assets/route-v2/trucks.webp');background-repeat:no-repeat;background-size:464px 232px;background-position:-30px -3px;filter:drop-shadow(0 5px 4px #0007)}.truck-art-2{background-position:-148px -3px}.truck-art-3{background-position:-264px -3px}
+@media(max-height:700px){.route-decision{top:calc(env(safe-area-inset-top) + 85px);padding:5px 3px}.route-decision small{font-size:7px}.job-box{top:calc(env(safe-area-inset-top) + 143px)}#trailerButton{min-width:79px}.hud-bottom{gap:5px}}

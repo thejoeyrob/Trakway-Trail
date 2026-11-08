@@ -1,13 +1,15 @@
 {
   "name": "truckin-and-drivin",
-  "version": "1.4.0",
+  "version": "2.0.0",
   "private": true,
   "description": "Truckin' & Drivin' - portrait arcade HGV game. Static PWA + native iOS wrapper.",
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "node tools/serve.mjs",
-    "test": "node --test tests/game.test.mjs",
+    "test": "node --test tests/*.test.mjs",
     "check": "node tools/check.mjs",
     "sync-ios": "node tools/sync-ios.mjs"
   }
