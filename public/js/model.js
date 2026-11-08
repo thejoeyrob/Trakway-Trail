@@ -1,6 +1,6 @@
 import {laneX,rigPose,roadTheme} from './geometry.js';
 import {chooseRoadScenario} from './road-events.js';
-import {ROUTE_VERSION,CHUNK_LENGTH,roadAt,surfaceAt,routeLanes,laneCorridor,nearestLane,reachableCorridor,steeringX,sceneryProps,rewardPath} from './route-world.js';
+import {ROUTE_VERSION,CHUNK_LENGTH,WARM_FLAT,WARM_RAMP,roadAt,surfaceAt,routeLanes,laneCorridor,nearestLane,reachableCorridor,steeringX,sceneryProps,rewardPath} from './route-world.js';
 import {HAZARD_SPECS,sweptOverlap} from './route-hazards.js';
 import {normalize,deliveryBonus} from './upgrades.js';
 export const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -96,7 +96,8 @@ export class Drive {
   }
   return 150;
  }
- spawnEncounter(z){
+ spawnEncounter(z){if(z<WARM_FLAT+WARM_RAMP)return false; // gentle start: ordinary hazard rows only until the road has fully eased in
+ 
   const r=roadAt(z,this.seed);if(!['farm-fork','estate-fork','contraflow'].includes(r.motif)||r.gate<.96)return false;
   const branch=r.bands.find(b=>b.branch===r.restricted),lane=branch.branch==='left'?1:3;
   if(this.laneBusy(lane,z-250,z+700,160))return false;

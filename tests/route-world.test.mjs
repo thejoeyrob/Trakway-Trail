@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Drive,PICKUPS} from '../public/js/model.js';
-import {CHUNK_LENGTH,MOTIFS,routeSpec,roadAt,routeLanes,nearestLane,surfaceAt,reachableCorridor,sceneryProps,steeringX,rewardPath} from '../public/js/route-world.js';
+import {CHUNK_LENGTH,WARM_FLAT,WARM_RAMP,WARM_SAFE,MOTIFS,routeSpec,roadAt,routeLanes,nearestLane,surfaceAt,reachableCorridor,sceneryProps,steeringX,rewardPath} from '../public/js/route-world.js';
 import {HAZARD_SPECS,sweptOverlap} from '../public/js/route-hazards.js';
 import {showroomFrame} from '../public/js/showroom.js';
 const quiet=g=>{g.nextJob=g.nextNight=g.nextSheep=g.nextBoost=g.row=Infinity;};
@@ -35,7 +35,7 @@ test('generated hazard rows cannot wall off the legal road',()=>{
  for(let seed=1;seed<=70;seed++){const g=new Drive({seed});quiet(g);for(let z=1200;z<40000;z+=620){g.makeRow(z,1.2);const hazards=g.items.filter(e=>!PICKUPS.includes(e.type));assert.ok(reachableCorridor(hazards,z-500,z+650,seed),`seed ${seed} z ${z}`);g.items=g.items.filter(e=>e.z>z-1200);}}
 });
 test('risk prizes and oncoming traffic occupy separate lanes inside a signed fork',()=>{
- const g=new Drive({seed:41});let found=false;for(let i=1;i<30;i++){const z=i*CHUNK_LENGTH+1350;if(roadAt(z,g.seed).motif!=='contraflow')continue;g.items=[];assert.ok(g.spawnEncounter(z));const car=g.items.find(e=>e.oncoming),prize=g.items.find(e=>e.type==='prize');assert.ok(car&&prize);assert.notEqual(car.lane,prize.lane);assert.equal(surfaceAt(steeringX(car.lane),car.z,g.seed).rule,'oneway');assert.ok(car.stopZ>i*CHUNK_LENGTH+900);found=true;break;}assert.ok(found);
+ const g=new Drive({seed:41});let found=false;for(let i=Math.ceil((WARM_FLAT+WARM_RAMP)/CHUNK_LENGTH);i<30;i++){const z=i*CHUNK_LENGTH+1350;if(roadAt(z,g.seed).motif!=='contraflow')continue;g.items=[];assert.ok(g.spawnEncounter(z));const car=g.items.find(e=>e.oncoming),prize=g.items.find(e=>e.type==='prize');assert.ok(car&&prize);assert.notEqual(car.lane,prize.lane);assert.equal(surfaceAt(steeringX(car.lane),car.z,g.seed).rule,'oneway');assert.ok(car.stopZ>i*CHUNK_LENGTH+900);found=true;break;}assert.ok(found);
 });
 test('drop abandons only provisional delivery pay, accelerates cab, and disables rear collisions',()=>{
  const g=new Drive({seed:9});quiet(g);g.startJob(g.add('job',600,2));const bank=g.money;assert.ok(g.dropTrailer());assert.equal(g.money,bank);assert.equal(g.job,null);assert.ok(!g.items.some(e=>['crumb','finish'].includes(e.type)));assert.equal(g.dropTrailer(),false);
@@ -58,7 +58,7 @@ test('one-way and residential restrictions charge once per section, not every fr
  }
 });
 test('roadside collision footprints match visible scenery placements',()=>{
- const g=new Drive({seed:1});quiet(g);const p=sceneryProps(100,1000,1).find(p=>p.effect==='house'&&p.x>=30&&p.x<=390);assert.ok(p);at(g,p.z,(p.x-54)/78);g.tick(.001);assert.equal(g.crashKind,'house');
+ const g=new Drive({seed:1});quiet(g);const p=sceneryProps(WARM_SAFE,WARM_SAFE+20000,1).find(p=>p.effect==='house'&&p.x>=30&&p.x<=390);assert.ok(p);at(g,p.z,(p.x-54)/78);g.tick(.001);assert.equal(g.crashKind,'house');
  for(const p of sceneryProps(0,10000,17)){assert.ok(p.hitWidth<=p.width);assert.ok(p.hitHeight<=p.height);}
 });
 test('collision specifications stay inside artwork and swept contact catches fast movement',()=>{
@@ -70,4 +70,14 @@ test('legacy live checkpoints migrate without losing bank, owned upgrades or see
 });
 test('eight showroom views wrap in both directions without a spinning flat sprite',()=>{
  assert.deepEqual(Array.from({length:8},(_,i)=>showroomFrame(i*Math.PI/4)),[0,1,2,3,4,5,6,7]);assert.equal(showroomFrame(Math.PI*2),0);assert.equal(showroomFrame(-Math.PI/4),7);
+});
+
+test('gentle start: first section is straight and full width, houses only fine you early, then the road eases in',()=>{
+ for(const seed of [1,2,3,17,41]){
+  for(let z=0;z<WARM_FLAT;z+=50){const r=roadAt(z,seed);assert.equal(r.gate,0);assert.equal(r.bands.length,1);assert.equal(r.bands[0].left,26);assert.equal(r.bands[0].right,394);}
+  for(let l=0;l<5;l++)assert.ok(routeLanes(1200,seed).includes(l),'every steering position is on the road in the opening straight');
+  assert.ok(sceneryProps(0,WARM_SAFE,seed).every(p=>p.effect==='fine'));
+  let last=0;for(let z=WARM_FLAT;z<WARM_FLAT+WARM_RAMP;z+=40)last=Math.max(last,roadAt(z,seed).gate);assert.ok(last<1);
+ }
+ const g=new Drive({seed:5});assert.equal(g.spawnEncounter(WARM_FLAT+10),false);
 });

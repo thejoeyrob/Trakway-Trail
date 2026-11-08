@@ -4,6 +4,9 @@
 import {roadTheme} from './geometry.js';
 export const ROUTE_VERSION=2;
 export const CHUNK_LENGTH=2600;
+/* Gentle start: the first section is straight and full width (all five steering positions are on the road) and the bends,
+ * narrowing and forks ease in over the next three sections (about 40 s at the opening speed). Roadside houses only fine you until WARM_SAFE. */
+export const WARM_FLAT=CHUNK_LENGTH,WARM_RAMP=3*CHUNK_LENGTH,WARM_SAFE=3*CHUNK_LENGTH;
 export const MOTIFS=['s-bend','farm-fork','estate-fork','roadworks','village','contraflow','river-bend'];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const smooth=t=>{t=clamp(t,0,1);return t*t*(3-2*t);};
@@ -29,7 +32,7 @@ export function routeSpec(index,seed=1){
 }
 export function roadAt(z,seed=1){
  z=Math.max(0,z);const s=routeSpec(Math.floor(z/CHUNK_LENGTH),seed),p=z-s.start;
- const gate=smooth((p-500)/440)*smooth((2480-p)/440),wave=Math.sin((p-500)/1900*Math.PI*2);
+ const ease=smooth((z-WARM_FLAT)/WARM_RAMP),gate=smooth((p-500)/440)*smooth((2480-p)/440)*ease,wave=Math.sin((p-500)/1900*Math.PI*2);
  const band=(centre,width,surface='asphalt',rule='',branch='main')=>({left:centre-width/2,right:centre+width/2,surface,rule,branch});
  let bands=[],sign=null;
  switch(s.motif){
@@ -47,6 +50,7 @@ export function roadAt(z,seed=1){
   case 'river-bend':bands=[band(210+s.side*70*gate,mix(368,224,gate))];sign={text:s.side<0?'RIVER BEND • LEFT':'RIVER BEND • RIGHT'};break;
   default:bands=[band(210+wave*64*gate,mix(368,236,gate))];sign={text:'BENDS • FOLLOW THE ROAD'};
  }
+ if(z<WARM_FLAT)sign={text:'OPEN ROAD • EASY DOES IT'};
  return {...s,p,gate,bands,sign};
 }
 export function surfaceAt(x,z,seed=1,halfWidth=0){
@@ -97,7 +101,7 @@ export function sceneryProps(z0,z1,seed=1){
    const variant=hash(n+side+880,seed)%4;
    const detailed=stage===1?variant===3:variant!==0&&sprite!==1;
    const scenic=stage===0?[0,7,0,1][variant]:stage===1?2:stage===2?3:[4,1,4,1][variant];
-   props.push({id:n+':'+side,x:outer+side*(width*.51+12),z,sprite:detailed?scenic:sprite,sheet:detailed?'routeScenery':'routeProps',width,height,hitWidth:sprite===0?60:38,hitHeight:sprite===0?70:45,effect:stage===1&&detailed?'house':sprite===0||sprite===2?'house':'fine'});
+   props.push({id:n+':'+side,x:outer+side*(width*.51+12),z,sprite:detailed?scenic:sprite,sheet:detailed?'routeScenery':'routeProps',width,height,hitWidth:sprite===0?60:38,hitHeight:sprite===0?70:45,effect:z<WARM_SAFE?'fine':stage===1&&detailed?'house':sprite===0||sprite===2?'house':'fine'});
   }
   if(a.bands.length===2&&a.bands[1].left-a.bands[0].right>60)props.push({id:n+':island',x:210,z,sprite:a.motif==='estate-fork'?0:5,sheet:a.motif==='estate-fork'?'routeProps':'routeScenery',width:67,height:83,hitWidth:44,hitHeight:56,effect:a.motif==='estate-fork'?'house':'fine'});
  }

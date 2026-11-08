@@ -12,6 +12,9 @@ module.exports={ROUTE_ATLAS};
 const {roadTheme}=require("./geometry.js");
 const ROUTE_VERSION=2;
 const CHUNK_LENGTH=2600;
+/* Gentle start: the first section is straight and full width (all five steering positions are on the road) and the bends,
+ * narrowing and forks ease in over the next three sections (about 40 s at the opening speed). Roadside houses only fine you until WARM_SAFE. */
+const WARM_FLAT=CHUNK_LENGTH,WARM_RAMP=3*CHUNK_LENGTH,WARM_SAFE=3*CHUNK_LENGTH;
 const MOTIFS=['s-bend','farm-fork','estate-fork','roadworks','village','contraflow','river-bend'];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const smooth=t=>{t=clamp(t,0,1);return t*t*(3-2*t);};
@@ -37,7 +40,7 @@ function routeSpec(index,seed=1){
 }
 function roadAt(z,seed=1){
  z=Math.max(0,z);const s=routeSpec(Math.floor(z/CHUNK_LENGTH),seed),p=z-s.start;
- const gate=smooth((p-500)/440)*smooth((2480-p)/440),wave=Math.sin((p-500)/1900*Math.PI*2);
+ const ease=smooth((z-WARM_FLAT)/WARM_RAMP),gate=smooth((p-500)/440)*smooth((2480-p)/440)*ease,wave=Math.sin((p-500)/1900*Math.PI*2);
  const band=(centre,width,surface='asphalt',rule='',branch='main')=>({left:centre-width/2,right:centre+width/2,surface,rule,branch});
  let bands=[],sign=null;
  switch(s.motif){
@@ -55,6 +58,7 @@ function roadAt(z,seed=1){
   case 'river-bend':bands=[band(210+s.side*70*gate,mix(368,224,gate))];sign={text:s.side<0?'RIVER BEND • LEFT':'RIVER BEND • RIGHT'};break;
   default:bands=[band(210+wave*64*gate,mix(368,236,gate))];sign={text:'BENDS • FOLLOW THE ROAD'};
  }
+ if(z<WARM_FLAT)sign={text:'OPEN ROAD • EASY DOES IT'};
  return {...s,p,gate,bands,sign};
 }
 function surfaceAt(x,z,seed=1,halfWidth=0){
@@ -105,14 +109,14 @@ function sceneryProps(z0,z1,seed=1){
    const variant=hash(n+side+880,seed)%4;
    const detailed=stage===1?variant===3:variant!==0&&sprite!==1;
    const scenic=stage===0?[0,7,0,1][variant]:stage===1?2:stage===2?3:[4,1,4,1][variant];
-   props.push({id:n+':'+side,x:outer+side*(width*.51+12),z,sprite:detailed?scenic:sprite,sheet:detailed?'routeScenery':'routeProps',width,height,hitWidth:sprite===0?60:38,hitHeight:sprite===0?70:45,effect:stage===1&&detailed?'house':sprite===0||sprite===2?'house':'fine'});
+   props.push({id:n+':'+side,x:outer+side*(width*.51+12),z,sprite:detailed?scenic:sprite,sheet:detailed?'routeScenery':'routeProps',width,height,hitWidth:sprite===0?60:38,hitHeight:sprite===0?70:45,effect:z<WARM_SAFE?'fine':stage===1&&detailed?'house':sprite===0||sprite===2?'house':'fine'});
   }
   if(a.bands.length===2&&a.bands[1].left-a.bands[0].right>60)props.push({id:n+':island',x:210,z,sprite:a.motif==='estate-fork'?0:5,sheet:a.motif==='estate-fork'?'routeProps':'routeScenery',width:67,height:83,hitWidth:44,hitHeight:56,effect:a.motif==='estate-fork'?'house':'fine'});
  }
  return props;
 }
 
-module.exports={ROUTE_VERSION,CHUNK_LENGTH,MOTIFS,hash,steeringX,routeSpec,roadAt,surfaceAt,routeLanes,laneCorridor,nearestLane,rewardPath,reachableCorridor,routeWarning,sceneryProps};
+module.exports={ROUTE_VERSION,CHUNK_LENGTH,WARM_FLAT,MOTIFS,hash,steeringX,routeSpec,roadAt,surfaceAt,routeLanes,laneCorridor,nearestLane,rewardPath,reachableCorridor,routeWarning,sceneryProps};
 
 },
 "./route-hazards.js":function(module,exports,require){
@@ -363,7 +367,7 @@ module.exports={CATALOG,defaults,normalize,DECALS,deliveryBonus,TRUCKS,DECAL_TAG
 "./model.js":function(module,exports,require){
 const {laneX,rigPose,roadTheme}=require("./geometry.js");
 const {chooseRoadScenario}=require("./road-events.js");
-const {ROUTE_VERSION,CHUNK_LENGTH,roadAt,surfaceAt,routeLanes,laneCorridor,nearestLane,reachableCorridor,steeringX,sceneryProps,rewardPath}=require("./route-world.js");
+const {ROUTE_VERSION,CHUNK_LENGTH,WARM_FLAT,WARM_RAMP,roadAt,surfaceAt,routeLanes,laneCorridor,nearestLane,reachableCorridor,steeringX,sceneryProps,rewardPath}=require("./route-world.js");
 const {HAZARD_SPECS,sweptOverlap}=require("./route-hazards.js");
 const {normalize,deliveryBonus}=require("./upgrades.js");
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -459,7 +463,8 @@ class Drive {
   }
   return 150;
  }
- spawnEncounter(z){
+ spawnEncounter(z){if(z<WARM_FLAT+WARM_RAMP)return false; // gentle start: ordinary hazard rows only until the road has fully eased in
+ 
   const r=roadAt(z,this.seed);if(!['farm-fork','estate-fork','contraflow'].includes(r.motif)||r.gate<.96)return false;
   const branch=r.bands.find(b=>b.branch===r.restricted),lane=branch.branch==='left'?1:3;
   if(this.laneBusy(lane,z-250,z+700,160))return false;
