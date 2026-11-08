@@ -1,3 +1,4 @@
+import {drawShowroom} from './showroom.js';
 import {Wheel} from './wheel.js';
 import {CATALOG,DECALS,TRUCKS,DECAL_TAGS,STATS} from './upgrades.js';
 import {Renderer} from './render.js';
@@ -6,7 +7,7 @@ const TABS=[['trucks','TRUCKS'],['livery','LIVERY'],['upgrades','UPGRADES']];
 /* Showroom garage: pick a tab, swipe the wheel, and watch the turntable show the truck exactly as it will drive.
    Unaffordable items can be previewed but not bought (padlock + "keep truckin'"). */
 export class Garage{
- constructor(o){Object.assign(this,o);this.tab='trucks';this.idx={trucks:0,livery:0,upgrades:0};this.angle=0;this.spark=[];this.pop=0;this.running=false;this.drag=null;
+ constructor(o){Object.assign(this,o);this.tab='trucks';this.idx={trucks:0,livery:0,upgrades:0};this.angle=Math.PI/4;this.spark=[];this.pop=0;this.running=false;this.drag=null;
   const q=s=>this.root.querySelector(s);this.q=q;this.canvas=q('#showroom');
   q('#garageBack').onclick=()=>this.close();
   q('#garageTabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b&&b.dataset.tab!==this.tab){this.sound.play('click');this.sound.rev(1);this.setTab(b.dataset.tab);}});
@@ -26,7 +27,7 @@ export class Garage{
   if(it.kind==='decal'){const owned=p.ownedDecals.includes(it.id);return {owned,selected:p.decal===it.id,price:it.cost,locked:!owned&&w<it.cost};}
   const lv=p.upgrades[it.id],maxed=lv>=3,price=maxed?0:it.cost*(lv+1);return {lv,maxed,price,owned:lv>0,locked:!maxed&&w<price};
  }
- art(it){if(it.kind==='truck')return "<span class='sprite' data-sprite='"+it.id+"'></span>";if(it.icon===null)return "<span class='factory-dash'>FACTORY</span>";return "<span class='extra' data-extra='"+it.icon+"'></span>";}
+ art(it){if(it.kind==='truck')return "<span class='truck-card-art truck-art-"+it.id+"'></span>";if(it.icon===null)return "<span class='factory-dash'>FACTORY</span>";return "<span class='extra' data-extra='"+it.icon+"'></span>";}
  card(it){const s=this.st(it);let meta;
   if(it.kind==='upgrade')meta=Array.from({length:3},(_,i)=>"<i class='pip "+(i<s.lv?'on':'')+"'></i>").join('');
   else meta=s.selected?'ON THE ROAD':s.owned?'OWNED':this.money(s.price);
@@ -79,7 +80,7 @@ export class Garage{
   for(let i=0;i<46;i++){const a=Math.random()*6.283,v=70+Math.random()*190;this.spark.push({x:0,y:0,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:.8+Math.random()*.7,age:0,r:2+Math.random()*4});}
   this.root.classList.add('flash');setTimeout(()=>this.root.classList.remove('flash'),500);}
  draw(dt){const r=this.preview,c=r.ctx,W=420,H=r.H;if(!W||!H||!isFinite(H))return;dt=Math.min(.05,Math.max(0,dt||0));
-  r.time+=dt;if(!this.drag)this.angle+=dt*.55;this.pop=Math.max(0,this.pop-dt*2.4);
+  r.time+=dt;if(!this.drag&&this.profile.settings.motion)this.angle+=dt*.22;this.pop=Math.max(0,this.pop-dt*2.4);
   c.clearRect(0,0,W,H);
   // showroom floor + spotlight
   const bg=c.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#0d2a30');bg.addColorStop(1,'#123b40');c.fillStyle=bg;c.fillRect(0,0,W,H);
@@ -94,12 +95,8 @@ export class Garage{
   c.rotate(this.angle);c.strokeStyle='#ffffff22';c.lineWidth=2;for(let i=0;i<48;i++){c.rotate(Math.PI/24);c.beginPath();c.moveTo(R-(i%4?6:14),0);c.lineTo(R-1,0);c.stroke();}
   c.strokeStyle=this.locked?'#7be7ff':'#ffd35b';c.globalAlpha=.55;c.lineWidth=3;c.setLineDash(this.locked?[8,7]:[]);c.beginPath();c.arc(0,0,R*.9,0,6.283);c.stroke();c.setLineDash([]);c.globalAlpha=1;
   c.restore();
-  // truck on the turntable
-  const pv=this.pv(),k=(R*1.7)/175*(1+this.pop*.07);
-  c.save();c.translate(cx,cy);c.rotate(this.angle);c.scale(k,k);
-  if(this.locked){c.shadowColor='#6fe6ff';c.shadowBlur=18;}else{c.shadowColor='#000b';c.shadowBlur=14;c.shadowOffsetY=7;}
-  r.rig({x:2,lane:2,trailer:2,rear:2,angle:0,upgrades:pv.upgrades,decal:pv.decal},pv.truck,0,-44,this.locked?.92:1);
-  c.restore();
+  // Actual camera-angle sprites replace the rotating top-down image.
+  const pv=this.pv();drawShowroom(r,pv,this.angle,cx,cy,R,this.pop);
   if(this.locked){c.save();c.beginPath();c.arc(cx,cy,R,0,6.283);c.clip();c.fillStyle='#8ff3ff1f';const off=(r.time*28)%6;for(let y=-R+off;y<R;y+=6)c.fillRect(cx-R,cy+y,R*2,2);c.restore();}
   // sparkles
   c.save();c.translate(cx,cy);for(const s of this.spark){s.age+=dt;s.x+=s.vx*dt;s.y+=s.vy*dt;s.vy+=140*dt;const a=Math.max(0,1-s.age/s.life);c.globalAlpha=a;c.fillStyle='#fff3b0';c.beginPath();c.moveTo(s.x,s.y-s.r*2);c.lineTo(s.x+s.r*.6,s.y-s.r*.6);c.lineTo(s.x+s.r*2,s.y);c.lineTo(s.x+s.r*.6,s.y+s.r*.6);c.lineTo(s.x,s.y+s.r*2);c.lineTo(s.x-s.r*.6,s.y+s.r*.6);c.lineTo(s.x-s.r*2,s.y);c.lineTo(s.x-s.r*.6,s.y-s.r*.6);c.closePath();c.fill();}c.restore();this.spark=this.spark.filter(s=>s.age<s.life);

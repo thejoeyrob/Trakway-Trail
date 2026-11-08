@@ -218,3 +218,9 @@
 
 #home .home-top{display:block}
 #gAction.locked{font-size:14px;letter-spacing:.6px}
+
+/* Hybrid: drop-trailer button, new-truck cards, bottom HUD spacing. */
+#trailerButton{min-width:91px;min-height:52px;background:linear-gradient(#2e665f,#163d37);border:1px solid #bce5bd77;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#edffe5;box-shadow:0 4px 0 #071d1a;pointer-events:auto;touch-action:manipulation;padding:7px;gap:5px}#trailerButton b{font-size:10px}#trailerButton small{font-size:7px;letter-spacing:.04em}#trailerButton:disabled{opacity:.62}
+.truck-card-art{display:block;width:58px;height:94px;margin:auto;background-image:url('./assets/route-v2/trucks.webp');background-repeat:no-repeat;background-size:464px 232px;background-position:-30px -3px;filter:drop-shadow(0 5px 4px #0007)}.truck-art-2{background-position:-148px -3px}.truck-art-3{background-position:-264px -3px}
+.hud-bottom{gap:9px}.hud-bottom .sway-wrap{flex:1;min-width:0}.hud-bottom #hornButton{min-width:71px;width:74px}.hud-bottom .sway-wrap small{font-size:8px}
+@media(max-height:700px){#trailerButton{min-width:79px}.hud-bottom{gap:5px}}

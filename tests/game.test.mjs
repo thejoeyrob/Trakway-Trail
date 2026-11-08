@@ -158,3 +158,27 @@ test('the rig is quicker: opening speed 240, ramping towards ~380 on a long shif
 test('the road is perfectly straight: lane centres never drift sideways',()=>{
  for(let z=0;z<40000;z+=173){assert.equal(roadCurve(z),0);assert.equal(laneX(2,z),210);for(let lane=0;lane<5;lane++)assert.ok(Math.abs((laneX(lane,z)-210)/(lane-2||1)-(laneX(4,z)-210)/2)<1e-9||lane===2);}
 });
+
+// Hybrid: drop-trailer, hitch pickup and the showroom camera views on the straight five-lane road.
+test('drop trailer abandons only the unbanked delivery, speeds the cab up and removes rear collisions',async()=>{
+ const g=new Drive({seed:9});g.startJob(g.add('job',600,2));const bank=g.money,pay=g.job.pay;
+ assert.ok(g.dropTrailer());assert.equal(g.money,bank);assert.equal(g.job,null);assert.ok(!g.items.some(e=>['crumb','finish'].includes(e.type)));
+ assert.ok(g.events.some(e=>e.type==='trailerDrop'&&e.lost===pay));assert.equal(g.dropTrailer(),false,'cannot drop twice');
+ g.items=[];g.nextSheep=1e9;g.tick(.016);assert.ok(g.speed>g.cruise*1.15);assert.equal(g.sway,0);
+ g.items=[];g.distance=1000;const cone=g.add('cone',g.distance-90,2);g.lane=g.x=g.trailer=g.rear=0;g.tick(.016);assert.equal(g.fines,0,'nothing hits the missing trailer');
+});
+test('a green hitch or a new job couples the trailer again; cab-only state survives save and restore',()=>{
+ const g=new Drive({seed:2});g.dropTrailer();assert.equal(g.hasTrailer,false);
+ const saved=Drive.restore(JSON.parse(JSON.stringify(g.snapshot())));assert.equal(saved.hasTrailer,false);assert.equal(saved.detached.length,1);
+ const hitch=g.add('hitch',10,2);g.collect(hitch);g.collect(hitch);assert.equal(g.hasTrailer,true);assert.equal(g.money,500);
+ g.dropCooldown=0;g.dropTrailer();g.collect(g.add('job',100,2));assert.equal(g.hasTrailer,true);assert.ok(g.job);
+});
+test('after a drop a green hitch appears in an open lane within a few hundred metres',()=>{
+ const g=new Drive({seed:3});g.nextSheep=1e9;g.dropTrailer();let seen=false;
+ for(let i=0;i<4000&&!seen;i++){g.lane=g.x=g.trailer=g.rear=-40;g.invulnerable=9;g.tick(.016);g.events.length=0;seen=g.items.some(e=>e.type==='hitch');}
+ assert.ok(seen);
+});
+test('showroom camera views: eight distinct frames, both directions of rotation wrap',async()=>{
+ const {showroomFrame}=await import('../public/js/showroom.js');const f=new Set();for(let i=0;i<8;i++)f.add(showroomFrame(i*Math.PI/4));assert.equal(f.size,8);
+ assert.equal(showroomFrame(Math.PI*2),showroomFrame(0));assert.equal(showroomFrame(-Math.PI/4),7);
+});

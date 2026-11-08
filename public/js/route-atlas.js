@@ -1,0 +1,2 @@
+/* Crop metadata (source pixels) for the two truck sheets: new top-down tractor/trailers/accessories and the eight showroom camera views. */
+export const ROUTE_ATLAS={"trucks":{"size":[1774,887],"rects":[[122,14,222,413],[566,13,222,414],[1010,13,221,414],[1480,11,144,425],[134,462,177,407],[575,468,182,388],[918,616,381,103],[1391,549,324,213]]},"showroom":{"size":[1774,887],"rects":[[139,32,170,362],[487,43,353,349],[900,154,413,153],[1377,76,344,305],[150,470,147,374],[498,508,345,316],[900,591,418,154],[1362,495,368,331]]}};
