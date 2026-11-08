@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#142b2e"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Truckin’ & Drivin’</title><meta name="description" content="Big rigs. Little roads. Questionable decisions.">
+<link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./assets/icon-180.png"><link rel="icon" href="./assets/icon.png">
+<link rel="stylesheet" href="./game.css">
+</head><body><div style="position:fixed;left:0;right:0;top:0;z-index:9999;pointer-events:none;text-align:center;font:900 9px/1 -apple-system,sans-serif;letter-spacing:.12em;color:#10343a;background:#ffd23a;padding:3px 0;padding-top:calc(3px + env(safe-area-inset-top))">PREVIEW · OPTION 3 · HYBRID · STRAIGHT ROAD + NEW TRUCKS</div>
+<main id="app">
+ <canvas id="road" aria-label="Top-down truck driving game. Swipe left or right to move one position. Double tap to sound your horn." tabindex="0"></canvas>
+ <section id="home" class="screen">
+  <div class="cover"></div><div class="cover-shade"></div><div class="menu-dim"></div>
+  <header class="home-top"><span class="tiny">A LITTLE ROAD. A LOT OF TRUCK.</span></header>
+  <div class="title"><span class="title-kicker">GOOD MILES. BAD IDEAS.</span><h1>TRUCKIN’<span><i>&</i> DRIVIN’</span></h1><div class="tagline">Keep it shiny side up.</div></div>
+  <button id="tapPrompt" class="tap-prompt" disabled><span id="tapLabel">LOADING THE LORRY…</span></button>
+  <nav id="menu" class="menu" aria-label="Main menu" aria-hidden="true">
+   <div class="wheel" id="menuWheel" role="listbox" aria-label="Menu options"></div>
+   <div class="menu-label"><h2 id="menuName"></h2><p id="menuTag"></p></div>
+   <div class="menu-hint"><span>‹</span> SWIPE · TAP TO SELECT <span>›</span></div>
+   <div class="menu-stats" id="menuStats"></div>
+  </nav>
+  <div class="home-foot"><span>NO ADS. JUST BAD TURNS.</span><button data-action="intro" aria-label="Replay JW EDS intro">JW EDS ↗</button></div>
+ </section>
+ <section id="garage" class="hidden" aria-label="Garage">
+  <div class="garage-bg"></div>
+  <header class="garage-top"><button class="back-btn" id="garageBack" aria-label="Back to the depot">‹ DEPOT</button><div class="wallet-chip"><small>GARAGE WALLET</small><b id="garageWallet">£0</b></div></header>
+  <div class="stage"><canvas id="showroom" aria-label="Eight camera views of your truck. Drag to turn the view."></canvas><div id="stageBadge" class="stage-badge hidden"></div></div>
+  <div class="garage-panel">
+   <div class="gtabs" id="garageTabs" role="tablist"><button data-tab="trucks" role="tab">TRUCKS</button><button data-tab="livery" role="tab">LIVERY</button><button data-tab="upgrades" role="tab">UPGRADES</button></div>
+   <div class="wheel gwheel" id="garageWheel" role="listbox"></div>
+   <div class="ginfo"><h3 id="gName"></h3><p id="gDesc"></p><div id="gStats"></div></div>
+   <button id="gAction" class="big-button"></button>
+   <p id="gNote" class="gnote"></p>
+  </div>
+ </section>
+ <section id="hud" class="hidden">
+  <div class="hud-top"><div class="cash-readout"><small>SHIFT BALANCE</small><b id="money">£500</b></div><div class="miles-readout"><small id="distanceLabel">MILES ON THE CLOCK</small><b id="distance">0.00</b></div><button class="round" id="pauseButton" aria-label="Pause game">Ⅱ</button></div>
+  <div class="route-strip"><span id="zone">THE TOWN RUN</span><span id="jobs">0 DELIVERIES</span></div>
+  <div id="jobBox" class="job-box hidden"><span class="job-icon sprite" data-sprite="9"></span><div><small id="jobTitle">SUPERMARKET SWEEP</small><b id="jobMoney">£150</b><span id="jobCount">0 / 10 stops</span></div><div class="job-progress"><i id="jobProgress"></i></div></div>
+  <div id="sheepWarning" class="sheep-warning hidden" role="status"><img src="./assets/farmer.webp" alt="A panicky farmer"><div><b id="sheepText">BEEP THE SHEEP!</b><small id="sheepHint">Wait for the baa…</small></div></div>
+  <div id="floatingToast" class="floating-toast hidden" aria-live="polite"></div>
+  <div class="hud-bottom"><div class="sway-wrap"><span id="swayLabel">TRAILER SWAY</span><div class="meter"><i id="swayFill"></i></div><small id="drivingHint">Easy does it, driver.</small></div><button id="trailerButton" aria-label="Drop trailer and abandon any unbanked delivery"><b>DROP TRAILER</b><small>GAIN SPEED</small></button><button id="hornButton" aria-label="Sound air horn">HONK<span>DOUBLE TAP</span></button></div>
+  <div id="tutorialHint" class="tutorial-hint">‹ SWIPE ONE STEP ›<small>Keep your trailer in check</small></div>
+ </section>
+ <section id="sheet" class="hidden" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="sheet-card"><div class="sheet-head"><div><span id="sheetEyebrow" class="eyebrow"></span><h2 id="sheetTitle"></h2></div><button id="closeSheet" class="round" aria-label="Close panel">×</button></div><div id="sheetBody"></div></div></section>
+ <div id="comic" class="hidden"><span class="sprite" data-sprite="13"></span><strong>OH, FLOCK!</strong><small>NO SHEEP WERE HARMED.<br>YOUR PRIDE, HOWEVER…</small></div>
+ <button id="intro" aria-label="Skip JW EDS intro"><div class="intro-logo"><img src="./assets/intro-jw.png" alt="JW EDS"><i class="red"></i><i class="blue"></i><i class="gold"></i><i class="green"></i></div><span>A JW EDS GAME</span><small>TAP TO SKIP</small></button>
+ <div id="landscape"><span>↻</span><h2>BIG RIG.<br>TALL SCREEN.</h2><p>Turn your phone upright.<br>Your shift is paused.</p></div>
+ <div id="loadError" class="hidden">The artwork couldn’t load. <button onclick="location.reload()">Try again</button></div>
+</main><script type="module" src="./js/game.js"></script>
+</body></html>
