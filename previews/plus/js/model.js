@@ -63,7 +63,7 @@ export class Drive {
  startNight(item){if(this.job||this.sheep||this.night)return;const end=item.z+4200;this.night={start:item.z,end};this.nights++;this.items=this.items.filter(e=>e===item||e.z+(e.length||0)<item.z-235||e.z>end+600);const positions=Array.from({length:40},(_,i)=>item.z+(i+1)*100),path=rewardPath(positions,item.lane,this.seed,this.rng);
   for(let i=0;i<40;i++){this.add('coin',positions[i],path[i],{nightCoin:true});if(i%10===7){const other=laneCorridor(positions[i]-100,positions[i]+180,this.seed,true).filter(l=>l!==path[i]);if(other.length>=2)this.add('cone',positions[i],other[0]);}}
   this.row=Math.max(this.row,end+650);this.nextJob=Math.max(this.nextJob,end+760);this.nextSheep=Math.max(this.nextSheep,end+1100);this.nextNight=end+4300;this.emit('night');}
- collect(e){if(e.done)return;e.done=true;switch(e.type){
+ collect(e){if(e.done)return;e.done=true;if(!PICKUPS.includes(e.type))this.lastHit={type:e.type,lane:e.lane,z:e.z,item:e};switch(e.type){
   case 'hitch':this.hitchTrailer();break;case 'shield':this.shield=1;this.emit('shield');break;
   case 'cow':case 'icecream':this.crash(e.type);break;case 'tractor':this.fine(110,'Slow lane. Slower tractor.');break;case 'haybale':this.fine(60,'Hay fever. £60.');break;case 'geese':this.fine(75,'Goose bumps. £75.');break;case 'prize':this.award(85,'RISK REWARDED');this.emit('prize');break;
   case 'mud':this.grip=Math.max(this.grip,4.8);this.emit('mud');break;case 'pit':this.fine(95,'That pothole has ambition.');break;case 'footpath':this.fine(90,'Public path. Private embarrassment.');break;
@@ -84,7 +84,7 @@ export class Drive {
   this.crashKind=kind;this.emit('crash',{kind});this.end(CRASHES[kind]);}
  end(reason){if(this.finished)return;this.finished=true;this.endReason=reason;this.emit('end',{reason});}
  /* ---- lane occupancy: hazards, pickups and oncoming traffic are never placed on top of each other ---- */
- laneBusy(lane,z0,z1,pad=110){return this.items.some(e=>!e.done&&e.lane===lane&&e.z-pad<z1&&e.z+(e.length||40)+(e.reserve||0)+pad>z0);}
+ laneBusy(lane,z0,z1,pad=110){return this.items.some(e=>{if(e.done||e.lane!==lane)return false;const art=e.collectible?0:(HAZARD_SPECS[e.type]?.height||0)/2;return e.z-art-pad<z1&&e.z+art+(e.length||40)+(e.reserve||0)+pad>z0;});}
  openLanes(z0,z1,pad=60){return [0,1,2,3,4].filter(l=>!this.laneBusy(l,z0,z1,pad));}
  shuffled(){const a=[0,1,2,3,4];for(let i=4;i>0;i--){const j=Math.floor(this.rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
  /* One row of 1-3 hazards. At least two lanes stay open and one of them is reachable (one swipe per ~0.34s) from the lanes that were open just before. Returns the row's length. */
@@ -113,15 +113,13 @@ export class Drive {
   const taken=new Set(placed.map(e=>e.lane)),safe=corridor.filter(l=>!taken.has(l));
   if(safe.length){let l=safe[Math.floor(this.rng()*safe.length)];
    // Reward is beside, never inside, the collision footprint. The next row is kept beyond a trailer-length recovery window.
-   for(let k=0;k<3;k++){const at=z-90+k*145;l=nearestLane(at,l,this.seed);if(!this.laneBusy(l,at,at,75))this.add(k===1&&this.rng()<.24?'taco':'coin',at,l);}
-   // Risk/reward: a bonus tucked in a lane next to the hazards gives a reason to weave rather than sit still.
-   if(placed.length&&this.rng()<.2+.15*r){const lane=safe.find(x=>placed.some(e=>Math.abs(e.lane-x)===1));if(lane!==undefined&&!this.laneBusy(lane,z+260,z+260,75))this.add('prize',z+260,lane,{risky:true});}
+   for(let k=0;k<3;k++){const at=z-90+k*145;l=nearestLane(at,l,this.seed);if(!this.laneBusy(l,at,at,95))this.add(k===1&&this.rng()<.24?'taco':'coin',at,l);}
   }
   return 150;
  }
  spawnEncounter(z){
   const r=roadAt(z,this.seed);if(!['farm-fork','estate-fork','contraflow'].includes(r.motif)||r.gate<.96)return false;
-  const branch=r.bands.find(b=>b.branch===r.restricted),lane=branch.branch==='left'?1:3;
+  const branch=r.bands.find(b=>b.branch===r.restricted),lane=branch.branch==='left'?1:3,legal=lane===1?3:1;
   if(this.laneBusy(lane,z-250,z+700,160))return false;
   if(r.motif==='contraflow'){
    // The car never crosses into another route: it follows a fixed lane only
@@ -129,13 +127,15 @@ export class Drive {
    const stopZ=r.start+1050,spawnZ=Math.min(r.end-650,z+380);
    if(spawnZ<=stopZ+180)return false;
    this.add('car',spawnZ,lane,{oncoming:true,traffic:true,stopZ,speed:150,length:0});
-   this.add('prize',z-130,lane===1?0:4,{risky:true});
-  }else this.add('prize',z,lane,{risky:true});
+   this.add('prize',z-130,legal,{});
+  }else if(!this.laneBusy(legal,z-100,z+100,100))this.add('prize',z,legal,{});
   this.lastScenario=r.motif;return true;
  }
+ /* A clear lane for a pickup near z: the closest legal lane with no hazard footprint on it. null = try again next frame. */
+ freeLane(z,pref=2){const lanes=routeLanes(z,this.seed,{legal:true}).sort((a,b)=>Math.abs(a-pref)-Math.abs(b-pref));return lanes.find(l=>!this.laneBusy(l,z-170,z+170,100))??null;}
  spawn(){const busy=this.job||this.sheep||this.night,pending=this.items.some(e=>['job','night'].includes(e.type)&&!e.done);
-  if(!busy&&!pending){if(this.distance>this.nextNight-1100){this.add('night',this.distance+700,nearestLane(this.distance+700,2,this.seed));this.nextNight=this.distance+6500;}else if(this.distance>this.nextJob-1100){this.add('job',Math.max(this.nextJob,this.distance+700),nearestLane(Math.max(this.nextJob,this.distance+700),2,this.seed),{double:this.jobs>0&&this.rng()>.5});this.nextJob+=3300;}}
-  if(!busy&&this.distance>this.nextBoost-700){this.add('boost',this.distance+550,nearestLane(this.distance+550,Math.floor(this.rng()*5),this.seed));this.nextBoost=this.distance+3300;}
+  if(!busy&&!pending){if(this.distance>this.nextNight-1100){const l=this.freeLane(this.distance+700,2);if(l!==null){this.add('night',this.distance+700,l);this.nextNight=this.distance+6500;}}else if(this.distance>this.nextJob-1100){const z=Math.max(this.nextJob,this.distance+700),l=this.freeLane(z,2);if(l!==null){this.add('job',z,l,{double:this.jobs>0&&this.rng()>.5});this.nextJob+=3300;}}}
+  if(!busy&&this.distance>this.nextBoost-700){const l=this.freeLane(this.distance+550,Math.floor(this.rng()*5));if(l!==null){this.add('boost',this.distance+550,l);this.nextBoost=this.distance+3300;}}
   if(!busy&&!this.shield&&this.distance>this.nextShield-700&&!this.items.some(e=>e.type==='shield'&&!e.done)){const z=this.distance+620,l=nearestLane(z,Math.floor(this.rng()*5),this.seed);if(!this.laneBusy(l,z-100,z+100,100)){this.add('shield',z,l);this.nextShield=this.distance+6200+this.rng()*2500;}}
   if(!this.hasTrailer&&this.nextHitch&&this.distance>this.nextHitch-700&&!this.items.some(e=>e.type==='hitch'&&!e.done)){const z=this.distance+650,lane=nearestLane(z,this.lane,this.seed);if(!this.laneBusy(lane,z-100,z+100,100)){this.add('hitch',z,lane);this.nextHitch=z+1500;}}
   while(this.row<this.distance+1300){
@@ -180,7 +180,7 @@ export class Drive {
   for(const p of sceneryProps(this.distance-240,this.distance+100,this.seed)){
    if(this.sceneryHits[p.id]||this.invulnerable>0)continue;
    const hit=(x,z,hw,hh)=>Math.abs(x-p.x)<hw+p.hitWidth/2&&Math.abs(z-p.z)<hh+p.hitHeight/2;
-   if(hit(laneX(this.x,this.distance),this.distance,RIG.cabHX,RIG.cabHZ)||(this.hasTrailer&&hit(pose.trailer.x,this.distance-pose.trailer.y,RIG.trHX,RIG.trHZ))){this.sceneryHits[p.id]=p.z;if(p.effect==='house')this.crash('house');else this.fine(55,'Scenery is not a shortcut.');}
+   if(hit(laneX(this.x,this.distance),this.distance,RIG.cabHX,RIG.cabHZ)||(this.hasTrailer&&hit(pose.trailer.x,this.distance-pose.trailer.y,RIG.trHX,RIG.trHZ))){this.sceneryHits[p.id]=p.z;if(p.effect==='house'){this.lastHit={type:'house',x:p.x,z:p.z};this.crash('house');}else this.fine(55,'Scenery is not a shortcut.');}
   }
   for(const key of Object.keys(this.sceneryHits))if(this.sceneryHits[key]<this.distance-400)delete this.sceneryHits[key];
   for(const e of this.items){if(e.done)continue;const delta=e.z-this.distance,length=e.length||0,hazard=!PICKUPS.includes(e.type),spec=HAZARD_SPECS[e.type];
