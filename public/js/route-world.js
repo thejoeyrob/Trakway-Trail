@@ -103,3 +103,23 @@ export function sceneryProps(z0,z1,seed=1){
  }
  return props;
 }
+
+/* Decorative scenery for the extra width on iPads and the tall-phone preview: further rows of the same painted houses, trees and
+   hedges, set back from the verge. No collision; purely to carry the world out to the screen edges. */
+export function sideProps(z0,z1,seed=1,pad=0){
+ const props=[];if(pad<2)return props;
+ const cols=Math.ceil(pad/118);
+ for(let n=Math.floor(z0/260);n<=Math.ceil(z1/260);n++){if(n<0)continue;
+  for(const side of[-1,1])for(let col=0;col<cols;col++){
+   const h=hash(n*7+col*131+(side>0?977:13),seed+51),z=n*260+(h%140);
+   const a=roadAt(z,seed),stage=roadTheme(z),outer=side<0?Math.min(...a.bands.map(b=>b.left)):Math.max(...a.bands.map(b=>b.right));
+   const roll=h>>>8&7;if(col>0&&roll<2)continue;   // gaps, so the rows look natural
+   const treeish=roll>=5||stage===1;
+   const sprite=treeish?1:stage===3?[4,7,2][roll%3]:0,sheet='routeProps';
+   const width=sprite===1?96:sprite===0?91:95,height=sprite===0?109:sprite===4?125:90;
+   const detailed=!treeish&&roll===3,scenic=stage===0?[0,7,0,1][roll%4]:stage===2?3:stage===3?4:2;
+   props.push({id:n+':'+side+':'+col,x:outer+side*(60+col*118+(h>>>12&15)),z,sprite:detailed?scenic:sprite,sheet:detailed?'routeScenery':sheet,width,height});
+  }
+ }
+ return props;
+}

@@ -5,6 +5,93 @@ const ROUTE_ATLAS={"surfaces":{"size":[1254,1254],"rects":[[0,0,314,314],[314,0,
 module.exports={ROUTE_ATLAS};
 
 },
+"./propart.js":function(module,exports,require){
+/* Hand-drawn top-down props (no image files): cow, tractor, hay bale, ice-cream van, geese, lucky horseshoe.
+   Each draws centred on (0,0) inside a w x h box, lit from the top-left like the painted atlas art. t = seconds, for tail swish, beacons, etc. */
+const TAU=Math.PI*2;
+function shadow(c,w,h,a=.28){c.save();c.fillStyle='rgba(8,18,14,'+a+')';c.beginPath();c.ellipse(w*.06,h*.05,w*.5,h*.5,0,0,TAU);c.fill();c.restore();}
+function blob(c,x,y,rx,ry,fill,rot=0){c.fillStyle=fill;c.beginPath();c.ellipse(x,y,rx,ry,rot,0,TAU);c.fill();}
+function rr(c,x,y,w,h,r){c.beginPath();c.roundRect(x,y,w,h,r);}
+function grad(c,x0,y0,x1,y1,a,b){const g=c.createLinearGradient(x0,y0,x1,y1);g.addColorStop(0,a);g.addColorStop(1,b);return g;}
+const ART={
+ cow(c,w,h,t){
+  shadow(c,w*.95,h*.8);
+  const sw=Math.sin(t*3)*3;
+  // tail, legs
+  c.strokeStyle='#d8d2c4';c.lineWidth=2.4;c.lineCap='round';c.beginPath();c.moveTo(0,-h*.32);c.quadraticCurveTo(sw*1.4,-h*.45,sw*2,-h*.5);c.stroke();blob(c,sw*2,-h*.5,2.6,3.4,'#2a2622');
+  for(const [x,y] of [[-.27,-.2],[.27,-.2],[-.27,.14],[.27,.14]])blob(c,x*w,y*h,w*.07,h*.06,'#27231f');
+  // body
+  c.fillStyle=grad(c,-w*.4,0,w*.4,0,'#fbf8ef','#e1dccd');rr(c,-w*.37,-h*.34,w*.74,h*.62,w*.3);c.fill();
+  c.fillStyle='#262320';
+  c.beginPath();c.ellipse(-w*.14,-h*.15,w*.17,h*.12,.4,0,TAU);c.fill();c.beginPath();c.ellipse(w*.16,h*.02,w*.2,h*.1,-.3,0,TAU);c.fill();c.beginPath();c.ellipse(-w*.1,h*.15,w*.1,h*.07,0,0,TAU);c.fill();
+  c.strokeStyle='#bdb7a6';c.lineWidth=1.3;c.beginPath();c.moveTo(0,-h*.32);c.lineTo(0,h*.26);c.stroke();
+  // head, facing the truck (down the screen)
+  blob(c,0,h*.36,w*.22,h*.15,'#f0ebde');blob(c,-w*.08,h*.34,w*.1,h*.07,'#262320');
+  blob(c,0,h*.43,w*.15,h*.07,'#f3b3b0');blob(c,-w*.05,h*.44,1.6,1.4,'#7a3b3b');blob(c,w*.05,h*.44,1.6,1.4,'#7a3b3b');
+  blob(c,-w*.12,h*.33,2.4,2.6,'#101010');blob(c,w*.12,h*.33,2.4,2.6,'#101010');
+  blob(c,-w*.3,h*.31,w*.09,h*.04,'#e8e2d2',-.4);blob(c,w*.3,h*.31,w*.09,h*.04,'#e8e2d2',.4);
+  c.strokeStyle='#e9d9a5';c.lineWidth=2.4;c.beginPath();c.moveTo(-w*.16,h*.28);c.lineTo(-w*.2,h*.24);c.moveTo(w*.16,h*.28);c.lineTo(w*.2,h*.24);c.stroke();
+ },
+ tractor(c,w,h,t){
+  shadow(c,w*1.05,h*.95);
+  // rear wheels, front wheels
+  for(const s of[-1,1]){c.fillStyle='#1d1f1d';rr(c,s*w*.5-w*.13+(s>0?0:0),h*.04,w*.26,h*.34,5);c.fill();c.fillStyle='#e8c53a';rr(c,s*w*.5-w*.04,h*.14,w*.08,h*.14,2);c.fill();
+   c.fillStyle='#1d1f1d';rr(c,s*w*.38-w*.07,-h*.34,w*.14,h*.17,3);c.fill();}
+  // chassis + bonnet + cab
+  c.fillStyle='#37403c';rr(c,-w*.11,-h*.4,w*.22,h*.8,3);c.fill();
+  c.fillStyle=grad(c,-w*.3,0,w*.3,0,'#d6402f','#9f2a20');rr(c,-w*.26,-h*.45,w*.52,h*.42,9);c.fill();
+  c.fillStyle='#ffffff30';rr(c,-w*.2,-h*.43,w*.1,h*.34,4);c.fill();
+  c.fillStyle='#2b2f2d';c.beginPath();c.arc(w*.12,-h*.38,3,0,TAU);c.fill();c.fillRect(w*.115,-h*.5,1.8,h*.14);
+  c.fillStyle=grad(c,-w*.3,0,w*.3,0,'#e5e0cf','#bdb7a4');rr(c,-w*.3,-h*.02,w*.6,h*.4,6);c.fill();
+  c.fillStyle='#51606a';rr(c,-w*.24,h*.0,w*.48,h*.1,3);c.fill();rr(c,-w*.24,h*.27,w*.48,h*.08,3);c.fill();
+  c.fillStyle='#ffffff55';c.fillRect(-w*.22,h*.14,w*.44,2);
+  // amber beacon
+  const on=Math.sin(t*9)>0;c.fillStyle=on?'#ffc23a':'#a8721a';c.beginPath();c.arc(0,h*.3,4,0,TAU);c.fill();if(on){const g=c.createRadialGradient(0,h*.3,1,0,h*.3,16);g.addColorStop(0,'#ffcf5acc');g.addColorStop(1,'#ffcf5a00');c.fillStyle=g;c.fillRect(-18,h*.3-18,36,36);}
+ },
+ haybale(c,w,h,t){
+  shadow(c,w*.95,h*.95);
+  c.fillStyle=grad(c,-w*.4,-h*.4,w*.4,h*.4,'#f0cf6e','#c79a35');rr(c,-w*.42,-h*.4,w*.84,h*.8,h*.2);c.fill();
+  c.strokeStyle='#a97b22';c.lineWidth=1.1;for(let i=-4;i<=4;i++){c.beginPath();c.moveTo(-w*.4,i*h*.085);c.lineTo(w*.4,i*h*.085+Math.sin(i)*2);c.stroke();}
+  c.strokeStyle='#d9692a';c.lineWidth=3;for(const x of[-w*.2,w*.2]){c.beginPath();c.moveTo(x,-h*.4);c.lineTo(x,h*.4);c.stroke();}
+  c.strokeStyle='#ffe9a0aa';c.lineWidth=1.4;for(let i=0;i<9;i++){const x=((i*37)%80-40)/40*w*.35,y=((i*53)%80-40)/40*h*.32;c.beginPath();c.moveTo(x,y);c.lineTo(x+5,y-4);c.stroke();}
+ },
+ icecream(c,w,h,t){
+  shadow(c,w*1.05,h*.95);
+  c.fillStyle='#181c1c';for(const y of[-.28,.26])for(const s of[-1,1]){rr(c,s*w*.47-w*.06,h*y-h*.06,w*.12,h*.12,3);c.fill();}
+  c.fillStyle=grad(c,-w*.4,0,w*.4,0,'#fff4e2','#e3d6bd');rr(c,-w*.4,-h*.46,w*.8,h*.92,w*.2);c.fill();
+  c.fillStyle='#f2639b';rr(c,-w*.4,h*.02,w*.8,h*.1,3);c.fill();c.fillStyle='#38c3d1';rr(c,-w*.4,h*.12,w*.8,h*.07,3);c.fill();
+  c.fillStyle='#43565c';rr(c,-w*.32,-h*.4,w*.64,h*.17,5);c.fill();c.fillStyle='#ffffff45';c.fillRect(-w*.28,-h*.38,w*.56,2);
+  // roof: giant cone from above, loudspeaker
+  blob(c,0,-h*.1,w*.27,w*.27,'#f6c06a');c.strokeStyle='#d9983a';c.lineWidth=1.2;for(let i=0;i<8;i++){const a=i/8*TAU;c.beginPath();c.moveTo(0,-h*.1);c.lineTo(Math.cos(a)*w*.27,-h*.1+Math.sin(a)*w*.27);c.stroke();}
+  blob(c,0,-h*.1,w*.2,w*.2,'#ff9fc4');blob(c,-w*.04,-h*.13,w*.1,w*.1,'#ffd1e3');blob(c,0,-h*.1,w*.045,w*.045,'#d8466f');
+  c.fillStyle='#2d3436';rr(c,-w*.2,h*.27,w*.4,h*.1,3);c.fill();
+  const on=Math.sin(t*6)>0;c.fillStyle=on?'#ffe14a':'#9c8a2e';c.beginPath();c.arc(-w*.3,-h*.44,2.6,0,TAU);c.arc(w*.3,-h*.44,2.6,0,TAU);c.fill();
+ },
+ geese(c,w,h,t){
+  shadow(c,w*.9,h*.8,.2);
+  const pos=[[-.28,-.2,.3],[.22,-.28,-.2],[-.05,.08,.1],[.3,.2,-.4],[-.3,.28,.5]];
+  for(const [x,y,r] of pos){c.save();c.translate(x*w,y*h);c.rotate(r+Math.sin(t*4+x*9)*.08);
+   blob(c,0,0,w*.11,h*.15,'#fbfaf5');blob(c,-w*.09,0,w*.05,h*.1,'#d9d8cf',.3);blob(c,w*.09,0,w*.05,h*.1,'#d9d8cf',-.3);
+   c.fillStyle='#2f2f2f';c.beginPath();c.ellipse(0,h*.14,w*.03,h*.05,0,0,TAU);c.fill();
+   c.strokeStyle='#fbfaf5';c.lineWidth=3;c.beginPath();c.moveTo(0,-h*.12);c.lineTo(0,-h*.22);c.stroke();blob(c,0,-h*.23,w*.04,h*.04,'#fbfaf5');
+   c.fillStyle='#f08a24';c.beginPath();c.moveTo(-2.5,-h*.25);c.lineTo(2.5,-h*.25);c.lineTo(0,-h*.32);c.fill();c.restore();}
+ },
+ horseshoe(c,w,h,t){
+  const pulse=1+Math.sin(t*5)*.06;c.save();c.scale(pulse,pulse);
+  const g=c.createRadialGradient(0,0,2,0,0,w*.75);g.addColorStop(0,'#fff0a8cc');g.addColorStop(1,'#ffe06b00');c.fillStyle=g;c.fillRect(-w*.8,-w*.8,w*1.6,w*1.6);
+  c.lineCap='round';c.strokeStyle='#8a5a12';c.lineWidth=w*.19;c.beginPath();c.arc(0,-w*.02,w*.27,Math.PI*.18,Math.PI*.82,true);c.stroke();
+  c.strokeStyle=grad(c,-w*.3,-w*.3,w*.3,w*.3,'#ffe27a','#d49a1a');c.lineWidth=w*.15;c.beginPath();c.arc(0,-w*.02,w*.27,Math.PI*.18,Math.PI*.82,true);c.stroke();
+  c.fillStyle='#7a4e0e';for(let i=0;i<6;i++){const a=Math.PI*(.28+i*.088);c.beginPath();c.arc(Math.cos(a+Math.PI)*0,0,0,0,0);}
+  for(let i=0;i<5;i++){const a=Math.PI*(1.23+i*.135)-Math.PI;const x=Math.cos(a)*w*.27,y=-w*.02-Math.sin(a)*w*.27;c.beginPath();c.arc(x,y,1.6,0,TAU);c.fill();}
+  c.restore();
+ }
+};
+const HAS_ART=Object.keys(ART);
+function drawProp(c,kind,w,h,t=0){const f=ART[kind];if(!f)return false;c.save();f(c,w,h,t);c.restore();return true;}
+
+module.exports={HAS_ART,drawProp};
+
+},
 "./route-world.js":function(module,exports,require){
 /* Route World 2.0. Distances and polygons are the shared source of truth for
  * artwork, signs, spawning and wheel contact. Five INPUT positions are retained;
@@ -112,7 +199,27 @@ function sceneryProps(z0,z1,seed=1){
  return props;
 }
 
-module.exports={ROUTE_VERSION,CHUNK_LENGTH,MOTIFS,hash,steeringX,routeSpec,roadAt,surfaceAt,routeLanes,laneCorridor,nearestLane,rewardPath,reachableCorridor,routeWarning,sceneryProps};
+/* Decorative scenery for the extra width on iPads and the tall-phone preview: further rows of the same painted houses, trees and
+   hedges, set back from the verge. No collision; purely to carry the world out to the screen edges. */
+function sideProps(z0,z1,seed=1,pad=0){
+ const props=[];if(pad<2)return props;
+ const cols=Math.ceil(pad/118);
+ for(let n=Math.floor(z0/260);n<=Math.ceil(z1/260);n++){if(n<0)continue;
+  for(const side of[-1,1])for(let col=0;col<cols;col++){
+   const h=hash(n*7+col*131+(side>0?977:13),seed+51),z=n*260+(h%140);
+   const a=roadAt(z,seed),stage=roadTheme(z),outer=side<0?Math.min(...a.bands.map(b=>b.left)):Math.max(...a.bands.map(b=>b.right));
+   const roll=h>>>8&7;if(col>0&&roll<2)continue;   // gaps, so the rows look natural
+   const treeish=roll>=5||stage===1;
+   const sprite=treeish?1:stage===3?[4,7,2][roll%3]:0,sheet='routeProps';
+   const width=sprite===1?96:sprite===0?91:95,height=sprite===0?109:sprite===4?125:90;
+   const detailed=!treeish&&roll===3,scenic=stage===0?[0,7,0,1][roll%4]:stage===2?3:stage===3?4:2;
+   props.push({id:n+':'+side+':'+col,x:outer+side*(60+col*118+(h>>>12&15)),z,sprite:detailed?scenic:sprite,sheet:detailed?'routeScenery':sheet,width,height});
+  }
+ }
+ return props;
+}
+
+module.exports={ROUTE_VERSION,CHUNK_LENGTH,MOTIFS,hash,steeringX,routeSpec,roadAt,surfaceAt,routeLanes,laneCorridor,nearestLane,rewardPath,reachableCorridor,routeWarning,sceneryProps,sideProps};
 
 },
 "./route-hazards.js":function(module,exports,require){
@@ -133,19 +240,26 @@ const HAZARD_SPECS={
  narrow:{width:72,height:145,hitWidth:52,hitHeight:60,effect:'fine',sprite:4,sheet:'terrain'},
  bus:{width:72,height:160,hitWidth:58,hitHeight:120,effect:'fine',sprite:2,sheet:'terrain'},
  noentry:{width:72,height:160,hitWidth:58,hitHeight:120,effect:'fine',sprite:3,sheet:'terrain'},
- grass:{width:72,height:145,hitWidth:60,hitHeight:100,effect:'grip-fine',sprite:8,sheet:'routeProps'}
+ grass:{width:72,height:145,hitWidth:60,hitHeight:100,effect:'grip-fine',sprite:8,sheet:'routeProps'},
+ // Hand-drawn (see propart.js). Cow and ice-cream van end the shift; honking shoos cows and geese away in time.
+ cow:{width:60,height:96,hitWidth:46,hitHeight:70,effect:'crash',draw:'cow',sheet:'draw'},
+ tractor:{width:62,height:108,hitWidth:50,hitHeight:88,effect:'fine',draw:'tractor',sheet:'draw'},
+ haybale:{width:64,height:58,hitWidth:52,hitHeight:46,effect:'fine',draw:'haybale',sheet:'draw'},
+ icecream:{width:60,height:112,hitWidth:48,hitHeight:94,effect:'crash',draw:'icecream',sheet:'draw'},
+ geese:{width:68,height:64,hitWidth:54,hitHeight:48,effect:'fine',draw:'geese',sheet:'draw'}
 };
-const PICKUP_SPECS={hitch:{sprite:13,sheet:'routeProps',width:45,height:45},prize:{sprite:12,sheet:'routeProps',width:40,height:40}};
+const PICKUP_SPECS={hitch:{sprite:13,sheet:'routeProps',width:45,height:45},prize:{sprite:12,sheet:'routeProps',width:40,height:40},shield:{draw:'horseshoe',width:46,height:46}};
 function sweptOverlap(a0,a1,half,e0,e1){return Math.max(a0,a1)+half>=e0&&Math.min(a0,a1)-half<=e1;}
 
 module.exports={HAZARD_SPECS,PICKUP_SPECS,sweptOverlap};
 
 },
 "./route-render.js":function(module,exports,require){
-const {roadAt,hash,steeringX,CHUNK_LENGTH,surfaceAt,sceneryProps}=require("./route-world.js");
+const {roadAt,hash,steeringX,CHUNK_LENGTH,surfaceAt,sceneryProps,sideProps}=require("./route-world.js");
 const {roadTheme}=require("./geometry.js");
 const {ROUTE_ATLAS}=require("./route-atlas.js");
 const {HAZARD_SPECS,PICKUP_SPECS}=require("./route-hazards.js");
+const {drawProp}=require("./propart.js");
 const mod=(n,m)=>((n%m)+m)%m;
 class RoutePainter{
  constructor(renderer){this.r=renderer;this.patterns=[];this.makePatterns();}
@@ -163,15 +277,15 @@ class RoutePainter{
  paint(id,x,y,w,h,offset){const c=this.r.ctx,p=this.patterns[id];if(!p)return;p.setTransform(new DOMMatrix().translate(0,offset));c.fillStyle=p;c.fillRect(x,y,w,h);}
  road(g){const r=this.r,c=r.ctx,scale=r.worldScale,offset=mod(r.playerY+g.distance*scale,256);
   const topZ=g.distance+r.playerY/scale,bottomZ=g.distance+(r.playerY-r.H)/scale;
-  this.paint([7,3,12,11][roadTheme(bottomZ)],0,0,420,r.H,offset);
+  this.paint([7,3,12,11][roadTheme(bottomZ)],-r.pad,0,420+2*r.pad,r.H,offset);
   const boundary=(Math.floor(bottomZ/5400)+1)*5400,by=r.playerY-(boundary-g.distance)*scale;
-  if(by>0&&by<r.H){c.save();c.beginPath();c.rect(0,0,420,by);c.clip();this.paint([7,3,12,11][roadTheme(boundary+1)],0,0,420,r.H,offset);c.restore();}
+  if(by>0&&by<r.H){c.save();c.beginPath();c.rect(-r.pad,0,420+2*r.pad,by);c.clip();this.paint([7,3,12,11][roadTheme(boundary+1)],-r.pad,0,420+2*r.pad,r.H,offset);c.restore();}
   const samples=[];for(let y=-8;y<=r.H+8;y+=4)samples.push({y,z:g.distance+(r.playerY-y)/scale,a:roadAt(g.distance+(r.playerY-y)/scale,g.seed)});
   const polygon=(rows,getBand,expand=0)=>{const path=new Path2D();if(!rows.length)return path;
    rows.forEach((row,i)=>{const b=getBand(row);const x=b.left-expand;i?path.lineTo(x,row.y):path.moveTo(x,row.y);});
    for(let i=rows.length-1;i>=0;i--){const b=getBand(rows[i]);path.lineTo(b.right+expand,rows[i].y);}path.closePath();return path;};
-  const fills=(path,id)=>{c.save();c.clip(path);this.paint(id,0,0,420,r.H,offset);c.restore();};
-  const river=samples.filter(row=>row.a.motif==='river-bend'&&row.a.gate>.45);if(river.length)fills(polygon(river,row=>row.a.side<0?{left:row.a.bands[0].right+20,right:420}:{left:0,right:row.a.bands[0].left-20}),14);
+  const fills=(path,id)=>{c.save();c.clip(path);this.paint(id,-r.pad,0,420+2*r.pad,r.H,offset);c.restore();};
+  const river=samples.filter(row=>row.a.motif==='river-bend'&&row.a.gate>.45);if(river.length)fills(polygon(river,row=>row.a.side<0?{left:row.a.bands[0].right+20,right:420+r.pad}:{left:-r.pad,right:row.a.bands[0].left-20}),14);
   // Each complete road ribbon is filled once. Scanline rectangles leave tiny
   // antialias seams on high-DPI screens, so they are deliberately not used.
   const all=new Path2D(),shoulders=new Path2D();
@@ -197,6 +311,7 @@ class RoutePainter{
   // Roadside props are anchored in world coordinates and never drift relative
   // to the road. Their footprints stay outside the driveable asphalt.
   for(const p of sceneryProps(g.distance+(r.playerY-r.H)/scale-150,g.distance+r.playerY/scale+150,g.seed))this.atlas(p.sheet||'routeProps',p.sprite,p.x,r.playerY-(p.z-g.distance)*scale,p.width,p.height*scale,0,.98);
+  for(const p of sideProps(g.distance+(r.playerY-r.H)/scale-150,g.distance+r.playerY/scale+150,g.seed,r.pad))this.atlas(p.sheet,p.sprite,p.x,r.playerY-(p.z-g.distance)*scale,p.width,p.height*scale,0,.98);
   this.signs(g);
  }
  signs(g){const r=this.r,c=r.ctx,start=Math.max(0,Math.floor(g.distance/CHUNK_LENGTH)-1),end=start+2;
@@ -211,16 +326,19 @@ class RoutePainter{
    for(const b of a.bands){const x=(b.left+b.right)/2,y=r.playerY-(z-g.distance)*r.worldScale;c.save();c.translate(x,y);if(b.rule==='oneway')c.rotate(Math.PI);c.fillStyle=b.rule?'#ffdfc3a0':'#e9eddca0';c.beginPath();c.moveTo(0,-17);c.lineTo(10,-4);c.lineTo(4,-4);c.lineTo(4,13);c.lineTo(-4,13);c.lineTo(-4,-4);c.lineTo(-10,-4);c.closePath();c.fill();c.restore();}
   }
  }
- hazards(g){const r=this.r,c=r.ctx;for(const e of g.items){if(e.done)continue;const spec=HAZARD_SPECS[e.type];if(!spec)continue;const x=steeringX(e.lane),y=r.playerY-(e.z-g.distance)*r.worldScale;if(y< -160||y>r.H+160)continue;
+ hazards(g){const r=this.r,c=r.ctx;this.leaving(g);for(const e of g.items){if(e.done)continue;const spec=HAZARD_SPECS[e.type];if(!spec)continue;const x=steeringX(e.lane),y=r.playerY-(e.z-g.distance)*r.worldScale;if(y< -160||y>r.H+160)continue;
    const h=spec.height*r.worldScale+(e.length||0)*r.worldScale;
-   if(spec.sheet.startsWith('route'))this.atlas(spec.sheet,spec.sprite,x,y-(e.length||0)*r.worldScale/2,spec.width,h,e.oncoming?Math.PI:0);
+   if(spec.draw){c.save();c.translate(x,y);c.scale(1,r.worldScale);drawProp(c,spec.draw,spec.width,spec.height,r.time+e.id);c.restore();}
+   else if(spec.sheet.startsWith('route'))this.atlas(spec.sheet,spec.sprite,x,y-(e.length||0)*r.worldScale/2,spec.width,h,e.oncoming?Math.PI:0);
    else r.sprite(spec.sprite,x,y-(e.length||0)*r.worldScale/2,spec.width,h,e.oncoming?Math.PI:0,1,spec.sheet);
    if(e.oncoming){r.label('ONCOMING',x,y-43,'#ffd1aa',7);}
    if(['lowbridge','weakbridge','bus','footpath'].includes(e.type)){const labels={lowbridge:'LOW BRIDGE',weakbridge:'WEIGHT LIMIT',bus:'BUS ONLY',footpath:'PUBLIC PATH'};r.label(labels[e.type],x,y-h/2-8,'#ffebb5',7);}
    if(r.settings.hitboxes){c.save();c.strokeStyle='#ff4bcc';c.lineWidth=1;c.strokeRect(x-spec.hitWidth/2,y-(e.length||0)*r.worldScale-spec.hitHeight*r.worldScale/2,spec.hitWidth,(spec.hitHeight+(e.length||0))*r.worldScale);c.restore();}
   }
  }
- pickup(e,x,y){const spec=PICKUP_SPECS[e.type];if(!spec)return false;this.atlas(spec.sheet,spec.sprite,x,y,spec.width,spec.height);this.r.label(e.type==='hitch'?'HITCH UP':'£85 BONUS',x,y-29,e.type==='hitch'?'#a3ffd0':'#ffe7a2',8);return true;}
+ pickup(e,x,y){const spec=PICKUP_SPECS[e.type];if(!spec)return false;const c=this.r.ctx;if(spec.draw){c.save();c.translate(x,y);drawProp(c,spec.draw,spec.width,spec.height,this.r.time+e.id);c.restore();}else this.atlas(spec.sheet,spec.sprite,x,y,spec.width,spec.height);const L={hitch:['HITCH UP','#a3ffd0'],prize:['£85 BONUS','#ffe7a2'],shield:['LUCKY SHOE','#fff0a8']}[e.type];this.r.label(L[0],x,y-29,L[1],8);return true;}
+ /* Cows and geese you've honked away trot off to the side and fade. */
+ leaving(g){const r=this.r,c=r.ctx;for(const d of g.leaving||[]){const spec=HAZARD_SPECS[d.type];if(!spec)continue;const y=r.playerY-(d.z-g.distance)*r.worldScale,x=steeringX(d.lane)+d.dir*d.age*130;c.save();c.globalAlpha=Math.max(0,1-d.age/1.4);c.translate(x,y);c.scale(1,r.worldScale);c.rotate(d.dir*.5*Math.min(1,d.age*3));drawProp(c,spec.draw,spec.width,spec.height,r.time*3);c.restore();}}
 }
 
 module.exports={RoutePainter};
@@ -276,17 +394,163 @@ function roadTheme(z){const sector=Math.floor(Math.max(0,z)/5400);for(let n=THEM
 function roadShape(z){return {width:368/.56,stage:roadTheme(z)};}
 function roadCurve(z){return 0;}
 function laneX(lane,z){return 54+78*lane;}
+/* The rig is drawn 1.3x bigger than the first build so it sits properly on the wider roads.
+   RIG holds the shared size + collision numbers (collision is a touch smaller than the art, so it stays fair). */
+const RIG={S:1.3,cabW:64,cabL:119,trailerW:61,trailerL:151,flatW:60,flatL:138,cabHX:21,cabHZ:28,trHX:22,trHZ:64};
 function rigPose(x,y,cabAngle,trailerAngle,rearAngle){
- const back=(p,d,a)=>({x:p.x-Math.sin(a)*d,y:p.y+Math.cos(a)*d});
+ const S=RIG.S,back=(p,d,a)=>({x:p.x-Math.sin(a)*d,y:p.y+Math.cos(a)*d});
  // 5th wheel is behind, not inside the tractor cab; both trailers rotate about connected hitches.
- const hitch=back({x,y},34,cabAngle);
- const trailer={...back(hitch,38,trailerAngle),angle:trailerAngle};
- const rearHitch=back(hitch,101,trailerAngle);
- const rear={...back(rearHitch,45,rearAngle),angle:rearAngle};
+ const hitch=back({x,y},34*S,cabAngle);
+ const trailer={...back(hitch,38*S,trailerAngle),angle:trailerAngle};
+ const rearHitch=back(hitch,101*S,trailerAngle);
+ const rear={...back(rearHitch,45*S,rearAngle),angle:rearAngle};
  return {hitch,trailer,rearHitch,rear};
 }
 
-module.exports={roadTheme,roadShape,roadCurve,laneX,rigPose};
+module.exports={roadTheme,roadShape,roadCurve,laneX,RIG,rigPose};
+
+},
+"./rigart.js":function(module,exports,require){
+/* The rig, drawn properly: ChatGPT's painted cab + trailer plates are recoloured per paint, wrapped with vector
+   decals (clipped to the metalwork so they sit on the roofs), then every garage upgrade is drawn on top as a
+   visible part. Used by BOTH the game and the garage preview, so what you see in the garage is what you drive. */
+const {ROUTE_ATLAS}=require("./route-atlas.js");
+const {rigPose,RIG}=require("./geometry.js");
+const TAU=Math.PI*2;
+/* paint id -> cab sprite (+ hue/sat/light tweak) and trailer tint */
+const PAINTS={
+ 0:{cab:{sprite:0},tint:'#1fb0b0'},
+ 1:{cab:{sprite:0,sat:.05,white:1,warm:1},tint:null},
+ 2:{cab:{sprite:1},tint:'#ee8428'},
+ 3:{cab:{sprite:2},tint:'#7b3fcf'},
+ 4:{cab:{sprite:0,hue:172,sat:1.05},tint:'#cf3329'},
+ 5:{cab:{sprite:0,hue:-44,sat:.95},tint:'#2f9a4d'}
+};
+const cache=new Map();
+const mk=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c;};
+function rgb2hsl(r,g,b){r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2;let h=0,s=0;if(mx!==mn){const d=mx-mn;s=l>.5?d/(2-mx-mn):d/(mx+mn);h=mx===r?(g-b)/d+(g<b?6:0):mx===g?(b-r)/d+2:(r-g)/d+4;h*=60;}return[h,s,l];}
+function hsl2rgb(h,s,l){h=((h%360)+360)%360/360;if(!s)return[l*255,l*255,l*255];const q=l<.5?l*(1+s):l+s-l*s,p=2*l-q,f=t=>{t=(t+1)%1;return t<1/6?p+(q-p)*6*t:t<.5?q:t<2/3?p+(q-p)*(2/3-t)*6:p;};return[f(h+1/3)*255,f(h)*255,f(h-1/3)*255];}
+function crop(img,rect){const c=mk(rect[2],rect[3]);c.getContext('2d').drawImage(img,...rect,0,0,rect[2],rect[3]);return c;}
+function hueShift(c,o){const x=c.getContext('2d'),d=x.getImageData(0,0,c.width,c.height),p=d.data;
+ for(let i=0;i<p.length;i+=4){if(!p[i+3])continue;let[h,s,l]=rgb2hsl(p[i],p[i+1],p[i+2]);
+  // only strongly coloured paint moves; chrome, tyres, glass and lamps keep their colours
+  const paint=s>.28&&l>.1&&l<.85&&!(h>5&&h<60&&s>.8);
+  if(!paint)continue;
+  h+=o.hue||0;s=Math.min(1,s*(o.sat??1));l=o.white?Math.min(.97,.64+l*.5):Math.min(.97,l+(o.light||0)*(1-Math.abs(l-.5)*.6));
+  const[r,g,b]=hsl2rgb(h,s,l);p[i]=r+(o.warm?6:0);p[i+1]=g+(o.warm?3:0);p[i+2]=b;}
+ x.putImageData(d,0,0);return c;}
+function tintBody(c,tint){const x=c.getContext('2d'),d=x.getImageData(0,0,c.width,c.height),p=d.data,T=[parseInt(tint.slice(1,3),16),parseInt(tint.slice(3,5),16),parseInt(tint.slice(5,7),16)];
+ for(let i=0;i<p.length;i+=4){if(!p[i+3])continue;const mx=Math.max(p[i],p[i+1],p[i+2]),mn=Math.min(p[i],p[i+1],p[i+2]),lum=(.3*p[i]+.59*p[i+1]+.11*p[i+2])/255,sat=mx?(mx-mn)/mx:0;
+  if(lum<.42||sat>.4)continue;const k=Math.min(1.12,lum*1.18),m=Math.min(1,(lum-.42)*3.2);
+  p[i]+=(T[0]*k-p[i])*m;p[i+1]+=(T[1]*k-p[i+1])*m;p[i+2]+=(T[2]*k-p[i+2])*m;}
+ x.putImageData(d,0,0);return c;}
+/* ---- vector decals, painted inside a zone of the roof. part = 'cab' | 'trailer' ---- */
+const GOLD='#e9bd4a',GOLD2='#a67a1a';
+const DECAL_PAINT={
+ 1(c,x,y,w,h){ // TWIN STRIPE: two gold pinstriped racing stripes
+  for(const s of[-1,1]){const cx=x+w/2+s*w*.15,sw=w*.1;c.fillStyle='#14181a';c.fillRect(cx-sw/2-3,y,sw+6,h);c.fillStyle=GOLD;c.fillRect(cx-sw/2,y,sw,h);c.fillStyle='#fff3c4';c.fillRect(cx-sw/2+sw*.3,y,sw*.12,h);}},
+ 2(c,x,y,w,h){ // CHEVRON HAUL: hi-vis chevrons pointing up the road
+  const n=Math.max(4,Math.round(h/58));c.lineJoin='miter';
+  for(let i=0;i<n;i++){const yy=y+h*(i+.5)/n,d=w*.26;c.fillStyle='#16191b';c.beginPath();c.moveTo(x+w*.06,yy+d);c.lineTo(x+w/2,yy-d*.2);c.lineTo(x+w*.94,yy+d);c.lineTo(x+w*.94,yy+d+h/n*.26);c.lineTo(x+w/2,yy-d*.2+h/n*.26);c.lineTo(x+w*.06,yy+d+h/n*.26);c.closePath();c.fill();
+   c.strokeStyle='#ffd22e';c.lineWidth=h/n*.1;c.beginPath();c.moveTo(x+w*.06,yy+d);c.lineTo(x+w/2,yy-d*.2);c.lineTo(x+w*.94,yy+d);c.stroke();}},
+ 3(c,x,y,w,h){ // CARBON & GOLD: carbon-fibre panel with gold keyline
+  const ix=x+w*.1,iy=y+h*.03,iw=w*.8,ih=h*.94;c.save();c.beginPath();c.roundRect(ix,iy,iw,ih,10);c.clip();c.fillStyle='#14171a';c.fillRect(ix,iy,iw,ih);
+  c.strokeStyle='#2c3338';c.lineWidth=3;for(let k=-ih;k<iw+ih;k+=9){c.beginPath();c.moveTo(ix+k,iy);c.lineTo(ix+k-ih,iy+ih);c.stroke();}
+  c.strokeStyle='#07090a';c.lineWidth=3;for(let k=-ih;k<iw+ih;k+=9){c.beginPath();c.moveTo(ix+k+4,iy);c.lineTo(ix+k+4+ih,iy+ih);c.stroke();}
+  c.restore();c.strokeStyle=GOLD;c.lineWidth=3;c.beginPath();c.roundRect(ix,iy,iw,ih,10);c.stroke();c.strokeStyle=GOLD2;c.lineWidth=1;c.beginPath();c.roundRect(ix+6,iy+6,iw-12,ih-12,7);c.stroke();
+  c.fillStyle=GOLD;c.fillRect(x+w/2-2,iy+10,4,ih-20);},
+ 4(c,x,y,w,h){ // SHARD: swept midnight shards with a cyan edge
+  c.fillStyle='#0f1b2d';c.beginPath();c.moveTo(x,y);c.lineTo(x+w,y+h*.06);c.lineTo(x+w,y+h*.55);c.lineTo(x,y+h*.34);c.closePath();c.fill();
+  c.fillStyle='#17304f';c.beginPath();c.moveTo(x,y+h*.4);c.lineTo(x+w,y+h*.62);c.lineTo(x+w,y+h);c.lineTo(x,y+h);c.closePath();c.fill();
+  c.strokeStyle='#37e6d3';c.lineWidth=4;c.beginPath();c.moveTo(x,y+h*.37);c.lineTo(x+w,y+h*.585);c.stroke();c.strokeStyle='#ffffff90';c.lineWidth=1.5;c.beginPath();c.moveTo(x,y+h*.35);c.lineTo(x+w,y+h*.565);c.stroke();},
+ 5(c,x,y,w,h){ // ROYAL FLOCK: gold-trimmed roof with a crowned sheep crest
+  c.strokeStyle=GOLD;c.lineWidth=5;c.strokeRect(x+w*.06,y+h*.03,w*.88,h*.94);c.strokeStyle='#14181a';c.lineWidth=1.5;c.strokeRect(x+w*.06+5,y+h*.03+5,w*.88-10,h*.94-10);
+  const cx=x+w/2,cy=y+h/2,R=Math.min(w*.34,h*.3);c.fillStyle='#14181a';c.beginPath();c.arc(cx,cy,R*1.12,0,TAU);c.fill();c.fillStyle=GOLD;c.beginPath();c.arc(cx,cy,R,0,TAU);c.fill();c.fillStyle='#14181a';c.beginPath();c.arc(cx,cy,R*.86,0,TAU);c.fill();
+  c.fillStyle='#f6f2e6';for(const[a,b]of[[-.42,-.36],[0,-.5],[.42,-.36],[-.5,-.02],[.5,-.02],[-.28,.2],[.28,.2]]){c.beginPath();c.arc(cx+a*R,cy+b*R,R*.27,0,TAU);c.fill();}
+  c.fillStyle='#23272a';c.beginPath();c.ellipse(cx,cy+R*.12,R*.3,R*.38,0,0,TAU);c.fill();c.fillStyle='#fff';c.beginPath();c.arc(cx-R*.12,cy+R*.05,R*.05,0,TAU);c.arc(cx+R*.12,cy+R*.05,R*.05,0,TAU);c.fill();
+  c.fillStyle=GOLD;c.beginPath();const t=cy-R*.78;c.moveTo(cx-R*.42,t);c.lineTo(cx-R*.42,t-R*.34);c.lineTo(cx-R*.2,t-R*.16);c.lineTo(cx,t-R*.4);c.lineTo(cx+R*.2,t-R*.16);c.lineTo(cx+R*.42,t-R*.34);c.lineTo(cx+R*.42,t);c.closePath();c.fill();}
+};
+const ZONE={cab:[20,12,182,138],trailer:[14,10,116,336]};
+function composed(r,kind,paint,decal){
+ const key=kind+':'+paint+':'+decal,hit=cache.get(key);if(hit)return hit;
+ const P=PAINTS[paint]||PAINTS[0],img=r.images.routeTrucks;if(!img)return null;
+ const rect=ROUTE_ATLAS.trucks.rects[kind==='cab'?P.cab.sprite:3];let c=crop(img,rect);
+ if(kind==='cab'&&(P.cab.hue||P.cab.sat!==undefined||P.cab.light||P.cab.white))hueShift(c,P.cab);
+ if(kind==='trailer'&&P.tint)tintBody(c,P.tint);
+ const dp=DECAL_PAINT[decal];
+ if(dp){const x=c.getContext('2d'),z=ZONE[kind];x.save();x.globalCompositeOperation='source-atop';x.globalAlpha=.94;x.beginPath();x.rect(...z);x.clip();dp(x,z[0],z[1],z[2],z[3]);x.restore();}
+ cache.set(key,c);return c;
+}
+const chrome=(c,x0,x1)=>{const g=c.createLinearGradient(x0,0,x1,0);g.addColorStop(0,'#6f7a80');g.addColorStop(.35,'#f4f8fa');g.addColorStop(.7,'#a9b4ba');g.addColorStop(1,'#555f66');return g;};
+const dot=(c,x,y,r,fill)=>{c.fillStyle=fill;c.beginPath();c.arc(x,y,r,0,TAU);c.fill();};
+function glow(c,x,y,r,color){const g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,color);g.addColorStop(1,color.slice(0,7)+'00');c.fillStyle=g;c.fillRect(x-r,y-r,r*2,r*2);}
+/* ---- upgrade parts, drawn in cab-local px (origin = cab centre, front is up) ---- */
+function cabParts(r,c,u,st,t,under){
+ const L=u||{};
+ if(under){ // beams and bull bar sit under the bodywork
+  if(L.lights){const reach=70+34*L.lights;const g=c.createLinearGradient(0,-56,0,-56-reach);g.addColorStop(0,'rgba(255,248,205,.32)');g.addColorStop(1,'rgba(255,248,205,0)');c.fillStyle=g;for(const s of[-1,1]){c.beginPath();c.moveTo(s*14,-56);c.lineTo(s*(22+L.lights*3),-56-reach);c.lineTo(s*(2),-56-reach);c.closePath();c.fill();}}
+  return;}
+ if(L.insurance){const n=L.insurance;c.strokeStyle=chrome(c,-30,30);c.lineCap='round';c.lineWidth=3.4;c.beginPath();c.moveTo(-24,-52);c.lineTo(-27,-62);c.lineTo(27,-62);c.lineTo(24,-52);c.stroke();
+  if(n>=2){c.lineWidth=2.6;c.beginPath();c.moveTo(-14,-62);c.lineTo(-14,-68);c.lineTo(14,-68);c.lineTo(14,-62);c.stroke();}
+  if(n>=3){c.fillStyle='#14181a';c.beginPath();c.moveTo(-8,-71);c.lineTo(8,-71);c.lineTo(8,-63);c.lineTo(0,-58);c.lineTo(-8,-63);c.closePath();c.fill();c.fillStyle=GOLD;c.beginPath();c.moveTo(-6.4,-69.5);c.lineTo(6.4,-69.5);c.lineTo(6.4,-63.6);c.lineTo(0,-59.8);c.lineTo(-6.4,-63.6);c.closePath();c.fill();c.fillStyle='#14181a';c.fillRect(-1,-68,2,6);c.fillRect(-4,-65.4,8,1.6);}}
+ if(L.lights){const w=30+9*L.lights;r.world.atlas('routeProps',15,0,-51,w,w/2.15);
+  if(L.lights>=2)for(const s of[-1,1]){dot(c,s*29,-55,3,'#fffbe4');glow(c,s*29,-55,11,'#fff6c8aa');}
+  if(L.lights>=3)for(let i=-3;i<=3;i++)dot(c,i*7,-32,1.5,'#ffb52e');}
+ if(L.steering){const n=L.steering,reach=6+n*2.4;for(const s of[-1,1]){c.strokeStyle=chrome(c,-40,40);c.lineWidth=2.1;c.lineCap='round';c.beginPath();c.moveTo(s*30,-30);c.lineTo(s*(30+reach),-35);c.stroke();
+   c.fillStyle=n>=3?'#171b1d':chrome(c,-40,40);c.beginPath();c.roundRect(s*(30+reach)-2.6+(s>0?1:-1),-43,5.2,14,2.3);c.fill();c.fillStyle='#8cc7ee';c.fillRect(s*(30+reach)-1+(s>0?1.3:-1.3),-41,2,10);
+   const turning=Math.abs(st.lane-st.x)>.15&&Math.sign(st.lane-st.x)===s,on=turning&&Math.floor(t*8)%2===0;dot(c,s*(30+reach)+s*.5,-30,1.8,on?'#ffb12b':'#8a5a16');if(on)glow(c,s*(30+reach),-30,8,'#ffb12baa');}}
+ if(L.washroom){const w=9+3.4*L.washroom;r.world.atlas('routeTrucks',7,0,-14,w,w/1.52);}
+ if(L.bunk){const n=L.bunk;c.save();c.translate(0,-32);c.scale(.72,.72);c.fillStyle='#1b2a3d';c.beginPath();c.roundRect(-11,-7.5,22,15,3.5);c.fill();const g=c.createLinearGradient(-9,-6,9,6);g.addColorStop(0,'#3d6a9e');g.addColorStop(.5,'#9fcbf0');g.addColorStop(1,'#35608f');c.fillStyle=g;c.beginPath();c.roundRect(-9.5,-6,19,12,2.6);c.fill();c.strokeStyle='#ffffffaa';c.lineWidth=1;c.beginPath();c.moveTo(-6,4);c.lineTo(2,-4.5);c.stroke();
+  if(n>=2){c.strokeStyle='#ffd88a';c.lineWidth=1.3;c.strokeRect(-9.5,-6,19,12);glow(c,0,0,15,'#ffcf7066');}
+  if(n>=3){c.fillStyle='#fff7d6';c.beginPath();c.arc(3,-.5,3.7,.55*Math.PI,1.55*Math.PI+TAU*0,false);c.arc(4.6,-1.4,3,1.35*Math.PI,.65*Math.PI,true);c.fill();}
+  c.restore();}
+ if(L.horn){const n=L.horn*2,xs=n===2?[-20,20]:n===4?[-16,-22,16,22]:[-14,-20,-26,14,20,26];xs.forEach(x=>{const len=16;c.save();c.translate(x,-6);const g=c.createLinearGradient(-4,0,4,0);g.addColorStop(0,'#8a6a12');g.addColorStop(.4,'#ffe58a');g.addColorStop(1,'#a17c18');c.fillStyle=g;c.beginPath();c.moveTo(-1.3,0);c.lineTo(1.3,0);c.lineTo(3.4,-len);c.lineTo(-3.4,-len);c.closePath();c.fill();c.fillStyle='#2b2110';c.beginPath();c.ellipse(0,-len,3.4,1.5,0,0,TAU);c.fill();c.strokeStyle='#fff3b8';c.lineWidth=.8;c.beginPath();c.ellipse(0,-len,3.4,1.5,0,0,TAU);c.stroke();c.restore();});
+  if(st.hornAge<.35){c.save();c.strokeStyle='rgba(255,246,190,'+(1-st.hornAge/.35)*.8+')';c.lineWidth=2;for(let k=0;k<3;k++){const rr=26+k*14+st.hornAge*80;c.beginPath();c.arc(0,-26,rr,-Math.PI*.8,-Math.PI*.2);c.stroke();}c.restore();}}
+}
+function stacks(r,c,u,st,t){const n=u?.exhaust||0;if(!n)return;
+ for(const s of[-1,1]){const rad=2.6+n*1.15;c.save();c.translate(s*(RIG.cabW/2+2.6),5);
+  c.fillStyle='rgba(10,16,16,.35)';c.beginPath();c.ellipse(4,6+n*2,rad+1,rad+3+n*2,0,0,TAU);c.fill();
+  const g=c.createRadialGradient(-rad*.3,-rad*.3,.5,0,0,rad*1.2);g.addColorStop(0,'#ffffff');g.addColorStop(.45,'#b8c3c9');g.addColorStop(1,'#4b555b');c.fillStyle=g;c.beginPath();c.arc(0,0,rad,0,TAU);c.fill();
+  c.fillStyle='#0b0e0f';c.beginPath();c.arc(0,0,rad*.55,0,TAU);c.fill();c.strokeStyle='#f1f6f8';c.lineWidth=1;c.beginPath();c.arc(0,0,rad*.98,0,TAU);c.stroke();
+  if(n>=2){c.strokeStyle='#8f9ba1';c.lineWidth=1;c.beginPath();c.arc(0,0,rad*1.35,0,TAU);c.stroke();}
+  if(n>=3||st.boost>0){const f=(n>=3?.7:.4)+Math.sin(t*38+s)*.25+(st.boost>0?.6:0),len=(8+n*4)*f*(st.boost>0?2.1:1);const g2=c.createLinearGradient(0,0,0,len);g2.addColorStop(0,'rgba(120,200,255,.95)');g2.addColorStop(.5,'rgba(70,120,255,.55)');g2.addColorStop(1,'rgba(70,120,255,0)');c.fillStyle=g2;c.beginPath();c.moveTo(-rad*.5,0);c.lineTo(rad*.5,0);c.lineTo(0,len);c.closePath();c.fill();}
+  c.restore();}}
+function trailerParts(r,c,u,st,t){
+ const L=u||{},W=RIG.trailerW,H=RIG.trailerL;
+ if(L.suspension){const n=L.suspension;for(const s of[-1,1])for(let i=0;i<n;i++){const y=H*(.2+.085*i)+3;c.save();c.translate(s*(W/2+4.4),y);c.fillStyle='#1a2a44';c.beginPath();c.roundRect(-3.4,-5,6.8,10,2.4);c.fill();const g=c.createLinearGradient(-3,0,3,0);g.addColorStop(0,'#2d6fd0');g.addColorStop(.45,'#8fc6ff');g.addColorStop(1,'#2459a8');c.fillStyle=g;c.beginPath();c.roundRect(-2.6,-4.2,5.2,8.4,2);c.fill();c.fillStyle='#d8e2e8';c.fillRect(-3,-5.2,6,1.7);c.fillRect(-3,3.5,6,1.7);c.restore();}}
+ if(L.stability){const n=L.stability,y0=-H/2+4;for(const s of[-1,1]){c.save();c.translate(s*(W/2-9),y0);c.strokeStyle=chrome(c,-30,30);c.lineWidth=2.6;c.lineCap='round';c.beginPath();c.moveTo(0,0);c.lineTo(s*-4,15);c.stroke();c.strokeStyle='#f1b72b';c.lineWidth=2;c.beginPath();for(let k=0;k<6;k++)c.lineTo((k%2?-2.6:2.6)+s*-1.5,3+k*2);c.stroke();dot(c,0,0,2.4,'#aab4ba');dot(c,s*-4,15,2,'#aab4ba');c.restore();}
+  if(n>=2){c.strokeStyle='#58ffa8';c.lineWidth=2;c.globalAlpha=.85;c.beginPath();c.moveTo(-W/2+4,-H/2+1.5);c.lineTo(W/2-4,-H/2+1.5);c.stroke();c.globalAlpha=1;glow(c,0,-H/2+2,26,'#58ffa855');}
+  if(n>=3){for(const s of[-1,1]){c.strokeStyle='#58ffa8';c.lineWidth=1.8;c.globalAlpha=.7+Math.sin(t*5)*.2;c.beginPath();c.moveTo(s*(W/2-1),-H/2+14);c.lineTo(s*(W/2-1),H*.12);c.stroke();c.globalAlpha=1;}}}
+ if(L.insurance>=3){c.save();c.translate(W/2-13,-H/2+20);c.fillStyle='#14181a';c.beginPath();c.moveTo(-6,-6);c.lineTo(6,-6);c.lineTo(6,2);c.lineTo(0,8);c.lineTo(-6,2);c.closePath();c.fill();c.fillStyle=GOLD;c.beginPath();c.moveTo(-4.5,-4.5);c.lineTo(4.5,-4.5);c.lineTo(4.5,1.4);c.lineTo(0,5.8);c.lineTo(-4.5,1.4);c.closePath();c.fill();c.restore();}
+}
+/* st: {truck,decal,trailerPaint,trailerDecal,upgrades,lane,x,angle,trailer,rear,hasTrailer,job,grip,boost,shield,hornAge}
+   scale: extra magnification (garage). ys: vertical squash (the game camera is tilted). */
+function drawRig(r,st,px,py,alpha=1,scale=1,ys=.72,time=0){
+ const c=r.ctx,u=st.upgrades||{},angle=Math.max(-.2,Math.min(.2,((st.lane??2)-(st.x??2))*.16)),clampv=(v,a,b)=>Math.max(a,Math.min(b,v));
+ const pose=rigPose(0,0,angle,st.angle||0,clampv(((st.trailer??2)-(st.rear??2))*.55,-.8,.8)),has=st.hasTrailer!==false;
+ const cab=composed(r,'cab',st.truck??0,st.decal??0),tr=composed(r,'trailer',st.trailerPaint??1,st.trailerDecal??st.decal??0);
+ c.save();c.translate(px,py);c.scale(scale,scale*ys);c.globalAlpha=alpha;
+ const img=(im,x,y,w,h,a)=>{if(!im)return;c.save();c.translate(x,y);c.rotate(a||0);c.drawImage(im,-w/2,-h/2,w,h);c.restore();};
+ const soft=(x,y,w,h,a)=>{c.save();c.translate(x+5,y+7);c.rotate(a||0);c.fillStyle='rgba(6,14,12,.30)';c.beginPath();c.roundRect(-w/2,-h/2,w,h,9);c.fill();c.restore();};
+ soft(0,0,RIG.cabW-6,RIG.cabL-8,angle);if(has){soft(pose.trailer.x,pose.trailer.y,RIG.trailerW-4,RIG.trailerL-4,pose.trailer.angle);if(st.job?.double)soft(pose.rear.x,pose.rear.y,RIG.flatW-4,RIG.flatL-4,pose.rear.angle);}
+ c.save();c.rotate(angle);cabParts(r,c,u,st,time,true);c.restore();
+ if(has&&st.job?.double)r.world.atlas('routeTrucks',4,pose.rear.x,pose.rear.y,RIG.flatW,RIG.flatL,pose.rear.angle,alpha);
+ img(cab,0,0,RIG.cabW,RIG.cabL,angle);
+ if(has){img(tr,pose.trailer.x,pose.trailer.y,RIG.trailerW,RIG.trailerL,pose.trailer.angle);c.save();c.translate(pose.trailer.x,pose.trailer.y);c.rotate(pose.trailer.angle);trailerParts(r,c,u,st,time);c.restore();}
+ c.save();c.rotate(angle);stacks(r,c,u,st,time);cabParts(r,c,u,st,time,false);c.restore();
+ if(st.grip>0){c.globalAlpha=Math.min(.3,st.grip*.07);c.fillStyle='#91704d';for(const side of[-1,1])c.fillRect(side*24-3,46,6,18);c.globalAlpha=alpha;}
+ if(st.shield){c.save();const pulse=.5+.5*Math.sin(time*6),cx=0,cy=has?60:0,ry=has?150:80;const g=c.createRadialGradient(cx,cy,20,cx,cy,ry);g.addColorStop(0,'rgba(255,238,150,0)');g.addColorStop(.8,'rgba(255,230,120,'+(.12+.1*pulse)+')');g.addColorStop(1,'rgba(255,240,170,.5)');c.fillStyle=g;c.beginPath();c.ellipse(cx,cy,60,ry,0,0,TAU);c.fill();c.restore();}
+ c.restore();
+}
+function drawTrailerOnly(r,paint,decal,x,y,w,h,angle,alpha){const t=composed(r,'trailer',paint,decal);if(!t)return;const c=r.ctx;c.save();c.globalAlpha=alpha;c.translate(x,y);c.rotate(angle);c.drawImage(t,-w/2,-h/2,w,h);c.restore();}
+
+/* Little upright thumbnails for the garage cards (cab or trailer, with paint + roof graphic). Cached data URLs. */
+const thumbs=new Map();
+function thumb(r,kind,paint,decal){const key=kind+':'+paint+':'+decal;if(thumbs.has(key))return thumbs.get(key);
+ const src=composed(r,kind,paint,decal);if(!src)return '';const c=mk(Math.round(src.width*.55),Math.round(src.height*.55));c.getContext('2d').drawImage(src,0,0,c.width,c.height);
+ const url=c.toDataURL('image/png');thumbs.set(key,url);return url;}
+
+module.exports={PAINTS,DECAL_PAINT,drawRig,drawTrailerOnly,thumb};
 
 },
 "./road-events.js":function(module,exports,require){
@@ -341,10 +605,28 @@ const CATALOG=[
 ].map(([id,name,description,cost,icon])=>({id,name,description,cost,icon}));
 const defaults=()=>Object.fromEntries(CATALOG.map(u=>[u.id,0]));
 const normalize=(v={})=>Object.fromEntries(CATALOG.map(u=>[u.id,Math.min(3,Math.max(0,Math.floor(Number(v?.[u.id])||0)))]));
-const DECALS=[{id:0,name:'FACTORY',cost:0,icon:null},{id:1,name:'GOLD WINGS',cost:700,icon:4},{id:2,name:'HOT HAUL',cost:900,icon:5},{id:3,name:'FLOCK ROYALTY',cost:1100,icon:6}];
-const deliveryBonus=(u,truck,decal)=>u.bunk*.03+(truck===2?.02:truck===3?.04:0)+(decal>0?.02:0);
-const TRUCKS=[{id:0,name:'THE OLD FAITHFUL',desc:'Your trusty turquoise mile muncher.',cost:0},{id:2,name:'THE TANGERINE DREAM',desc:'Sunset paint · +2% delivery earnings.',cost:1200},{id:3,name:'THE NIGHT SHIFT',desc:'Midnight paint · +4% delivery earnings.',cost:2800}];
-const DECAL_TAGS=['Factory finish. Honest and humble.','Golden wings for a golden driver. +2% on deliveries.','Flames on a lorry. Speed not included. +2% on deliveries.','Flock Royalty: the sheep approve. +2% on deliveries.'];
+/* Paint styles are shared by the cab and the trailer: unlock one and either can wear it (or both). Trailer default is white. */
+const TRUCKS=[
+ {id:1,name:'ARCTIC WHITE',desc:'Clean, crisp and entirely forgettable. The trailer’s factory colour.',cost:0,bonus:0},
+ {id:0,name:'THE OLD FAITHFUL',desc:'Your trusty turquoise mile muncher.',cost:0,bonus:0},
+ {id:2,name:'THE TANGERINE DREAM',desc:'Sunset paint · +2% delivery earnings.',cost:1200,bonus:2},
+ {id:3,name:'THE NIGHT SHIFT',desc:'Midnight purple · +4% delivery earnings.',cost:2800,bonus:4},
+ {id:4,name:'POST HASTE',desc:'Pillar-box red. Stops traffic and fits through letterboxes. Not really.',cost:1600,bonus:2},
+ {id:5,name:'RACING GREEN',desc:'Proper British green · for drivers with taste and a flat cap.',cost:2000,bonus:3}
+];
+/* Roof graphics, drawn as vector art clipped to the cab and trailer roofs (see rigart.js). */
+const DECALS=[
+ {id:0,name:'FACTORY',cost:0},
+ {id:1,name:'TWIN STRIPE',cost:700},
+ {id:2,name:'CHEVRON HAUL',cost:900},
+ {id:3,name:'CARBON & GOLD',cost:1100},
+ {id:4,name:'SHARD',cost:1400},
+ {id:5,name:'ROYAL FLOCK',cost:1800}
+];
+const DECAL_TAGS=['Factory finish. Honest and humble.','Twin gold racing stripes. Clean and quick. +2% on deliveries.','Hi-vis chevrons. Be seen, be safe, be smug. +2% on deliveries.','Carbon-fibre panel with gold keyline. Serious business. +2% on deliveries.','Midnight shards with a cyan edge. +2% on deliveries.','A crowned sheep crest. The flock approves. +2% on deliveries.'];
+const PAINT_IDS=TRUCKS.map(t=>t.id);
+const DECAL_IDS=DECALS.map(d=>d.id);
+const deliveryBonus=(u,truck,decal)=>u.bunk*.03+((TRUCKS.find(t=>t.id===truck)?.bonus)||0)/100+(decal>0?.02:0);
 const STATS={
  stability:{label:'SWAY SETTLES',f:l=>l?l*20+'% faster':'stock'},
  suspension:{label:'TRAILER ANGLE',f:l=>l?l*8+'% less':'stock'},
@@ -357,11 +639,11 @@ const STATS={
  horn:{label:'HORN WINDOW',f:l=>(.75+l*.16).toFixed(2)+' s'}
 };
 
-module.exports={CATALOG,defaults,normalize,DECALS,deliveryBonus,TRUCKS,DECAL_TAGS,STATS};
+module.exports={CATALOG,defaults,normalize,TRUCKS,DECALS,DECAL_TAGS,PAINT_IDS,DECAL_IDS,deliveryBonus,STATS};
 
 },
 "./model.js":function(module,exports,require){
-const {laneX,rigPose,roadTheme}=require("./geometry.js");
+const {laneX,rigPose,roadTheme,RIG}=require("./geometry.js");
 const {chooseRoadScenario}=require("./road-events.js");
 const {ROUTE_VERSION,CHUNK_LENGTH,roadAt,surfaceAt,routeLanes,laneCorridor,nearestLane,reachableCorridor,steeringX,sceneryProps,rewardPath}=require("./route-world.js");
 const {HAZARD_SPECS,sweptOverlap}=require("./route-hazards.js");
@@ -370,8 +652,16 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const themes=['THE TOWN RUN','COUNTRY MILES','SUBURBAN SHORTCUT','HARD HAT HAUL'];
 const ROAD_TYPES=['lowbridge','weakbridge','bus','noentry','narrow','grass','house','works'];
 /* Hazards that end the shift outright, each with its own comic vignette (see COMICS in game.js) and result-sheet line. */
-const CRASHES={car:'Not a bumper car.',lowbridge:'Height restriction. Not a suggestion.',weakbridge:'Weight limit: less than you.',oil:'Slick move, driver.',house:'Planning permission denied.',sheep:'Ewe had one job.'};
-const PICKUPS=['job','crumb','finish','taco','coin','night','boost','hitch','prize'];
+const CRASHES={car:'Not a bumper car.',lowbridge:'Height restriction. Not a suggestion.',weakbridge:'Weight limit: less than you.',oil:'Slick move, driver.',house:'Planning permission denied.',sheep:'Ewe had one job.',cow:'Holy cow. Literally.',icecream:'Chocolate flake-ing disaster.'};
+const PICKUPS=['job','crumb','finish','taco','coin','night','boost','hitch','prize','shield'];
+/* Weighted hazard mix per scenery stage. Every hazard type in route-hazards.js appears somewhere, so the road never feels empty or samey. */
+const MIX=[
+ [['car',4],['cone',3],['bus',2],['noentry',2],['lowbridge',1.5],['barrier',2],['narrow',1.5],['pit',1.5],['icecream',1],['geese',1]],
+ [['mud',3],['car',2],['weakbridge',1.5],['grass',2],['cow',2.5],['tractor',2],['haybale',2.5],['pit',1],['oil',1],['lowbridge',1],['geese',1.5]],
+ [['car',3],['footpath',2.5],['cone',2],['icecream',1.5],['noentry',1.5],['narrow',2],['barrier',1.5],['lowbridge',1.5],['geese',1],['oil',1]],
+ [['works',3],['pit',2.5],['oil',2],['barrier',2.5],['cone',2],['lowbridge',1],['weakbridge',1.5],['mud',1.5],['noentry',1]]
+];
+const pickWeighted=(list,r)=>{let t=list.reduce((a,b)=>a+b[1],0)*r;for(const [k,w] of list){t-=w;if(t<=0)return k;}return list[0][0];};
 function seeded(seed){const fn=()=>{seed|=0;seed=(seed+0x6D2B79F5)|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;fn.state=seed;return((t^t>>>14)>>>0)/4294967296;};fn.state=seed;return fn;}
 function jobPath(lane,rng,count=10){const p=[];for(let i=0;i<count;i++){if(i%2)lane=clamp(lane+(rng()>.5?1:-1),0,4);p.push(lane);}return p;}
 function biomeAt(z){return roadTheme(z);}
@@ -380,10 +670,10 @@ class Drive {
  constructor(options={}){
   this.seed=options.seed??Date.now();this.routeVersion=ROUTE_VERSION;this.hasTrailer=true;this.grip=0;this.offroad=0;this.surface='asphalt';this.dropCooldown=0;this.detached=[];this.routeFines={};this.routeChoice={};this.nextHitch=0;this.nearIds=[];this.sceneryHits={};this.rng=seeded(this.seed);
   this.mode=options.mode||'endless';this.upgrades=normalize(this.mode==='daily'?{}:options.upgrades);
-  this.truck=this.mode==='daily'?0:(options.truck||0);this.decal=this.mode==='daily'?0:(options.decal||0);
+  this.truck=this.mode==='daily'?0:(options.truck||0);this.decal=this.mode==='daily'?0:(options.decal||0);this.trailerPaint=this.mode==='daily'?1:(options.trailerPaint??1);this.trailerDecal=this.mode==='daily'?0:(options.trailerDecal||0);this.hornAt=-10;
   this.events=[];this.items=[];this.distance=0;this.time=0;this.money=500;this.earned=0;this.fines=0;this.jobs=0;this.crumbs=0;this.horns=0;this.near=0;
   this.lane=2;this.x=2;this.trailer=2;this.rear=2;this.sway=0;this.angle=0;this.rapid=0;this.lastMove=-10;this.invulnerable=0;this.speed=180;
-  this.lastScenario='';this.cruise=240;this.row=900;this.nextJob=600;this.nextSheep=6500;this.nextNight=5600;this.nextBoost=2100;this.night=null;this.nights=0;this.boost=0;this.rested=this.upgrades.bunk?20+8*this.upgrades.bunk:0;
+  this.lastScenario='';this.cruise=240;this.row=900;this.nextJob=600;this.nextSheep=6500;this.nextNight=5600;this.nextBoost=1700;this.nextShield=3600;this.shield=0;this.leaving=[];this.night=null;this.nights=0;this.boost=0;this.rested=this.upgrades.bunk?20+8*this.upgrades.bunk:0;
   this.job=null;this.sheep=null;this.finished=false;this.endReason='';this.stage=0;this.slow=0;this.multiplier=1;this.id=0;this.sheepFail=0;this.combo=0;this.crashKind='';this.lives=this.upgrades.insurance>=3?1:0;
  }
  snapshot(){const d={...this,rngState:this.rng.state};delete d.rng;d.events=[];return d;}
@@ -394,14 +684,17 @@ class Drive {
   if(this.finished||!this.hasTrailer||this.dropCooldown>0)return false;
   const lost=this.job?.pay||0;this.hasTrailer=false;this.dropCooldown=1.5;
   this.detached.push({x:laneX(this.x,this.distance),z:this.distance-72,angle:this.angle,age:0,double:!!this.job?.double});
-  this.job=null;this.multiplier=1;this.sway=0;this.rapid=0;this.angle=0;
+  this.job=null;this.multiplier=1;this.sway=0;this.rapid=0;this.angle=0;this.trailerLost=true;
   this.items=this.items.filter(e=>!['crumb','finish'].includes(e.type));
-  this.nextHitch=this.distance+1050;this.row=Math.max(this.row,this.distance+600);
+  this.nextHitch=this.distance+1050;this.nextJob=Math.min(this.nextJob,this.distance+1500);this.row=Math.max(this.row,this.distance+600);
   this.emit('trailerDrop',{lost});return true;
  }
  hitchTrailer(){if(this.hasTrailer)return;this.hasTrailer=true;this.trailer=this.rear=this.x;this.angle=this.rapid=this.sway=0;this.dropCooldown=1.5;this.emit('trailerHitch');}
  move(direction){if(this.finished)return;const next=clamp(this.lane+direction,0,4);if(next===this.lane)return;this.rapid=clamp(this.rapid+(this.time-this.lastMove<.2?.3:.07),0,1.5);this.lastMove=this.time;this.lane=next;this.emit('steer');}
- horn(){if(this.finished)return;this.emit('horn');if(!this.sheep||this.sheep.cleared)return;const s=this.sheep,delta=this.time-s.baaAt;if(s.baa&&delta>=0&&delta<=.75+this.upgrades.horn*.16){s.cleared=true;this.horns++;this.award(75,'WOOL DONE!');this.emit('sheepClear');}else this.emit('hint',{text:s.baa?'Too late! Brake for the flock.':'Wait for the BAA…'});}
+ horn(){if(this.finished)return;this.hornAt=this.time;this.emit('horn');
+  /* A honk shoos cows and geese off the road if they are close enough to hear it (but not so close it's too late). */
+  for(const e of this.items){if(e.honkable&&!e.done&&!e.cleared){const d=e.z-this.distance;if(d>70&&d<470){e.cleared=true;e.done=true;this.leaving.push({type:e.type,lane:e.lane,z:e.z,dir:e.lane<2?-1:e.lane>2?1:(this.rng()<.5?-1:1),age:0});this.horns++;this.award(e.type==='cow'?60:35,e.type==='cow'?'MOO-VE ALONG!':'SHOOED!');this.emit('shoo',{kind:e.type});}}}
+  if(!this.sheep||this.sheep.cleared)return;const s=this.sheep,delta=this.time-s.baaAt;if(s.baa&&delta>=0&&delta<=.75+this.upgrades.horn*.16){s.cleared=true;this.horns++;this.award(75,'WOOL DONE!');this.emit('sheepClear');}else this.emit('hint',{text:s.baa?'Too late! Brake for the flock.':'Wait for the BAA…'});}
  award(value,label){this.money+=value;this.earned+=value;this.emit('cash',{value,label});}
  fine(value,label){if(this.invulnerable>0)return;value=Math.round(value*(1-.12*this.upgrades.insurance));this.money-=value;this.fines+=value;this.combo=0;this.invulnerable=1.3;this.slow=.8;this.emit('loss',{value,label});if(this.money<=0)this.end('The float has floated away.');}
  jobValue(value){return Math.round(value*this.multiplier*(1+deliveryBonus(this.upgrades,this.truck,this.decal)));}
@@ -416,7 +709,8 @@ class Drive {
   for(let i=0;i<40;i++){this.add('coin',positions[i],path[i],{nightCoin:true});if(i%10===7){const other=laneCorridor(positions[i]-100,positions[i]+180,this.seed,true).filter(l=>l!==path[i]);if(other.length>=2)this.add('cone',positions[i],other[0]);}}
   this.row=Math.max(this.row,end+650);this.nextJob=Math.max(this.nextJob,end+760);this.nextSheep=Math.max(this.nextSheep,end+1100);this.nextNight=end+4300;this.emit('night');}
  collect(e){if(e.done)return;e.done=true;switch(e.type){
-  case 'hitch':this.hitchTrailer();break;case 'prize':this.award(85,'RISK REWARDED');this.emit('prize');break;
+  case 'hitch':this.hitchTrailer();break;case 'shield':this.shield=1;this.emit('shield');break;
+  case 'cow':case 'icecream':this.crash(e.type);break;case 'tractor':this.fine(110,'Slow lane. Slower tractor.');break;case 'haybale':this.fine(60,'Hay fever. £60.');break;case 'geese':this.fine(75,'Goose bumps. £75.');break;case 'prize':this.award(85,'RISK REWARDED');this.emit('prize');break;
   case 'mud':this.grip=Math.max(this.grip,4.8);this.emit('mud');break;case 'pit':this.fine(95,'That pothole has ambition.');break;case 'footpath':this.fine(90,'Public path. Private embarrassment.');break;
   case 'job':this.startJob(e);break;case 'night':this.startNight(e);break;
   case 'boost':this.boost=7+this.upgrades.exhaust;this.emit('boost');break;
@@ -430,32 +724,43 @@ class Drive {
   case 'grass':this.grip=Math.max(this.grip,4.8);this.fine(65,'Lawn care: £65.');break;
  }}
  crash(kind){if(this.finished)return;
+  if(this.shield>0){this.shield=0;this.invulnerable=2.2;this.slow=.6;this.emit('shieldSave',{kind});return;}
   if(this.lives>0){this.lives--;this.money-=400;this.fines+=400;this.combo=0;this.invulnerable=2.6;this.slow=1.2;this.rapid=0;this.emit('bailout',{kind,value:400});if(this.money<=0)this.end('The float has floated away.');return;}
   this.crashKind=kind;this.emit('crash',{kind});this.end(CRASHES[kind]);}
  end(reason){if(this.finished)return;this.finished=true;this.endReason=reason;this.emit('end',{reason});}
  /* ---- lane occupancy: hazards, pickups and oncoming traffic are never placed on top of each other ---- */
- laneBusy(lane,z0,z1,pad=110){return this.items.some(e=>!e.done&&e.lane===lane&&e.z-pad<z1&&e.z+(e.length||40)+pad>z0);}
+ laneBusy(lane,z0,z1,pad=110){return this.items.some(e=>!e.done&&e.lane===lane&&e.z-pad<z1&&e.z+(e.length||40)+(e.reserve||0)+pad>z0);}
  openLanes(z0,z1,pad=60){return [0,1,2,3,4].filter(l=>!this.laneBusy(l,z0,z1,pad));}
  shuffled(){const a=[0,1,2,3,4];for(let i=4;i>0;i--){const j=Math.floor(this.rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
  /* One row of 1-3 hazards. At least two lanes stay open and one of them is reachable (one swipe per ~0.34s) from the lanes that were open just before. Returns the row's length. */
  makeRow(z,gapSec){
   const route=roadAt(z,this.seed),corridor=laneCorridor(z-100,z+240,this.seed,true);
   if(corridor.length<2)return 160;
-  const centre=nearestLane(z,2,this.seed),order=corridor.slice().sort((a,b)=>Math.abs(a-centre)-Math.abs(b-centre));
-  if(this.rng()<.5)order.reverse();let chosen=null;
-  const biome=biomeAt(z),pool=route.motif==='roadworks'?['works','pit','barrier']:biome===1?['mud','car','weakbridge']:biome===2?['car','footpath','cone']:biome===3?['works','pit','oil']:['car','cone','bus'];
+  const r=this.ramp(),busy=!!(this.job||this.night);
+  // 1-3 hazards per row. Always at least two open lanes in the corridor, and the reachability test below keeps one of them steerable.
+  let count=1+(this.rng()<.32+.4*r?1:0)+(this.rng()<.08+.34*r?1:0);
+  count=Math.min(count,Math.max(1,corridor.length-2),busy?2:3);
+  const biome=biomeAt(z),mix=route.motif==='roadworks'?[['works',3],['pit',2],['barrier',3],['cone',2]]:MIX[biome];
+  const order=corridor.slice();for(let i=order.length-1;i>0;i--){const j=Math.floor(this.rng()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
+  const placed=[];
   for(const lane of order){
-   const kind=pool[Math.floor(this.rng()*pool.length)],candidate={type:kind,lane,z,length:0,done:false,collectible:false};
-   if(this.laneBusy(lane,z-150,z+200,90))continue;
+   if(placed.length>=count)break;
+   const kind=pickWeighted(mix,this.rng()),spec=HAZARD_SPECS[kind],reserve=kind==='tractor'?620:0,
+    candidate={type:kind,lane,z,length:0,reserve,done:false,collectible:false};
+   if(this.laneBusy(lane,z-150,z+200+reserve,90))continue;
    const hazards=this.items.filter(e=>!e.collectible&&!e.done);
    if(!reachableCorridor([...hazards,candidate],z-500,z+650,this.seed))continue;
-   chosen=this.add(kind,z,lane,{length:0,road:ROAD_TYPES.includes(kind),warning:430});break;
+   const props={length:0,road:ROAD_TYPES.includes(kind),warning:430};
+   if(kind==='tractor'){props.drift=95;props.reserve=reserve;}
+   if(kind==='cow'||kind==='geese')props.honkable=true;
+   placed.push(this.add(kind,z+(placed.length?(this.rng()-.5)*70:0),lane,props));
   }
-  const safe=chosen?corridor.filter(l=>l!==chosen.lane):corridor;
+  const taken=new Set(placed.map(e=>e.lane)),safe=corridor.filter(l=>!taken.has(l));
   if(safe.length){let l=safe[Math.floor(this.rng()*safe.length)];
-   // Reward is beside, never inside, the collision footprint. The next row is
-   // kept beyond a trailer-length recovery window.
-   for(let k=0;k<3;k++){const at=z-90+k*145;l=nearestLane(at,l,this.seed);if(!this.laneBusy(l,at,at,75))this.add(k===1&&this.rng()<.18?'taco':'coin',at,l);}
+   // Reward is beside, never inside, the collision footprint. The next row is kept beyond a trailer-length recovery window.
+   for(let k=0;k<3;k++){const at=z-90+k*145;l=nearestLane(at,l,this.seed);if(!this.laneBusy(l,at,at,75))this.add(k===1&&this.rng()<.24?'taco':'coin',at,l);}
+   // Risk/reward: a bonus tucked in a lane next to the hazards gives a reason to weave rather than sit still.
+   if(placed.length&&this.rng()<.2+.15*r){const lane=safe.find(x=>placed.some(e=>Math.abs(e.lane-x)===1));if(lane!==undefined&&!this.laneBusy(lane,z+260,z+260,75))this.add('prize',z+260,lane,{risky:true});}
   }
   return 150;
  }
@@ -475,22 +780,24 @@ class Drive {
  }
  spawn(){const busy=this.job||this.sheep||this.night,pending=this.items.some(e=>['job','night'].includes(e.type)&&!e.done);
   if(!busy&&!pending){if(this.distance>this.nextNight-1100){this.add('night',this.distance+700,nearestLane(this.distance+700,2,this.seed));this.nextNight=this.distance+6500;}else if(this.distance>this.nextJob-1100){this.add('job',Math.max(this.nextJob,this.distance+700),nearestLane(Math.max(this.nextJob,this.distance+700),2,this.seed),{double:this.jobs>0&&this.rng()>.5});this.nextJob+=3300;}}
-  if(!busy&&this.distance>this.nextBoost-700){this.add('boost',this.distance+550,nearestLane(this.distance+550,Math.floor(this.rng()*5),this.seed));this.nextBoost=this.distance+4200;}
+  if(!busy&&this.distance>this.nextBoost-700){this.add('boost',this.distance+550,nearestLane(this.distance+550,Math.floor(this.rng()*5),this.seed));this.nextBoost=this.distance+3300;}
+  if(!busy&&!this.shield&&this.distance>this.nextShield-700&&!this.items.some(e=>e.type==='shield'&&!e.done)){const z=this.distance+620,l=nearestLane(z,Math.floor(this.rng()*5),this.seed);if(!this.laneBusy(l,z-100,z+100,100)){this.add('shield',z,l);this.nextShield=this.distance+6200+this.rng()*2500;}}
   if(!this.hasTrailer&&this.nextHitch&&this.distance>this.nextHitch-700&&!this.items.some(e=>e.type==='hitch'&&!e.done)){const z=this.distance+650,lane=nearestLane(z,this.lane,this.seed);if(!this.laneBusy(lane,z-100,z+100,100)){this.add('hitch',z,lane);this.nextHitch=z+1500;}}
   while(this.row<this.distance+1300){
-   const r=this.ramp(),gapSec=Math.max(.85,1.4-.45*r);
-   const nearJob=this.items.some(e=>['job','night'].includes(e.type)&&!e.done&&Math.abs(e.z-this.row)<580);
-   if(this.job||this.night||this.sheep||nearJob){this.row+=this.cruise*(gapSec+this.rng()*.55);continue;}
+   const r=this.ramp(),gapSec=Math.max(.5,.9-.38*r);
+   const nearJob=this.items.some(e=>['job','night'].includes(e.type)&&!e.done&&Math.abs(e.z-this.row)<520);
+   if(this.sheep||nearJob){this.row+=this.cruise*(gapSec+this.rng()*.4);continue;}
    if(this.spawnEncounter(this.row)){this.row+=600+this.cruise*(.9+this.rng()*.5);continue;}
-   this.row+=this.makeRow(this.row,gapSec)+this.cruise*(gapSec+this.rng()*.55);}
+   this.row+=this.makeRow(this.row,gapSec)+this.cruise*(gapSec+this.rng()*.4);}
   if(this.distance>this.nextSheep-850&&!busy&&!this.items.some(e=>e.type==='night'&&!e.done)){this.sheep={z:this.distance+850,baa:false,baaAt:Infinity,cleared:false};this.emit('sheepWarning');for(const e of this.items)if(e.type==='job'&&!e.done&&e.z>this.distance)e.z=this.sheep.z+900;this.items=this.items.filter(e=>e.type==='job'||e.z+(e.length||0)<this.sheep.z-450||e.z>this.sheep.z+400);this.nextSheep=this.distance+5200;}
  }
  /* 0 at the depot gate -> 1 after ~7 miles: hazards bunch up and the rig gets quicker so long shifts end on skill, not boredom */
- ramp(){return clamp(this.distance/63000,0,1);}
- tick(dt){if(this.finished)return;dt=clamp(dt,0,.05);this.time+=dt;for(const k of ['invulnerable','slow','boost','rested','grip','dropCooldown'])this[k]=Math.max(0,this[k]-dt);
-  const base=240+Math.min(70,this.time*.7)+70*this.ramp();this.cruise=base;this.speed=Math.min(510,base*(this.slow>0?.65:this.boost>0?1.3:1)*(this.hasTrailer?1:1.16)*(this.grip>0?.92:1));const oldDistance=this.distance,oldX=this.x;this.distance+=this.speed*dt;this.stage=biomeAt(this.distance);
+ ramp(){return clamp(this.distance/48000,0,1);}
+ tick(dt){if(this.finished)return;dt=clamp(dt,0,.05);this.time+=dt;for(const d of this.leaving)d.age+=dt;this.leaving=this.leaving.filter(d=>d.age<1.4);
+  for(const k of ['invulnerable','slow','boost','rested','grip','dropCooldown'])this[k]=Math.max(0,this[k]-dt);
+  const base=250+Math.min(80,this.time*.8)+95*this.ramp();this.cruise=base;this.speed=Math.min(560,base*(this.slow>0?.65:this.boost>0?1.3:1)*(this.hasTrailer?1:1.38)*(this.grip>0?.92:1));const oldDistance=this.distance,oldX=this.x;this.distance+=this.speed*dt;this.stage=biomeAt(this.distance);
   this.rapid=Math.max(0,this.rapid-dt*(this.job?.double?.19:.43)*(1+.2*this.upgrades.stability)*(this.rested>0?1.2:1));
-  this.x+=(this.lane-this.x)*(1-Math.exp(-dt*(this.grip>0?6.2:11)*(this.hasTrailer?1:1.18)*(1+.12*this.upgrades.steering)));
+  this.x+=(this.lane-this.x)*(1-Math.exp(-dt*(this.grip>0?6.2:11)*(this.hasTrailer?1:1.3)*(1+.12*this.upgrades.steering)));
   this.trailer+=(this.x-this.trailer)*(1-Math.exp(-dt*(this.job?.double?2.2:4)));
   this.rear+=(this.trailer-this.rear)*(1-Math.exp(-dt*1.7));
   this.angle=clamp((this.x-this.trailer)*.62*(1-.08*this.upgrades.suspension),-.85,.85);
@@ -499,6 +806,7 @@ class Drive {
   if(this.night&&this.distance>this.night.end){this.night=null;this.emit('dawn');}this.spawn();
   if(this.sheep){const s=this.sheep,ahead=s.z-this.distance;if(ahead<Math.max(375,this.speed*1.5)&&!s.baa){s.baa=true;s.baaAt=this.time;this.emit('baa');}if(ahead<65&&!s.cleared){this.sheepFail=1;this.crashKind='sheep';this.emit('sheepFail');this.end(CRASHES.sheep);}if(ahead< -200&&s.cleared)this.sheep=null;}
   // Contraflow traffic approaches against the scrolling road; same collision rules as cars.
+  for(const e of this.items)if(!e.done&&e.drift)e.z+=e.drift*dt;
   for(const e of this.items)if(!e.done&&e.oncoming){e.previousZ=e.z;e.z-=(e.speed||this.speed*.55)*dt;if(e.stopZ&&e.z<e.stopZ)e.done=true;}
   const pose=rigPose(laneX(this.x,this.distance),0,clamp((this.lane-this.x)*.16,-.2,.2),this.angle,clamp((this.trailer-this.rear)*.55,-.8,.8));
   // Wheel contact uses the same bands as the rendered asphalt; leaving the
@@ -517,15 +825,15 @@ class Drive {
   for(const p of sceneryProps(this.distance-240,this.distance+100,this.seed)){
    if(this.sceneryHits[p.id]||this.invulnerable>0)continue;
    const hit=(x,z,hw,hh)=>Math.abs(x-p.x)<hw+p.hitWidth/2&&Math.abs(z-p.z)<hh+p.hitHeight/2;
-   if(hit(laneX(this.x,this.distance),this.distance,18,24)||(this.hasTrailer&&hit(pose.trailer.x,this.distance-pose.trailer.y,19,52))){this.sceneryHits[p.id]=p.z;if(p.effect==='house')this.crash('house');else this.fine(55,'Scenery is not a shortcut.');}
+   if(hit(laneX(this.x,this.distance),this.distance,RIG.cabHX,RIG.cabHZ)||(this.hasTrailer&&hit(pose.trailer.x,this.distance-pose.trailer.y,RIG.trHX,RIG.trHZ))){this.sceneryHits[p.id]=p.z;if(p.effect==='house')this.crash('house');else this.fine(55,'Scenery is not a shortcut.');}
   }
   for(const key of Object.keys(this.sceneryHits))if(this.sceneryHits[key]<this.distance-400)delete this.sceneryHits[key];
   for(const e of this.items){if(e.done)continue;const delta=e.z-this.distance,length=e.length||0,hazard=!PICKUPS.includes(e.type),spec=HAZARD_SPECS[e.type];
    const halfX=hazard?(spec?.hitWidth||40)/2:18,halfZ=hazard?(spec?.hitHeight||40)/2:18;
    const ex=laneX(e.lane,e.z),cabX=laneX(this.x,this.distance),oldCabX=laneX(oldX,oldDistance);
-   const cabHit=sweptOverlap(oldDistance,this.distance,24,e.z-halfZ,e.z+length+halfZ)&&sweptOverlap(oldCabX,cabX,hazard?18:13,ex-halfX,ex+halfX);
-   const trailHit=hazard&&this.hasTrailer&&Math.abs(ex-pose.trailer.x)<halfX+19&&delta< -pose.trailer.y+52+halfZ&&delta+length> -pose.trailer.y-52-halfZ;
-   const rearHit=hazard&&this.hasTrailer&&this.job?.double&&Math.abs(ex-pose.rear.x)<halfX+19&&delta< -pose.rear.y+52+halfZ&&delta+length> -pose.rear.y-52-halfZ;
+   const cabHit=sweptOverlap(oldDistance,this.distance,RIG.cabHZ,e.z-halfZ,e.z+length+halfZ)&&sweptOverlap(oldCabX,cabX,hazard?RIG.cabHX:15,ex-halfX,ex+halfX);
+   const trailHit=hazard&&this.hasTrailer&&Math.abs(ex-pose.trailer.x)<halfX+RIG.trHX&&delta< -pose.trailer.y+RIG.trHZ+halfZ&&delta+length> -pose.trailer.y-RIG.trHZ-halfZ;
+   const rearHit=hazard&&this.hasTrailer&&this.job?.double&&Math.abs(ex-pose.rear.x)<halfX+RIG.trHX&&delta< -pose.rear.y+RIG.trHZ+halfZ&&delta+length> -pose.rear.y-RIG.trHZ-halfZ;
    if((cabHit||trailHit||rearHit)&&(!hazard||this.invulnerable<=0))this.collect(e);
    else if(delta+length<(hazard?-240:-42)){e.done=true;if(e.type==='finish'&&this.job){this.emit('missedJob');this.job=null;this.multiplier=1;}else if(e.type==='crumb')this.combo=0;}
    if(this.finished)break;
@@ -535,7 +843,7 @@ class Drive {
  }
 }
 
-module.exports={clamp,themes,ROAD_TYPES,CRASHES,PICKUPS,seeded,jobPath,biomeAt,hazardKinds,Drive};
+module.exports={clamp,themes,ROAD_TYPES,CRASHES,PICKUPS,MIX,seeded,jobPath,biomeAt,hazardKinds,Drive};
 
 },
 "./audio.js":function(module,exports,require){
@@ -577,16 +885,26 @@ module.exports={Sound};
 },
 "./render.js":function(module,exports,require){
 const {RoutePainter}=require("./route-render.js");
+const {drawRig,drawTrailerOnly}=require("./rigart.js");
 const {HAZARD_SPECS}=require("./route-hazards.js");
 const {clamp,ROAD_TYPES,PICKUPS}=require("./model.js");
-const {rigPose,roadShape,roadCurve,laneX,roadTheme}=require("./geometry.js");
+const {rigPose,roadShape,roadCurve,laneX,roadTheme,RIG}=require("./geometry.js");
 const {SPRITE_RECTS,HAZARD_RECTS,TERRAIN_RECTS,EXTRAS_RECTS}=require("./atlas.js");
 const SPR={truck:0,trailer:1,orange:2,purple:3,car:4,redcar:5,cone:6,barrier:7,taco:8,job:9,finish:10,coin:11,sheep:12,face:13,flatbed:14,oil:15,crumb:11};
 const HAZ={lowbridge:0,weakbridge:1,bus:2,noentry:3,narrow:4,sheepWarning:5,house:6,grass:7};
 const LABELS={lowbridge:'LOW BRIDGE',weakbridge:'WEAK BRIDGE',bus:'BUS LANE',noentry:'NO ENTRY',house:'MIND THE HOUSE',grass:'KEEP OFF',narrow:'NARROW PASS'};
 class Renderer {
- constructor(canvas,images,settings){this.canvas=canvas;this.ctx=canvas.getContext('2d',{alpha:false});this.images=images;this.settings=settings;this.W=420;this.H=800;this.fx=[];this.shake=0;this.time=0;this.resize();this.world=new RoutePainter(this);}
- resize(){const r=this.canvas.getBoundingClientRect();this.H=420*r.height/r.width;let d=Math.min(window.devicePixelRatio||1,2);this.canvas.width=Math.round(r.width*d);this.canvas.height=Math.round(r.height*d);this.scale=this.canvas.width/420;this.ctx.setTransform(this.scale,0,0,this.scale,0,0);this.ctx.imageSmoothingEnabled=true;this.playerY=this.H*.66;this.worldScale=.72;}
+ constructor(canvas,images,settings,opts={}){this.opts=opts;this.pad=0;this.canvas=canvas;this.ctx=canvas.getContext('2d',{alpha:false});this.images=images;this.settings=settings;this.W=420;this.H=800;this.fx=[];this.shake=0;this.time=0;this.resize();this.world=new RoutePainter(this);}
+ /* The road column is always 420 world units wide and at least 747 tall (iPhone SE proportions). A taller phone just shows more road.
+    A wider screen (iPad) or the "tall phone preview" shrinks the world to fit and the spare width becomes side scenery (this.pad on each side). */
+ resize(){const r=this.canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);
+  let k,pad=0;
+  if(this.opts.fixedWidth){k=r.width/420;this.H=420*r.height/r.width;}
+  else{const hreq=this.settings.tall?909:747;k=Math.min(r.width/420,r.height/hreq);const Wc=r.width/k;pad=Math.max(0,(Wc-420)/2);this.H=r.height/k;}
+  this.k=k;this.pad=pad;this.cssCol=420*k;this.actualTall=420*r.height/r.width>=830;
+  this.canvas.width=Math.round(r.width*dpr);this.canvas.height=Math.round(r.height*dpr);this.scale=k*dpr;
+  this.ctx.setTransform(this.scale,0,0,this.scale,this.scale*pad,0);this.ctx.imageSmoothingEnabled=true;
+  this.playerY=this.opts.fixedWidth?this.H*.66:493+Math.max(0,this.H-747)*.36;this.worldScale=.72;}
  shape(z){return roadShape(z);}
  curve(z){return roadCurve(z);}
  x(lane,z){return laneX(lane,z);}
@@ -598,26 +916,7 @@ class Renderer {
     plus a faint glow in the lane the truck is heading for. Hazards, pickups and breadcrumbs all share these lane centres. */
  laneGuides(g){const c=this.ctx;c.save();c.fillStyle='#9dffe117';c.fillRect(this.x(g.lane,g.distance)-31,120,62,this.playerY-120);c.restore();}
  terrain(g){this.world.hazards(g);}
- rig(g,truckIndex,px,py,alpha){
-  const c=this.ctx,angle=clamp((g.lane-g.x)*.16,-.2,.2),pose=rigPose(px,0,angle,g.angle||0,clamp((g.trailer-g.rear)*.55,-.8,.8)),u=g.upgrades||{},decal=g.decal||0,scale=this.worldScale||.72;
-  c.save();c.translate(0,py);c.scale(1,scale);
-  const draw=(id,x,y,w,h,a=0)=>this.world.atlas('routeTrucks',id,x,y,w,h,a,alpha);
-  // Trailer kingpin is 20 units behind the nose, on the tractor fifth wheel.
-  // Apply the longitudinal camera scale after all hitch rotations.
-  draw(({0:0,2:1,3:2})[truckIndex]||0,px,0,49,91,angle);
-  if(g.hasTrailer!==false){
-   if(g.job?.double)draw(4,pose.rear.x,pose.rear.y,46,106,pose.rear.angle);
-   draw(3,pose.trailer.x,pose.trailer.y,47,116,pose.trailer.angle);
-   if(decal)this.sprite(decal+3,pose.trailer.x,pose.trailer.y-4,30,27,pose.trailer.angle,alpha,'extras');
-  }
-  const mount=(id,x,y,w,h)=>{c.save();c.translate(px,0);c.rotate(angle);this.world.atlas('routeTrucks',id,x,y,w,h,0,alpha);c.restore();};
-  if(u.washroom||u.bunk)mount(7,0,-23,18,12);
-  if(u.exhaust)mount(5,0,-5,45,29);
-  if(u.lights)mount(6,0,-40,32,7);
-  if(decal)this.sprite(decal+3,px+Math.sin(angle)*21,-Math.cos(angle)*21,21,16,angle,alpha,'extras');
-  if(g.grip>0){c.globalAlpha=Math.min(.3,g.grip*.07);c.fillStyle='#91704d';for(const side of [-1,1])c.fillRect(px+side*19-3,34,6,15);}
-  c.restore();
- }
+ rig(g,truckIndex,px,py,alpha){drawRig(this,{truck:g.truck,decal:g.decal,trailerPaint:g.trailerPaint,trailerDecal:g.trailerDecal,upgrades:g.upgrades,lane:g.lane,x:g.x,angle:g.angle,trailer:g.trailer,rear:g.rear,hasTrailer:g.hasTrailer!==false,job:g.job,grip:g.grip,boost:g.boost,shield:g.shield,hornAge:g.time-(g.hornAt??-10)},px,py,alpha,1,this.worldScale||.72,this.time);}
  nightLight(g){if(!g.night)return;const c=this.ctx,px=this.x(g.x,g.distance),reach=230+(g.upgrades.lights||0)*65;
   if(!this.dark){this.dark=document.createElement('canvas');this.dark.width=420;}
   if(this.dark.height!==Math.ceil(this.H))this.dark.height=Math.ceil(this.H);
@@ -636,7 +935,7 @@ class Renderer {
  else this.sprite(SPR[e.type]??6,x,y,w,h,e.oncoming?Math.PI:0);
  }
  if(g.sheep){const s=g.sheep,y=this.playerY-(s.z-g.distance)*this.worldScale;for(let i=0;i<5;i++){let x=this.x(i,s.z),rot=Math.sin(this.time*5+i)*.12;let sy=y+Math.sin(i*3)*17;if(s.cleared){const move=Math.max(0,(g.time-s.baaAt-.3))*120;x+=(i<2?-1:1)*move;rot=i<2?-1.5:1.5;sy+=Math.sin(this.time*20+i)*5;}this.sprite(12,x,sy,50,52,rot);}}
- for(const d of g.detached||[])this.world.atlas('routeTrucks',3,d.x,this.playerY-(d.z-g.distance)*this.worldScale,47,116*this.worldScale,d.angle,Math.max(0,1-d.age/3));
+ for(const d of g.detached||[])drawTrailerOnly(this,g.trailerPaint??1,g.trailerDecal??0,d.x,this.playerY-(d.z-g.distance)*this.worldScale,RIG.trailerW,RIG.trailerL*this.worldScale,d.angle,Math.max(0,1-d.age/3));
  const px=this.x(g.x,g.distance);let alpha=g.invulnerable>0&&Math.floor(this.time*13)%2===0?.55:1;this.nightLight(g);this.rig(g,truckIndex,px,this.playerY,alpha);
  for(const f of this.fx){f.age+=dt;f.x+=f.vx*dt;f.y+=f.vy*dt;if(f.kind!=='text')f.vy+=190*dt;let a=clamp(1-f.age/f.life,0,1);if(f.kind==='text'){c.save();c.globalAlpha=a;this.label(f.text,f.x,f.y,'#fff0ad',17);c.restore();}else this.sprite(f.kind==='loss'?11:11,f.x,f.y,13,13,f.rot+f.age*7,a);}
  this.fx=this.fx.filter(f=>f.age<f.life);c.restore();}
@@ -706,48 +1005,111 @@ class Wheel {
 module.exports={Wheel};
 
 },
+"./jokes.js":function(module,exports,require){
+/* Trucker's Tales: UK-flavoured lorry, road and roadside-cafe gags for the scrolling ticker on tall screens.
+   Written for this game. Add a line to the array to add a joke; keep each to one breath. */
+const JOKES=[
+ "Why did the lorry driver get promoted? He always went the extra mile. Slowly. Behind a caravan.",
+ "I told my sat-nav I wanted the scenic route. It took me through a Tesco car park.",
+ "What do you call a lorry full of cheese? Gouda for nothing, driver.",
+ "The M25 isn't a motorway, it's a very long car park with ambition.",
+ "Why was the cone so calm? It had seen worse roadworks.",
+ "A trucker walks into a lay-by and asks for a full English. The lay-by says: 'I'm a lay-by.'",
+ "Never trust a roundabout. It'll make you go in circles and take the blame.",
+ "I'd tell you a joke about the A303, but you'd be waiting three hours for the punchline.",
+ "What's a lorry's favourite biscuit? A Rich Tea. Because of all the tea breaks.",
+ "My trailer and I have an understanding: I steer, it overtakes me on the bends.",
+ "Why don't lorries play hide and seek? Because nobody can ever lose a 44-tonner.",
+ "How does a trucker take their tea? Strong enough to hold the spoon up and the lorry steady.",
+ "Height limit 14'6\". Driver's ambition: 15'. Bridge's opinion: BONK.",
+ "What do you call a driver who never gets lost? Someone who hasn't tried the Hemel Hempstead magic roundabout.",
+ "The sheep weren't crossing the road to get to the other side. They'd heard you were coming and wanted to see.",
+ "Why did the bacon butty cross the road? It was on its way to the cab. It never makes it to the end of the shift.",
+ "Roadworks: because nothing says 'welcome back' like a three-mile contraflow with nobody working.",
+ "What's the difference between a lorry and a pub quiz? One has a trailer, the other has a tie-break.",
+ "I asked the traffic cone for directions. It just stood there looking orange.",
+ "A pothole is just a speed bump that's been digging in.",
+ "The motorway services sandwich was so dry the driver asked for a side of rain.",
+ "Always check your mirrors. Especially the one telling you the trailer's gone for a walk.",
+ "How do you stop a lorry on a hill? You say 'Mind the sheep' in a very firm voice.",
+ "Why don't lorries ever get lonely? They've always got a cab, a chat and a Greggs.",
+ "Which part of the lorry gossips the most? The CB. It's always on channel nine… ish.",
+ "What do you call a lorry in a hurry? A speed-bump with delusions.",
+ "My lorry's air horn is so loud the Highways Agency sent a thank-you card. And a bill.",
+ "Why did the driver quit the diet? He spotted a roadside burger van marked 'LAST ONE FOR 40 MILES'.",
+ "On the A1, 'overtaking' is a sport. 'Pulling in' is a fairy tale.",
+ "Is a double trailer a job? Only if you can see where you're going. Otherwise it's a hobby.",
+ "A good lorry driver has three rules: coffee, patience and never reversing in Waitrose.",
+ "Where do lorries go for a holiday? Weigh-bridge-on-sea.",
+ "Detour signs: the roadside version of 'it's not you, it's me'.",
+ "What's the best way to travel through a village? Slowly, politely and with your mirrors tucked in.",
+ "Why did the sat-nav get embarrassed? It said 'turn left' and the driver took it literally. Into a hedge.",
+ "How many drivers does it take to change a tyre? Just one, but twelve to stand around and say 'you need a bigger jack'.",
+ "The only thing slower than a tractor on a country lane is the cyclist ahead of it.",
+ "What do you call a lorry that tells jokes? A pun-ishing load.",
+ "Weight limit 7.5 tonnes. Your lorry: 'That's cute.'",
+ "Never argue with a cattle grid. It always has the last bar.",
+ "I stopped at a lay-by for forty winks. Woke up at a different postcode.",
+ "Brake early, brake gently, brake into a cuppa.",
+ "Knock knock. Who's there? Lorry. Lorry who? Lorry in the lounge, please sign for delivery.",
+ "A cow, a tractor and a cyclist walk onto a B-road. You're stuck for forty minutes. That's not a joke, it's Tuesday.",
+ "What do you call it when two lorries hold hands? A convoy of affection.",
+ "Where do truckers keep their savings? In a lay-bye bank.",
+ "What do you call a flock of sheep in the road? A wool-ly obstruction. Beep them politely.",
+ "Where do truckers like to eat? Anywhere that has parking for 44 feet and room for a pudding."
+];
+function jokeOrder(seed=Date.now()){const a=JOKES.map((_,i)=>i);let s=seed|0;for(let i=a.length-1;i>0;i--){s=(Math.imul(s,1664525)+1013904223)|0;const j=((s>>>8)%(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+module.exports={JOKES,jokeOrder};
+
+},
 "./garage.js":function(module,exports,require){
-const {drawShowroom}=require("./showroom.js");
 const {Wheel}=require("./wheel.js");
 const {CATALOG,DECALS,TRUCKS,DECAL_TAGS,STATS}=require("./upgrades.js");
 const {Renderer}=require("./render.js");
+const {drawRig,thumb}=require("./rigart.js");
+const {RIG}=require("./geometry.js");
 const LOCK="<svg class='padlock' viewBox='0 0 24 24' aria-hidden='true'><path d='M7 10V7a5 5 0 0 1 10 0v3' fill='none' stroke='currentColor' stroke-width='2.6' stroke-linecap='round'/><rect x='4.5' y='10' width='15' height='11' rx='3' fill='currentColor'/><circle cx='12' cy='15.5' r='1.7' fill='#10343a'/></svg>";
-const TABS=[['trucks','TRUCKS'],['livery','LIVERY'],['upgrades','UPGRADES']];
-/* Showroom garage: pick a tab, swipe the wheel, and watch the turntable show the truck exactly as it will drive.
-   Unaffordable items can be previewed but not bought (padlock + "keep truckin'"). */
+/* Garage: the preview is the real in-game view (same camera, same road, same drawing code as the game), so what you see is what you drive.
+   Paints and roof graphics preview even when you can't afford them; only buying/fitting is locked. Cab and trailer are separate, and any
+   style you own can be fitted to either or both. */
 class Garage{
- constructor(o){Object.assign(this,o);this.tab='trucks';this.idx={trucks:0,livery:0,upgrades:0};this.angle=Math.PI/4;this.spark=[];this.pop=0;this.running=false;this.drag=null;
+ constructor(o){Object.assign(this,o);this.tab='trucks';this.target='both';this.idx={trucks:0,trailers:0,livery:0,upgrades:0};this.pop=0;this.running=false;this.spark=[];this.sway=0;
   const q=s=>this.root.querySelector(s);this.q=q;this.canvas=q('#showroom');
   q('#garageBack').onclick=()=>this.close();
   q('#garageTabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b&&b.dataset.tab!==this.tab){this.sound.play('click');this.sound.rev(1);this.setTab(b.dataset.tab);}});
-  q('#gAction').onclick=()=>this.act();
-  const c=this.canvas;c.addEventListener('pointerdown',e=>{this.drag={x:e.clientX,a:this.angle};c.setPointerCapture?.(e.pointerId);});
-  c.addEventListener('pointermove',e=>{if(this.drag)this.angle=this.drag.a+(e.clientX-this.drag.x)*.014;});
-  const end=()=>{this.drag=null;};c.addEventListener('pointerup',end);c.addEventListener('pointercancel',end);
+  q('#gTarget').addEventListener('click',e=>{const b=e.target.closest('[data-t]');if(b){this.target=b.dataset.t;this.sound.play('click');this.update();}});
+  q('#gAction').onclick=()=>this.act();q('#gBoth').onclick=()=>this.act(true);
+  const c=this.canvas;c.addEventListener('pointerdown',()=>{this.sound.honk();this.bump();});
   document.addEventListener('keydown',e=>{if(!this.running)return;if(e.key==='ArrowLeft'){this.wheel.step(-1);e.preventDefault();}else if(e.key==='ArrowRight'){this.wheel.step(1);e.preventDefault();}else if(e.key==='Escape'){this.close();e.preventDefault();}});
  }
  items(tab=this.tab){
   if(tab==='trucks')return TRUCKS.map(t=>({kind:'truck',id:t.id,name:t.name,desc:t.desc,cost:t.cost}));
-  if(tab==='livery')return DECALS.map(d=>({kind:'decal',id:d.id,name:d.name,desc:DECAL_TAGS[d.id],cost:d.cost,icon:d.icon}));
+  if(tab==='trailers')return TRUCKS.map(t=>({kind:'trailer',id:t.id,name:t.name,desc:t.desc.replace('The trailer’s factory colour.','Trailer factory colour.'),cost:t.cost}));
+  if(tab==='livery')return DECALS.map(d=>({kind:'decal',id:d.id,name:d.name,desc:DECAL_TAGS[d.id],cost:d.cost}));
   return CATALOG.map(u=>({kind:'upgrade',id:u.id,name:u.name,desc:u.description,cost:u.cost,icon:u.icon}));
  }
  st(it){const p=this.profile,w=p.wallet;
-  if(it.kind==='truck'){const owned=p.owned.includes(it.id);return {owned,selected:p.truck===it.id,price:it.cost,locked:!owned&&w<it.cost};}
-  if(it.kind==='decal'){const owned=p.ownedDecals.includes(it.id);return {owned,selected:p.decal===it.id,price:it.cost,locked:!owned&&w<it.cost};}
+  if(it.kind==='truck'||it.kind==='trailer'){const owned=p.owned.includes(it.id),sel=it.kind==='truck'?p.truck===it.id:p.trailerPaint===it.id;return {owned,selected:sel,price:it.cost,locked:!owned&&w<it.cost};}
+  if(it.kind==='decal'){const owned=p.ownedDecals.includes(it.id),t=this.target,sel=t==='cab'?p.decal===it.id:t==='trailer'?p.trailerDecal===it.id:p.decal===it.id&&p.trailerDecal===it.id;return {owned,selected:sel,price:it.cost,locked:!owned&&w<it.cost};}
   const lv=p.upgrades[it.id],maxed=lv>=3,price=maxed?0:it.cost*(lv+1);return {lv,maxed,price,owned:lv>0,locked:!maxed&&w<price};
  }
- art(it){if(it.kind==='truck')return "<span class='truck-card-art truck-art-"+it.id+"'></span>";if(it.icon===null)return "<span class='factory-dash'>FACTORY</span>";return "<span class='extra' data-extra='"+it.icon+"'></span>";}
+ art(it){
+  if(it.kind==='truck')return "<img class='paint-thumb cab' alt='' draggable='false' src='"+thumb(this.images_r,'cab',it.id,0)+"'>";
+  if(it.kind==='trailer')return "<img class='paint-thumb trailer' alt='' draggable='false' src='"+thumb(this.images_r,'trailer',it.id,0)+"'>";
+  if(it.kind==='decal')return it.id?"<img class='paint-thumb trailer' alt='' draggable='false' src='"+thumb(this.images_r,'trailer',1,it.id)+"'>":"<span class='factory-dash'>FACTORY</span>";
+  return "<span class='extra' data-extra='"+it.icon+"'></span>";}
  card(it){const s=this.st(it);let meta;
   if(it.kind==='upgrade')meta=Array.from({length:3},(_,i)=>"<i class='pip "+(i<s.lv?'on':'')+"'></i>").join('');
   else meta=s.selected?'ON THE ROAD':s.owned?'OWNED':this.money(s.price);
   return "<div class='gcard "+(s.locked?'locked':'')+" "+(s.selected?'equipped':'')+"'>"+this.art(it)+(s.locked?"<b class='lockbadge'>"+LOCK+"</b>":'')+"<span class='gname'>"+it.name.replace(/^THE /,'')+"</span><span class='gmeta'>"+meta+"</span></div>";}
  open(){this.root.classList.remove('hidden');this.root.classList.add('opening');setTimeout(()=>this.root.classList.remove('opening'),600);this.running=true;
-  this.preview=new Renderer(this.canvas,this.images,this.profile.settings);
+  this.preview=new Renderer(this.canvas,this.images,this.profile.settings,{fixedWidth:true});this.images_r=this.preview;
   this.setTab(this.tab,true);this.last=performance.now();const loop=t=>{if(!this.running)return;this.draw((t-this.last)/1000);this.last=t;requestAnimationFrame(loop);};requestAnimationFrame(loop);}
  close(){this.running=false;this.root.classList.add('hidden');this.sound.play('click');this.onExit?.();}
  setTab(tab,first){this.tab=tab;const items=this.items();
   this.root.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
-  let start=0;if(tab==='trucks')start=items.findIndex(i=>i.id===this.profile.truck);else if(tab==='livery')start=items.findIndex(i=>i.id===this.profile.decal);else start=this.idx.upgrades;
+  const p=this.profile;let start=0;if(tab==='trucks')start=items.findIndex(i=>i.id===p.truck);else if(tab==='trailers')start=items.findIndex(i=>i.id===p.trailerPaint);else if(tab==='livery')start=items.findIndex(i=>i.id===p.decal);else start=this.idx.upgrades;
   start=Math.max(0,start);
   const el=this.q('#garageWheel');
   if(this.wheel){this.wheel.setItems(items,false);this.wheel.pos=this.wheel.target=start;this.wheel.last=start;this.wheel.layout();}
@@ -755,60 +1117,59 @@ class Garage{
    onStep:(i,dir)=>{this.sound.rev(dir);this.haptic();this.update();},onSettle:i=>{this.idx[this.tab]=i;this.update();},onSelect:()=>this.tapCenter()});
   this.update();}
  cur(){return this.wheel.items[this.wheel.index];}
- pv(){const p=this.profile,it=this.cur(),pv={truck:p.truck,decal:p.decal,upgrades:{...p.upgrades}};
-  if(it.kind==='truck')pv.truck=it.id;else if(it.kind==='decal')pv.decal=it.id;else pv.upgrades[it.id]=Math.min(3,p.upgrades[it.id]+(p.upgrades[it.id]<3?1:0));return pv;}
- update(){const it=this.cur(),s=this.st(it),q=this.q;
-  q('#garageWallet').textContent=this.money(this.profile.wallet);
+ /* What the preview shows: the current setup with the highlighted item tried on (owned or not). */
+ pv(){const p=this.profile,it=this.cur(),pv={truck:p.truck,decal:p.decal,trailerPaint:p.trailerPaint,trailerDecal:p.trailerDecal,upgrades:{...p.upgrades}};
+  if(it.kind==='truck')pv.truck=it.id;else if(it.kind==='trailer')pv.trailerPaint=it.id;
+  else if(it.kind==='decal'){if(this.target!=='trailer')pv.decal=it.id;if(this.target!=='cab')pv.trailerDecal=it.id;}
+  else pv.upgrades[it.id]=Math.min(3,p.upgrades[it.id]+(p.upgrades[it.id]<3?1:0));return pv;}
+ update(){const it=this.cur(),s=this.st(it),q=this.q,p=this.profile;
+  q('#garageWallet').textContent=this.money(p.wallet);
   q('#gName').textContent=it.name;q('#gDesc').textContent=it.desc;
-  // stats row
+  q('#gTarget').classList.toggle('hidden',it.kind!=='decal');q('#gTarget').querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('active',b.dataset.t===this.target));
   let stat='';
   if(it.kind==='upgrade'){const S=STATS[it.id],now=S.f(s.lv),nxt=s.maxed?null:S.f(s.lv+1);
    stat="<div class='statrow'><span>"+S.label+"</span><span class='pips'>"+[1,2,3].map(i=>"<i class='pip "+(i<=s.lv?'on':!s.maxed&&i===s.lv+1?'next':'')+"'></i>").join('')+"</span><b>"+now+(nxt?" <em>→ "+nxt+"</em>":" <em>MAX</em>")+"</b></div>";}
-  else{const bonus=it.kind==='truck'?({0:0,2:2,3:4})[it.id]:(it.id>0?2:0);stat="<div class='statrow'><span>DELIVERY PAY</span><span class='pips'>"+[1,2,3,4].map(i=>"<i class='pip "+(i<=bonus/1?'on':'')+"'></i>").join('')+"</span><b>"+(bonus?'+'+bonus+'%':'standard')+"</b></div>";}
+  else{const bonus=it.kind==='decal'?(it.id>0?2:0):(TRUCKS.find(t=>t.id===it.id)?.bonus||0);stat="<div class='statrow'><span>DELIVERY PAY</span><span class='pips'>"+[1,2,3,4].map(i=>"<i class='pip "+(i<=bonus/1?'on':'')+"'></i>").join('')+"</span><b>"+(bonus?'+'+bonus+'%':'standard')+"</b></div>";}
   q('#gStats').innerHTML=stat;
-  // action button + notices
-  const a=q('#gAction'),note=q('#gNote'),badge=q('#stageBadge');a.className='big-button';a.disabled=false;note.textContent='';badge.className='stage-badge hidden';
-  const gap=Math.max(0,s.price-this.profile.wallet);
+  const a=q('#gAction'),note=q('#gNote'),badge=q('#stageBadge'),both=q('#gBoth');a.className='big-button';a.disabled=false;note.textContent='';badge.className='stage-badge hidden';both.classList.add('hidden');
+  const part=it.kind==='truck'?'CAB':it.kind==='trailer'?'TRAILER':this.target==='cab'?'CAB':this.target==='trailer'?'TRAILER':'CAB + TRAILER';
+  const gap=Math.max(0,s.price-p.wallet);
   if(s.locked){a.className='big-button locked';a.innerHTML=LOCK+"<span>KEEP TRUCKIN’ · "+this.money(gap)+" TO GO</span>";
    note.textContent='Preview only — look, but no touching. Earn '+this.money(gap)+' more and it’s yours.';badge.className='stage-badge lock';badge.innerHTML=LOCK+"<span>PREVIEW ONLY</span>";}
   else if(it.kind==='upgrade'){if(s.maxed){a.className='big-button done';a.innerHTML="<span>FULLY LOADED ✓</span>";a.disabled=true;}else{a.innerHTML="<span>UPGRADE · "+this.money(s.price)+"</span><b>➜</b>";badge.className='stage-badge try';badge.innerHTML="<span>NEXT LEVEL</span>";}}
-  else if(s.selected){a.className='big-button done';a.innerHTML="<span>ON THE ROAD ✓</span>";a.disabled=true;}
-  else if(s.owned){a.innerHTML="<span>"+(it.kind==='truck'?'DRIVE THIS ONE':'FIT IT')+"</span><b>➜</b>";}
-  else{a.innerHTML="<span>BUY · "+this.money(s.price)+"</span><b>➜</b>";badge.className='stage-badge try';badge.innerHTML="<span>TRYING IT ON</span>";}
+  else if(s.selected){a.className='big-button done';a.innerHTML="<span>ON THE ROAD ✓ · "+part+"</span>";a.disabled=true;}
+  else if(s.owned){a.innerHTML="<span>FIT TO "+part+"</span><b>➜</b>";}
+  else{a.innerHTML="<span>BUY · "+this.money(s.price)+" · "+part+"</span><b>➜</b>";badge.className='stage-badge try';badge.innerHTML="<span>TRYING IT ON</span>";}
+  // "Match both": an owned paint can be fitted to the cab and the trailer in one go.
+  if((it.kind==='truck'||it.kind==='trailer')&&s.owned&&!(p.truck===it.id&&p.trailerPaint===it.id)){both.classList.remove('hidden');both.textContent='FIT TO CAB + TRAILER';}
   this.locked=!!s.locked;this.wheel.refresh();
  }
  tapCenter(){const it=this.cur(),s=this.st(it);if(it.kind!=='upgrade'&&s.owned&&!s.selected)this.act();else{this.sound.honk();this.bump();}}
  bump(){this.pop=1;}
- act(){const it=this.cur(),s=this.st(it),p=this.profile;
+ act(both){const it=this.cur(),s=this.st(it),p=this.profile;
   if(s.locked){this.sound.play('flush',.6);this.bump();this.root.classList.add('shake');setTimeout(()=>this.root.classList.remove('shake'),400);this.haptic('heavy');return;}
+  const buy=(list)=>{if(!s.owned){p.wallet-=s.price;list.push(it.id);this.celebrate();}else this.sound.honk();};
   if(it.kind==='upgrade'){if(s.maxed)return;p.wallet-=s.price;p.upgrades[it.id]++;this.celebrate();}
-  else if(it.kind==='truck'){if(!s.owned){p.wallet-=s.price;p.owned.push(it.id);this.celebrate();}else this.sound.honk();p.truck=it.id;}
-  else{if(!s.owned){p.wallet-=s.price;p.ownedDecals.push(it.id);this.celebrate();}else this.sound.honk();p.decal=it.id;}
+  else if(it.kind==='truck'||it.kind==='trailer'){buy(p.owned);if(both){p.truck=it.id;p.trailerPaint=it.id;}else if(it.kind==='truck')p.truck=it.id;else p.trailerPaint=it.id;}
+  else{buy(p.ownedDecals);if(this.target!=='trailer')p.decal=it.id;if(this.target!=='cab')p.trailerDecal=it.id;}
   this.save();this.onChange?.();this.update();}
  celebrate(){this.sound.play('cash');this.sound.honk();this.sound.rev(1);this.haptic('heavy');this.bump();
   for(let i=0;i<46;i++){const a=Math.random()*6.283,v=70+Math.random()*190;this.spark.push({x:0,y:0,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:.8+Math.random()*.7,age:0,r:2+Math.random()*4});}
   this.root.classList.add('flash');setTimeout(()=>this.root.classList.remove('flash'),500);}
  draw(dt){const r=this.preview,c=r.ctx,W=420,H=r.H;if(!W||!H||!isFinite(H))return;dt=Math.min(.05,Math.max(0,dt||0));
-  r.time+=dt;if(!this.drag&&this.profile.settings.motion)this.angle+=dt*.22;this.pop=Math.max(0,this.pop-dt*2.4);
-  c.clearRect(0,0,W,H);
-  // showroom floor + spotlight
-  const bg=c.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#0d2a30');bg.addColorStop(1,'#123b40');c.fillStyle=bg;c.fillRect(0,0,W,H);
-  const cx=W/2,cy=H*.5,R=Math.min(W*.44,H*.47);
-  const pool=c.createRadialGradient(cx,cy,R*.2,cx,cy,R*1.9);pool.addColorStop(0,'#3aa6a6aa');pool.addColorStop(.5,'#1c5b5f55');pool.addColorStop(1,'#0d2a3000');c.fillStyle=pool;c.fillRect(0,0,W,H);
-  c.strokeStyle='#ffffff10';c.lineWidth=1;for(let x=-W;x<2*W;x+=42){c.beginPath();c.moveTo(cx+(x-cx)*1.0,0);c.lineTo(cx+(x-cx)*1.9,H);c.stroke();}
-  // turntable
-  c.save();c.translate(cx,cy);
-  c.fillStyle='#04141a';c.beginPath();c.arc(0,6,R+10,0,6.283);c.fill();
-  const rim=c.createLinearGradient(0,-R,0,R);rim.addColorStop(0,'#9fb7bd');rim.addColorStop(.5,'#4f666d');rim.addColorStop(1,'#243a40');c.fillStyle=rim;c.beginPath();c.arc(0,0,R+7,0,6.283);c.fill();
-  const plate=c.createRadialGradient(0,-R*.3,R*.1,0,0,R);plate.addColorStop(0,this.locked?'#1f6f86':'#2b6a70');plate.addColorStop(1,'#10343a');c.fillStyle=plate;c.beginPath();c.arc(0,0,R,0,6.283);c.fill();
-  c.rotate(this.angle);c.strokeStyle='#ffffff22';c.lineWidth=2;for(let i=0;i<48;i++){c.rotate(Math.PI/24);c.beginPath();c.moveTo(R-(i%4?6:14),0);c.lineTo(R-1,0);c.stroke();}
-  c.strokeStyle=this.locked?'#7be7ff':'#ffd35b';c.globalAlpha=.55;c.lineWidth=3;c.setLineDash(this.locked?[8,7]:[]);c.beginPath();c.arc(0,0,R*.9,0,6.283);c.stroke();c.setLineDash([]);c.globalAlpha=1;
-  c.restore();
-  // Actual camera-angle sprites replace the rotating top-down image.
-  const pv=this.pv();drawShowroom(r,pv,this.angle,cx,cy,R,this.pop);
-  if(this.locked){c.save();c.beginPath();c.arc(cx,cy,R,0,6.283);c.clip();c.fillStyle='#8ff3ff1f';const off=(r.time*28)%6;for(let y=-R+off;y<R;y+=6)c.fillRect(cx-R,cy+y,R*2,2);c.restore();}
-  // sparkles
-  c.save();c.translate(cx,cy);for(const s of this.spark){s.age+=dt;s.x+=s.vx*dt;s.y+=s.vy*dt;s.vy+=140*dt;const a=Math.max(0,1-s.age/s.life);c.globalAlpha=a;c.fillStyle='#fff3b0';c.beginPath();c.moveTo(s.x,s.y-s.r*2);c.lineTo(s.x+s.r*.6,s.y-s.r*.6);c.lineTo(s.x+s.r*2,s.y);c.lineTo(s.x+s.r*.6,s.y+s.r*.6);c.lineTo(s.x,s.y+s.r*2);c.lineTo(s.x-s.r*.6,s.y+s.r*.6);c.lineTo(s.x-s.r*2,s.y);c.lineTo(s.x-s.r*.6,s.y-s.r*.6);c.closePath();c.fill();}c.restore();this.spark=this.spark.filter(s=>s.age<s.life);
+  r.time+=dt;this.pop=Math.max(0,this.pop-dt*2.4);
+  // The in-game road, scrolling slowly so the lamps, flames and decals feel alive.
+  const off=(r.time*60)%256;r.world.paint(0,0,0,W,H,off);
+  c.fillStyle='#0003';c.fillRect(0,0,W,H);
+  c.strokeStyle='#eeeaddb0';c.lineWidth=2;for(const x of[44,376]){c.beginPath();c.moveTo(x,0);c.lineTo(x,H);c.stroke();}
+  c.strokeStyle='#eee5ccaa';c.lineWidth=2;c.setLineDash([26,34]);c.lineDashOffset=-off;for(const x of[132,210,288]){c.beginPath();c.moveTo(x,0);c.lineTo(x,H);c.stroke();}c.setLineDash([]);
+  const vg=c.createRadialGradient(W/2,H*.5,H*.2,W/2,H*.5,H*.8);vg.addColorStop(0,'#0000');vg.addColorStop(1,'#000a');c.fillStyle=vg;c.fillRect(0,0,W,H);
+  const pv=this.pv(),ys=r.worldScale||.72,span=RIG.cabL/2+RIG.S*34+RIG.S*38+RIG.trailerL/2+RIG.cabL/2,s=Math.min(H*.84/(span*ys),W*.5/(RIG.cabW))*(1+this.pop*.035);
+  const t=r.time;this.sway=Math.sin(t*.9)*.9;const x=2+this.sway*.18,lane=2+Math.sin(t*.9+.35)*.18;
+  const top=-RIG.cabL/2,cy=H/2-(span/2-RIG.cabL/2)*s*ys;
+  drawRig(r,{...pv,lane,x,angle:Math.sin(t*.9-.5)*.08,trailer:2+Math.sin(t*.9-.3)*.14,rear:2,hasTrailer:true,job:null,grip:0,boost:Math.max(0,Math.sin(t*.7)*3),shield:false,hornAge:this.pop>0?(1-this.pop)*.35:9},W/2,cy,1,s,ys,t);
+  if(this.locked){c.save();c.fillStyle='#8ff3ff1c';const off2=(r.time*28)%6;for(let y=off2;y<H;y+=6)c.fillRect(0,y,W,2);c.restore();}
+  c.save();c.translate(W/2,H/2);for(const sp of this.spark){sp.age+=dt;sp.x+=sp.vx*dt;sp.y+=sp.vy*dt;sp.vy+=140*dt;const a=Math.max(0,1-sp.age/sp.life);c.globalAlpha=a;c.fillStyle='#fff3b0';c.beginPath();c.moveTo(sp.x,sp.y-sp.r*2);c.lineTo(sp.x+sp.r*.6,sp.y-sp.r*.6);c.lineTo(sp.x+sp.r*2,sp.y);c.lineTo(sp.x+sp.r*.6,sp.y+sp.r*.6);c.lineTo(sp.x,sp.y+sp.r*2);c.lineTo(sp.x-sp.r*.6,sp.y+sp.r*.6);c.lineTo(sp.x-sp.r*2,sp.y);c.lineTo(sp.x-sp.r*.6,sp.y-sp.r*.6);c.closePath();c.fill();}c.restore();this.spark=this.spark.filter(sp=>sp.age<sp.life);
  }
 }
 
@@ -817,22 +1178,23 @@ module.exports={Garage};
 },
 "./game.js":function(module,exports,require){
 const {routeWarning,roadAt,routeLanes}=require("./route-world.js");
-const {CATALOG,DECALS,defaults : defaultUpgrades,normalize : normalizeUpgrades}=require("./upgrades.js");
+const {CATALOG,DECALS,PAINT_IDS,DECAL_IDS,defaults : defaultUpgrades,normalize : normalizeUpgrades}=require("./upgrades.js");
 const {Drive,clamp,themes,CRASHES}=require("./model.js");
 const {Renderer,loadImages}=require("./render.js");
 const {Sound}=require("./audio.js");
 const {Wheel}=require("./wheel.js");
 const {Garage}=require("./garage.js");
+const {JOKES,jokeOrder}=require("./jokes.js");
 const $=id=>document.getElementById(id),money=v=>'£'+Math.max(0,Math.round(v)).toLocaleString('en-GB');
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const KEY='truckin-save-v1';
-const defaults={version:1,name:'',player:globalThis.crypto?.randomUUID?.()||'driver-'+Date.now()+'-'+Math.random().toString(36).slice(2),wallet:0,best:0,truck:0,owned:[0],upgrades:defaultUpgrades(),decal:0,ownedDecals:[0],scores:[],stats:{jobs:0,horns:0,tacos:0,doubles:0},settings:{music:.7,sfx:.8,haptics:true,motion:!matchMedia('(prefers-reduced-motion: reduce)').matches},tutorial:false};
+const defaults={version:1,name:'',player:globalThis.crypto?.randomUUID?.()||'driver-'+Date.now()+'-'+Math.random().toString(36).slice(2),wallet:0,best:0,truck:0,trailerPaint:1,owned:[0,1],upgrades:defaultUpgrades(),decal:0,trailerDecal:0,ownedDecals:[0],scores:[],stats:{jobs:0,horns:0,tacos:0,doubles:0},settings:{music:.7,sfx:.8,haptics:true,tall:false,motion:!matchMedia('(prefers-reduced-motion: reduce)').matches},tutorial:false};
 let saved={};try{saved=JSON.parse(localStorage.getItem(KEY)||'{}');}catch{}
 const profile={...defaults,...saved,upgrades:normalizeUpgrades(saved.upgrades),settings:{...defaults.settings,...saved.settings},stats:{...defaults.stats,...saved.stats}};
 profile.wallet=clamp(Number(profile.wallet)||0,0,1e9);profile.best=clamp(Number(profile.best)||0,0,1e9);
 profile.scores=Array.isArray(profile.scores)?profile.scores.slice(0,30):[];
-profile.owned=Array.isArray(profile.owned)?profile.owned.filter(v=>[0,2,3].includes(v)):[0];if(!profile.owned.includes(0))profile.owned.push(0);if(!profile.owned.includes(profile.truck))profile.truck=0;
-profile.ownedDecals=Array.isArray(profile.ownedDecals)?profile.ownedDecals.filter(v=>[0,1,2,3].includes(v)):[0];if(!profile.ownedDecals.includes(0))profile.ownedDecals.push(0);if(!profile.ownedDecals.includes(profile.decal))profile.decal=0;
+profile.owned=Array.isArray(profile.owned)?profile.owned.filter(v=>PAINT_IDS.includes(v)):[0];for(const id of [0,1])if(!profile.owned.includes(id))profile.owned.push(id);if(!profile.owned.includes(profile.truck))profile.truck=0;if(!profile.owned.includes(profile.trailerPaint))profile.trailerPaint=1;
+profile.ownedDecals=Array.isArray(profile.ownedDecals)?profile.ownedDecals.filter(v=>DECAL_IDS.includes(v)):[0];if(!profile.ownedDecals.includes(0))profile.ownedDecals.push(0);if(!profile.ownedDecals.includes(profile.decal))profile.decal=0;if(!profile.ownedDecals.includes(profile.trailerDecal))profile.trailerDecal=0;
 let storageWarning=false;function save(){if(game&&!game.finished&&['playing','paused','countdown'].includes(state)){profile.active={data:game.snapshot(),id:onlineId};}else if(game?.finished){delete profile.active;}try{localStorage.setItem(KEY,JSON.stringify(profile));bridge('saveProgress',{data:JSON.stringify(profile)});}catch{storageWarning=true;}}
 const sound=new Sound(profile.settings);sound.preload();let renderer,game=null,state='home',activeSheet='',lastTime=0,toastUntil=0,onlineId=null,runRequest=null,runSerial=0,ending=false,scoreMode='all',leaderTimer=null,wasFocus=null,lastHorn=-10,comicTimer=null,countdownTimer=null;
 const native=()=>!!window.webkit?.messageHandlers?.truckin;
@@ -843,10 +1205,10 @@ function updateHome(){if(menuWheel)refreshMenu();$('menuStats').textContent='PER
 function toast(text,detail='',seconds=2){$('floatingToast').innerHTML=escape(text)+(detail?'<small>'+escape(detail)+'</small>':'');$('floatingToast').classList.remove('hidden');toastUntil=performance.now()+seconds*1000;}
 function openSheet(title,eyebrow,body,name){activeSheet=name;wasFocus=document.activeElement;$('sheetTitle').textContent=title;$('sheetEyebrow').textContent=eyebrow;$('sheetBody').innerHTML=body;$('sheet').classList.remove('hidden');$('closeSheet').classList.remove('hidden');setTimeout(()=>$('closeSheet').focus(),10);}
 function closeSheet(){if(activeSheet==='pause'){resume();return;}if(activeSheet==='result'){home();return;}clearInterval(leaderTimer);leaderTimer=null;$('sheet').classList.add('hidden');activeSheet='';if(wasFocus?.isConnected)wasFocus.focus();}
-function home(){runSerial++;clearTimeout(comicTimer);clearTimeout(countdownTimer);ending=false;state='home';game=null;onlineId=null;$('comic').classList.add('hidden');$('hud').classList.add('hidden');$('home').classList.remove('hidden');$('sheet').classList.add('hidden');activeSheet='';clearInterval(leaderTimer);sound.gameStop();sound.suspended=false;updateHome();if(homeMode==='menu')enterMenu(false);}
+function home(){$('app').classList.remove('playing');setTimeout(resize,30);runSerial++;clearTimeout(comicTimer);clearTimeout(countdownTimer);ending=false;state='home';game=null;onlineId=null;$('comic').classList.add('hidden');$('hud').classList.add('hidden');$('home').classList.remove('hidden');$('sheet').classList.add('hidden');activeSheet='';clearInterval(leaderTimer);sound.gameStop();sound.suspended=false;updateHome();if(homeMode==='menu')enterMenu(false);}
 function askStart(mode){sound.unlock();if(mode==='endless'&&profile.active){restoreShift();return;}if(!profile.name){openSheet('YOUR SHIFT STARTS HERE','SIGN THE TACHO',"<p class='sheet-copy'>A full tank, a £500 float, and a sat-nav with questionable judgement. Let’s make a living.</p><label class='field-label' for='driverName'>DRIVER NAME</label><input id='driverName' type='text' maxlength='16' autocomplete='nickname' placeholder='Road legend' value=''><p class='status-note'>Your name appears on the leaderboard. Game earnings are fictional.</p><button class='big-button' id='nameGo'>LET’S GET TRUCKIN’ <b>➜</b></button>",'name');$('nameGo').onclick=()=>{profile.name=$('driverName').value.replace(/[^a-zA-Z0-9 _.-]/g,'').trim().slice(0,16)||'Road legend';save();begin(mode);};$('driverName').onkeydown=e=>{if(e.key==='Enter')$('nameGo').click();};}else begin(mode);}
-function restoreShift(){const restored=Drive.restore(profile.active?.data);if(!restored){delete profile.active;save();begin();return;}game=restored;onlineId=profile.active.id||null;runRequest=null;runSerial++;ending=false;state='playing';$('home').classList.add('hidden');$('hud').classList.remove('hidden');$('tutorialHint').classList.add('hidden');renderer.draw(game,0,profile.truck);updateHud();sound.suspended=false;sound.menuOff(.6);sound.unlock().then(()=>{if(state==='playing')sound.musicOn();});toast('WELCOME BACK, DRIVER','Right where you parked it.',2);}
-function begin(mode='endless'){delete profile.active;if(!renderer)return;clearInterval(leaderTimer);clearTimeout(comicTimer);ending=false;lastHorn=-10;const stamp=Date.now();const seed=mode==='daily'?Number(new Date().toISOString().slice(0,10).replace(/-/g,'')):stamp;game=new Drive({seed,mode,upgrades:profile.upgrades,truck:profile.truck,decal:profile.decal});onlineId=null;const serial=++runSerial;state='countdown';$('home').classList.add('hidden');$('sheet').classList.add('hidden');$('comic').classList.add('hidden');$('hud').classList.remove('hidden');$('jobBox').classList.add('hidden');$('sheepWarning').classList.add('hidden');$('tutorialHint').classList.toggle('hidden',profile.tutorial);activeSheet='';sound.suspended=false;sound.menuOff(.8);sound.rev(1);sound.unlock().then(()=>{if(serial===runSerial&&state!=='paused'&&state!=='home')sound.musicOn();});if(!native()&&backendUp){runRequest=fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({player:profile.player,mode}),signal:AbortSignal.timeout(8000)}).then(r=>r.ok?r.json():null).then(d=>{if(!d)backendUp=false;if(serial===runSerial)onlineId=d?.id||null;return d?.id||null;}).catch(()=>{backendUp=false;return null;});}else runRequest=null;toast('SHINY SIDE UP!',mode==='daily'?'120 seconds · same route · stock handling':'£500 float · swipe one position at a time',1.5);renderer.fx=[];renderer.shake=0;renderer.draw(game,0,profile.truck);updateHud();countdownTimer=setTimeout(()=>{if(state==='countdown'){state='playing';$('road').focus();}},1100);}
+function restoreShift(){const restored=Drive.restore(profile.active?.data);if(!restored){delete profile.active;save();begin();return;}$('app').classList.add('playing');resize();game=restored;onlineId=profile.active.id||null;runRequest=null;runSerial++;ending=false;state='playing';$('home').classList.add('hidden');$('hud').classList.remove('hidden');$('tutorialHint').classList.add('hidden');renderer.draw(game,0,profile.truck);updateHud();sound.suspended=false;sound.menuOff(.6);sound.unlock().then(()=>{if(state==='playing')sound.musicOn();});toast('WELCOME BACK, DRIVER','Right where you parked it.',2);}
+function begin(mode='endless'){delete profile.active;if(!renderer)return;$('app').classList.add('playing');resize();clearInterval(leaderTimer);clearTimeout(comicTimer);ending=false;lastHorn=-10;const stamp=Date.now();const seed=mode==='daily'?Number(new Date().toISOString().slice(0,10).replace(/-/g,'')):stamp;game=new Drive({seed,mode,upgrades:profile.upgrades,truck:profile.truck,decal:profile.decal,trailerPaint:profile.trailerPaint,trailerDecal:profile.trailerDecal});onlineId=null;const serial=++runSerial;state='countdown';$('home').classList.add('hidden');$('sheet').classList.add('hidden');$('comic').classList.add('hidden');$('hud').classList.remove('hidden');$('jobBox').classList.add('hidden');$('sheepWarning').classList.add('hidden');$('tutorialHint').classList.toggle('hidden',profile.tutorial);activeSheet='';sound.suspended=false;sound.menuOff(.8);sound.rev(1);sound.unlock().then(()=>{if(serial===runSerial&&state!=='paused'&&state!=='home')sound.musicOn();});if(!native()&&backendUp){runRequest=fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({player:profile.player,mode}),signal:AbortSignal.timeout(8000)}).then(r=>r.ok?r.json():null).then(d=>{if(!d)backendUp=false;if(serial===runSerial)onlineId=d?.id||null;return d?.id||null;}).catch(()=>{backendUp=false;return null;});}else runRequest=null;toast('SHINY SIDE UP!',mode==='daily'?'120 seconds · same route · stock handling':'£500 float · swipe one position at a time',1.5);renderer.fx=[];renderer.shake=0;renderer.draw(game,0,profile.truck);updateHud();countdownTimer=setTimeout(()=>{if(state==='countdown'){state='playing';$('road').focus();}},1100);}
 function pause(){if(!['playing','countdown'].includes(state))return;clearTimeout(countdownTimer);state='paused';save();sound.pause();openSheet('PARKED UP','TAKE A BREATHER',"<p class='sheet-copy'>Your truck is safe here. The clock and the road are stopped.</p><button class='big-button' id='resumeButton'>BACK ON THE ROAD <b>➜</b></button><button class='secondary' id='finishShift'>Finish shift & bank earnings</button><p class='status-note'>An unfinished delivery won’t be paid.</p>",'pause');$('resumeButton').onclick=resume;$('finishShift').onclick=()=>{if(game){game.end('Clocked off. Kettle on.');handleEvents();}};}
 function resume(){if(!game||game.finished)return;state='playing';$('sheet').classList.add('hidden');activeSheet='';lastTime=performance.now();sound.resume();$('road').focus();}
 function honk(){if(state!=='playing'||!game)return;let now=performance.now()/1000;if(now-lastHorn<.6)return;lastHorn=now;game.horn();haptic();handleEvents();}
@@ -858,6 +1220,8 @@ const COMICS={
  lowbridge:{art:"<div class='stage'><span class='part arch'>"+IMG('bridge-low')+"</span><i class='burst'>BONK!</i></div>",title:'SUNROOF!',sub:'FACTORY-FIT. NO EXTRA CHARGE.<br>THE BRIDGE SENDS ITS THANKS.',sfx:['brake','flush']},
  weakbridge:{art:"<div class='stage'><span class='part half l'>"+IMG('bridge-weak')+"</span><span class='part half r'>"+IMG('bridge-weak')+"</span><span class='part cab'>"+IMG('cab')+"</span><i class='burst'>SPLASH!</i></div>",title:'PLANK YOU!',sub:'NOT RATED FOR YOUR DINNER.<br>THE RIVER SENDS ITS REGARDS.',sfx:['brake','flush']},
  oil:{art:"<div class='stage'><span class='part slick'>"+IMG('oil')+"</span><span class='part cab'>"+IMG('cab')+"</span><i class='dizzy'>★ ✦ ★</i></div>",title:'SPIN CYCLE!',sub:'WASH. RINSE. JACKKNIFE.<br>COLOURS MAY RUN.',sfx:['brake','scatter']},
+ cow:{art:"<div class='stage'><span class='emo b'>🐄</span><span class='emo a'>🚛</span><i class='burst'>MOOOO!</i></div>",title:'MOO-VE OVER!',sub:'HOLY COW. LITERALLY.<br>YOU SHOULD HAVE HONKED.',sfx:['horn','brake','scatter']},
+ icecream:{art:"<div class='stage'><span class='emo b'>🍦</span><span class='emo a'>🚛</span><i class='burst'>SPLAT!</i></div>",title:'99 PROBLEMS!',sub:'ONE FLAKE-ING DISASTER.<br>NO SPRINKLES. NO REFUNDS.',sfx:['brake','flush','scatter']},
  house:{art:"<div class='stage'><span class='part home'>"+IMG('house')+"</span><span class='part cab'>"+IMG('cab')+"</span><i class='burst'>DING-DONG!</i></div>",title:'KNOCK, KNOCK!',sub:'WHO’S THERE? A LORRY.<br>IN THE LOUNGE.',sfx:['horn','brake','flush']}
 };
 let comicAt=0;
@@ -866,6 +1230,9 @@ window.truckinPreviewComic=showComic;/* QA hook: truckinPreviewComic('car'|'lowb
 function handleEvents(){if(!game)return;for(const e of game.events.splice(0)){const px=renderer.x(game.x,game.distance),py=renderer.playerY;
  switch(e.type){
  case'trailerDrop':sound.play('click');toast('CAB ONLY · +16% SPEED',e.lost?'Delivery abandoned · '+money(e.lost)+' unbanked pay lost':'Collect a green hitch to haul again.',2.5);haptic();break;
+ case'shoo':sound.play('scatter');toast(e.kind==='cow'?'MOO-VE ALONG!':'SHOOED!',e.kind==='cow'?'+£60 · Cow relocated with dignity.':'+£35 · Geese: unimpressed.',1.6);haptic();break;
+ case'shield':sound.play('pickup');toast('LUCKY HORSESHOE!','Your next crash is on the house.',2);haptic();break;
+ case'shieldSave':sound.play('flush');renderer.shake=profile.settings.motion?10:0;toast('HORSESHOE SAVED YOU!','Phew. One life used.',2.2);haptic('heavy');break;
  case'trailerHitch':sound.play('pickup');toast('TRAILER LOCKED','Back in the haulage business.',1.8);haptic();break;
  case'mud':toast('MUD ON THE TYRES','Grip will return on clean tarmac.',1.5);break;
  case'prize':sound.play('bonus');haptic();break;
@@ -893,7 +1260,7 @@ function handleEvents(){if(!game)return;for(const e of game.events.splice(0)){co
  }
  }}
 function updateHud(){if(!game)return;$('money').textContent=money(game.money);$('distance').textContent=game.mode==='daily'?Math.max(0,120-Math.floor(game.time))+'s':(game.distance/9000).toFixed(2);$('distanceLabel').textContent=game.mode==='daily'?'SHIFT TIME LEFT':'MILES ON THE CLOCK';$('zone').textContent=themes[game.stage];$('jobs').textContent=game.night?'☾ NIGHT ×2':game.boost>0?'TURBO '+Math.ceil(game.boost)+'s':game.rested>0?'RESTED':' '+game.jobs+' DROPS';$('swayFill').style.width=game.sway*100+'%';$('swayFill').style.background=game.sway>.75?'#ff886f':'#60dfd4';$('swayLabel').textContent=game.grip>0?'TYRE GRIP RECOVERING':!game.hasTrailer?'CAB ONLY · +16% SPEED':game.job?.double?'DOUBLE TRAILER SWAY':'TRAILER SWAY';if(game.grip>0){$('swayFill').style.width=(1-game.grip/4.8)*100+'%';$('swayFill').style.background='#dcb976';}$('drivingHint').textContent=game.grip>0?'Gentle steering until the tyres clear.':!game.hasTrailer?'Green hitch or a new job attaches a trailer.':game.sway>.7?'Steady! Let it settle.':game.job?.double?'Double pay. Easy on the wheel.':'Easy does it, driver.';$('jobBox').classList.toggle('hidden',!game.job);if(game.job){$('jobTitle').textContent=game.job.label;$('jobMoney').textContent=money(game.job.pay);$('jobCount').textContent=game.job.count+' / 10 crumbs';$('jobProgress').style.width=game.job.count*10+'%';}
- $('sheepWarning').classList.toggle('hidden',!game.sheep);$('hornButton').classList.toggle('alert',!!game.sheep&&game.sheep.baa&&!game.sheep.cleared);if(game.sheep){let s=game.sheep;$('sheepWarning').classList.toggle('now',s.baa&&!s.cleared);$('sheepWarning').classList.toggle('cleared',s.cleared);$('sheepText').textContent=s.cleared?'WOOL DONE!':s.baa?'BEEP THE SHEEP!':'BEEP THE SHEEP!';$('sheepHint').textContent=s.cleared?'Cheers, driver!':s.baa?'BAA! DOUBLE TAP!':'Wait for the baa…';}
+ $('sheepWarning').classList.toggle('hidden',!game.sheep);const honkNear=game.items.some(e=>e.honkable&&!e.done&&e.z-game.distance>70&&e.z-game.distance<520);$('hornButton').classList.toggle('alert',(!!game.sheep&&game.sheep.baa&&!game.sheep.cleared)||honkNear);if(game.sheep){let s=game.sheep;$('sheepWarning').classList.toggle('now',s.baa&&!s.cleared);$('sheepWarning').classList.toggle('cleared',s.cleared);$('sheepText').textContent=s.cleared?'WOOL DONE!':s.baa?'BEEP THE SHEEP!':'BEEP THE SHEEP!';$('sheepHint').textContent=s.cleared?'Cheers, driver!':s.baa?'BAA! DOUBLE TAP!':'Wait for the baa…';}
  const w=routeWarning(game.distance,game.seed),warning=$('routeDecision');warning.classList.toggle('hidden',!w);if(w){$('routeDecisionMain').textContent=w.left?'← '+w.left+'     '+w.right+' →':w.text;$('routeDecisionDistance').textContent=w.distance>0?w.distance+' m · CHOOSE YOUR ROUTE':'FOLLOW YOUR CHOSEN ROAD';}
  const drop=$('trailerButton');drop.disabled=!game.hasTrailer||game.dropCooldown>0;drop.querySelector('b').textContent=game.hasTrailer?'DROP TRAILER':'CAB ONLY';drop.querySelector('small').textContent=game.hasTrailer?(game.job?'LOSE '+money(game.job.pay)+' LOAD':'GAIN SPEED'):'FIND GREEN HITCH';
  if(game.time>8){$('tutorialHint').classList.add('hidden');if(!profile.tutorial){profile.tutorial=true;save();}}if(performance.now()>toastUntil)$('floatingToast').classList.add('hidden');}
@@ -903,8 +1270,8 @@ async function finish(reason,kind=''){if(ending)return;ending=true;state='ended'
  if(kind){$('comic').onclick=()=>{if(performance.now()-comicAt>900){clearTimeout(comicTimer);show();}};comicTimer=setTimeout(show,3200);}else show();
  if(!native()&&backendUp){let id=onlineId||await runRequest;let msg='Saved on this device. Online board is unavailable.';if(id){try{const r=await fetch('/api/leaderboard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,player:profile.player,nickname:profile.name,score:result.score,distance:result.distance,jobs:result.jobs}),signal:AbortSignal.timeout(8000)});msg=r.ok?'Your shift is on the live leaderboard.':'Saved on this device. This run could not be posted.';}catch{}}const waitStatus=()=>{if(activeSheet==='result'&&$('saveStatus'))$('saveStatus').textContent=msg;};waitStatus();if(kind)setTimeout(waitStatus,3300);}
 }
-function guide(){openSheet('DRIVER’S GUIDE','KEEP IT SHINY SIDE UP',"<div class='guide-row'><span class='guide-symbol'>‹ ›</span><div><b>One swipe. One position.</b><p>One swipe moves one step across the view. Follow the bends; fewer positions fit on narrow roads. Read both signs before a fork. Swipe left or right. Keyboard: arrow keys or A / D.</p></div></div><div class='guide-row'><span class='sprite' data-sprite='4'></span><div><b>It’s not just the sheep.</b><p>Cars, low bridges, weak bridges, oil slicks and garden-path shortcuts (houses) end your shift on the spot. Cones, bus lanes, no-entry signs and the rest only cost a fine. Mates’ Rates insurance level 3 bails you out of one crash per shift.</p></div></div><div class='guide-row'><span class='sprite' data-sprite='9'></span><div><b>Green glow? Get that job.</b><p>Drive into the pallet. Every golden breadcrumb adds £25. Collect the finish flag to bank the whole job.</p></div></div><div class='guide-row'><span class='sprite' data-sprite='8'></span><div><b>A very important taco break.</b><p>Grab a shiny taco for £100 and a short breather. The tacho joke practically wrote itself.</p></div></div><div class='guide-row'><span class='sprite' data-sprite='12'></span><div><b>Wait for BAA. Then honk!</b><p>Double-tap, use HONK or press Space within the short yellow warning window. Early horns don’t count.</p></div></div><div class='guide-row'><span class='sprite' data-sprite='14'></span><div><b>Double trailer. Double trouble.</b><p>Purple jobs pay double. Rapid swerves can jackknife the outfit. Let the sway settle between moves.</p></div></div><div class='guide-row'><span class='guide-symbol'>↗</span><div><b>Choose your road.</b><p>Forks split around scenery. Main roads are free. No-entry roads cost £120; access roads and public paths cost £90. Mud slows you and reduces steering response until the tyres clear. A gold special pays £85, but the risky route can cost more than the prize.</p></div></div><div class='guide-row'><span class='guide-symbol'>⛓</span><div><b>Drop it. Run light.</b><p>Tap DROP TRAILER or press X for 16% extra speed and quicker steering. Any unbanked delivery is abandoned. Collect a green hitch or a new job to attach a trailer again.</p></div></div><p class='sheet-copy'>Warnings appear on the lane ahead of actual rolling-road features: low bridges, weak bridges, bus lanes, no-entry sections, gardens and roadworks. Change position early—and keep your trailer clear. Fines eat your £500 float. Bank your shift from Pause whenever you like.</p><div class='guide-row'><span class='extra' data-extra='0'></span><div><b>Night shift. Double bubble.</b><p>Pick up the glowing moon. Follow a dimly lit trail of coins worth twice as much; lighting upgrades improve your view.</p></div></div><div class='guide-row'><span class='extra' data-extra='1'></span><div><b>Thermos turbo!</b><p>Coffee means a burst of speed; tacos slow things down. Garage equipment improves earnings, comfort and control.</p></div></div><button class='secondary' id='guideDone'>Got it. Let’s roll.</button>",'guide');$('guideDone').onclick=closeSheet;}
-function settings(){openSheet('IN THE CAB','JUST HOW YOU LIKE IT',"<div class='setting'><label for='musicVolume'>Road-trip music</label><input id='musicVolume' type='range' min='0' max='1' step='.05' value='"+profile.settings.music+"'></div><div class='setting'><label for='sfxVolume'>Sound effects</label><input id='sfxVolume' type='range' min='0' max='1' step='.05' value='"+profile.settings.sfx+"'></div><div class='setting'><label for='hapticSetting'>Haptic feedback</label><input id='hapticSetting' type='checkbox' "+(profile.settings.haptics?'checked':'')+"></div><div class='setting'><label for='motionSetting'>Extra motion & screen shake</label><input id='motionSetting' type='checkbox' "+(profile.settings.motion?'checked':'')+"></div><div class='setting'><label for='guideSetting'>Highlight steering target</label><input id='guideSetting' type='checkbox' "+(profile.settings.guides!==false?'checked':'')+"></div><label class='field-label' for='editName'>DRIVER NAME</label><input id='editName' type='text' maxlength='16' value='"+escape(profile.name)+"' placeholder='Road legend'><button class='secondary' id='saveSettings'>Save settings</button><button class='quiet' id='privacyButton'>Privacy & your progress</button><p class='status-note'>v2.0.0 · Original art & music · No ads or in-app purchases</p>",'settings');$('musicVolume').oninput=e=>{profile.settings.music=Number(e.target.value);sound.update();};$('sfxVolume').oninput=e=>{profile.settings.sfx=Number(e.target.value);sound.play('click');};$('hapticSetting').onchange=e=>profile.settings.haptics=e.target.checked;$('motionSetting').onchange=e=>profile.settings.motion=e.target.checked;$('guideSetting').onchange=e=>profile.settings.guides=e.target.checked;$('saveSettings').onclick=()=>{profile.name=$('editName').value.replace(/[^a-zA-Z0-9 _.-]/g,'').trim().slice(0,16)||'Road legend';save();closeSheet();};$('privacyButton').onclick=privacy;}
+function guide(){openSheet('DRIVER’S GUIDE','KEEP IT SHINY SIDE UP',"<div class='guide-row'><span class='guide-symbol'>‹ ›</span><div><b>One swipe. One position.</b><p>One swipe moves one step across the view. Follow the bends; fewer positions fit on narrow roads. Read both signs before a fork. Swipe left or right. Keyboard: arrow keys or A / D.</p></div></div><div class='guide-row'><span class='sprite' data-sprite='4'></span><div><b>It’s not just the sheep.</b><p>Cars, low bridges, weak bridges, oil slicks and garden-path shortcuts (houses) end your shift on the spot. Cones, bus lanes, no-entry signs and the rest only cost a fine. Mates’ Rates insurance level 3 bails you out of one crash per shift.</p></div></div><div class='guide-row'><span class='sprite' data-sprite='9'></span><div><b>Green glow? Get that job.</b><p>Drive into the pallet. Every golden breadcrumb adds £25. Collect the finish flag to bank the whole job.</p></div></div><div class='guide-row'><span class='sprite' data-sprite='8'></span><div><b>A very important taco break.</b><p>Grab a shiny taco for £100 and a short breather. The tacho joke practically wrote itself.</p></div></div><div class='guide-row'><span class='sprite' data-sprite='12'></span><div><b>Wait for BAA. Then honk!</b><p>Double-tap, use HONK or press Space within the short yellow warning window. Early horns don’t count.</p></div></div><div class='guide-row'><span class='sprite' data-sprite='14'></span><div><b>Double trailer. Double trouble.</b><p>Purple jobs pay double. Rapid swerves can jackknife the outfit. Let the sway settle between moves.</p></div></div><div class='guide-row'><span class='guide-symbol'>↗</span><div><b>Choose your road.</b><p>Forks split around scenery. Main roads are free. No-entry roads cost £120; access roads and public paths cost £90. Mud slows you and reduces steering response until the tyres clear. A gold special pays £85, but the risky route can cost more than the prize.</p></div></div><div class='guide-row'><span class='guide-symbol'>🐄</span><div><b>Moo-ve it! Honk the herd.</b><p>Cows and geese on the road? HONK before you reach them and they’ll trot off (+£60 cow, +£35 geese). Hit a cow and your shift ends. Ice-cream vans end it too. Tractors, hay bales and geese just cost a fine. Grab a gold horseshoe and your next crash is on the house.</p></div></div><div class='guide-row'><span class='guide-symbol'>📱</span><div><b>Tall phone? Tall view.</b><p>On a tall phone, a joke ticker fills the top and the scenery stretches out sideways. On a smaller phone or iPad, switch on Tall-phone view in the cab settings to preview it. Untick it for normal play.</p></div></div><div class='guide-row'><span class='guide-symbol'>⛓</span><div><b>Drop it. Run light.</b><p>Tap DROP TRAILER or press X for 16% extra speed and quicker steering. Any unbanked delivery is abandoned. Collect a green hitch or a new job to attach a trailer again.</p></div></div><p class='sheet-copy'>Warnings appear on the lane ahead of actual rolling-road features: low bridges, weak bridges, bus lanes, no-entry sections, gardens and roadworks. Change position early—and keep your trailer clear. Fines eat your £500 float. Bank your shift from Pause whenever you like.</p><div class='guide-row'><span class='extra' data-extra='0'></span><div><b>Night shift. Double bubble.</b><p>Pick up the glowing moon. Follow a dimly lit trail of coins worth twice as much; lighting upgrades improve your view.</p></div></div><div class='guide-row'><span class='extra' data-extra='1'></span><div><b>Thermos turbo!</b><p>Coffee means a burst of speed; tacos slow things down. Garage equipment improves earnings, comfort and control.</p></div></div><button class='secondary' id='guideDone'>Got it. Let’s roll.</button>",'guide');$('guideDone').onclick=closeSheet;}
+function settings(){openSheet('IN THE CAB','JUST HOW YOU LIKE IT',"<div class='setting'><label for='musicVolume'>Road-trip music</label><input id='musicVolume' type='range' min='0' max='1' step='.05' value='"+profile.settings.music+"'></div><div class='setting'><label for='sfxVolume'>Sound effects</label><input id='sfxVolume' type='range' min='0' max='1' step='.05' value='"+profile.settings.sfx+"'></div><div class='setting'><label for='hapticSetting'>Haptic feedback</label><input id='hapticSetting' type='checkbox' "+(profile.settings.haptics?'checked':'')+"></div><div class='setting'><label for='motionSetting'>Extra motion & screen shake</label><input id='motionSetting' type='checkbox' "+(profile.settings.motion?'checked':'')+"></div><div class='setting'><label for='tallSetting'>Tall-phone view (preview)</label><input id='tallSetting' type='checkbox' "+(profile.settings.tall?'checked':'')+"></div><p class='status-note' style='margin:-4px 0 8px'>Shows the game as it looks on a tall phone: a joke ticker on top, the road shifted up and the scenery extended at the sides. Untick for normal play.</p><div class='setting'><label for='guideSetting'>Highlight steering target</label><input id='guideSetting' type='checkbox' "+(profile.settings.guides!==false?'checked':'')+"></div><label class='field-label' for='editName'>DRIVER NAME</label><input id='editName' type='text' maxlength='16' value='"+escape(profile.name)+"' placeholder='Road legend'><button class='secondary' id='saveSettings'>Save settings</button><button class='quiet' id='privacyButton'>Privacy & your progress</button><p class='status-note'>v2.0.0 · Original art & music · No ads or in-app purchases</p>",'settings');$('musicVolume').oninput=e=>{profile.settings.music=Number(e.target.value);sound.update();};$('sfxVolume').oninput=e=>{profile.settings.sfx=Number(e.target.value);sound.play('click');};$('hapticSetting').onchange=e=>profile.settings.haptics=e.target.checked;$('motionSetting').onchange=e=>profile.settings.motion=e.target.checked;$('guideSetting').onchange=e=>profile.settings.guides=e.target.checked;$('tallSetting').onchange=e=>{profile.settings.tall=e.target.checked;save();resize();};$('saveSettings').onclick=()=>{profile.name=$('editName').value.replace(/[^a-zA-Z0-9 _.-]/g,'').trim().slice(0,16)||'Road legend';save();closeSheet();};$('privacyButton').onclick=privacy;}
 function privacy(){openSheet('YOUR DATA','SMALL PRINT. SHORT VERSION.',"<p class='sheet-copy'>Your truck unlocks, upgrades, settings and recent shifts are stored on this device. Clearing website data or removing the app can remove that progress.</p><p class='sheet-copy'>The online board stores your chosen driver name and submitted run results with an app-specific player ID. Never use a real name if you don’t want it shown. No advertising, analytics, location tracking, payments or contact permissions are used by this game.</p><p class='sheet-copy'>On iPhone, Game Center is optional and uses your Apple gaming profile. You can play offline without it.</p><p class='status-note'>"+(storageWarning?'This browser could not save progress. Check available storage and private browsing settings.':'Progress is saved after each finished shift and garage purchase.')+"</p>",'privacy');}
 async function refreshScores(){if(activeSheet!=='leaderboard')return;const target=$('scores');try{if(!backendUp)throw Error();let r=await fetch('/api/leaderboard?mode='+scoreMode,{signal:AbortSignal.timeout(6000)});if(!r.ok)throw Error();let d=await r.json();if(activeSheet!=='leaderboard')return;target.innerHTML=d.scores.length?d.scores.map((s,i)=>"<div class='score-row'><span class='rank'>"+(i+1)+"</span><span class='name'>"+escape(s.nickname)+"</span><b>"+money(s.score)+"</b></div>").join(''):"<div class='empty'>A clear road ahead.<br>Finish a shift to set the first score.</div>";$('boardStatus').textContent='LIVE · best shift per driver · refreshes every 15 seconds';}catch{backendUp=false;if(activeSheet!=='leaderboard')return;$('sheetEyebrow').textContent='YOUR BEST SHIFTS';const list=profile.scores.filter(s=>s.score>0&&(scoreMode!=='daily'||(s.mode==='daily'&&s.date.slice(0,10)===new Date().toISOString().slice(0,10)))).sort((a,b)=>b.score-a.score).slice(0,10);target.innerHTML=list.length?list.map((s,i)=>"<div class='score-row'><span class='rank'>"+(i+1)+"</span><span class='name'>"+escape(s.name)+"</span><b>"+money(s.score)+"</b></div>").join(''):"<div class='empty'>No shifts saved on this device yet.<br>Time to get truckin’.</div>";$('boardStatus').textContent='ON THIS DEVICE · the online board isn’t connected';}}
 function leaderboard(){if(native()){bridge('leaderboard',{mode:scoreMode});return;}openSheet('ROAD LEGENDS','THE LIVE LEADERBOARD',"<div class='score-tabs'><button id='allScores' class='"+(scoreMode==='all'?'active':'')+"'>All time</button><button id='dailyScores' class='"+(scoreMode==='daily'?'active':'')+"'>Daily dispatch</button></div><div id='scores'><div class='empty'>Checking the dispatch board…</div></div><p class='status-note' id='boardStatus'>Best net earnings wins. No invented drivers.</p>",'leaderboard');$('allScores').onclick=()=>{scoreMode='all';leaderboard();};$('dailyScores').onclick=()=>{scoreMode='daily';leaderboard();};clearInterval(leaderTimer);refreshScores();leaderTimer=setInterval(refreshScores,15000);}
@@ -941,11 +1308,15 @@ $('road').addEventListener('pointerup',e=>{if(!pointer||pointer.id!==e.pointerId
 $('road').addEventListener('pointercancel',()=>pointer=null);
 document.addEventListener('keydown',e=>{if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName))return;if(e.key==='Escape'){e.preventDefault();if(activeSheet)closeSheet();else pause();return;}if(e.key==='Tab'&&activeSheet){const focus=[...$('sheet').querySelectorAll('button:not(:disabled),input')].filter(el=>el.offsetParent!==null);if(e.shiftKey&&document.activeElement===focus[0]){e.preventDefault();focus.at(-1)?.focus();}else if(!e.shiftKey&&document.activeElement===focus.at(-1)){e.preventDefault();focus[0]?.focus();}}if(state==='home'&&!activeSheet&&!garageUI?.running){if(homeMode==='splash'&&['Enter',' '].includes(e.key)){e.preventDefault();$('tapPrompt').click();return;}if(homeMode==='menu'&&menuWheel){if(['ArrowLeft','a','A'].includes(e.key)){e.preventDefault();menuWheel.step(-1);}else if(['ArrowRight','d','D'].includes(e.key)){e.preventDefault();menuWheel.step(1);}else if(['Enter',' '].includes(e.key)){e.preventDefault();menuWheel.select();}return;}}if(state!=='playing')return;if(['ArrowLeft','a','A','ArrowRight','d','D',' ','p','P','x','X'].includes(e.key))e.preventDefault();if(e.repeat)return;if(['ArrowLeft','a','A'].includes(e.key))game.move(-1);if(['ArrowRight','d','D'].includes(e.key))game.move(1);if(e.key===' ')honk();if(e.key.toLowerCase()==='x')game.dropTrailer();if(e.key.toLowerCase()==='p')pause();handleEvents();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();sound.pause();if(game)save();}else if(state==='home'&&homeMode==='menu'){sound.suspended=false;sound.ctx?.resume();sound.menuOn(false);}});window.addEventListener('pagehide',()=>{pause();if(game)save();});
-function resize(){renderer?.resize();if(window.innerWidth>window.innerHeight&&window.innerHeight<550)pause();if(game)renderer?.draw(game,0,profile.truck);}
+function layoutApp(){if(!renderer)return;const app=$('app'),col=renderer.cssCol;app.style.setProperty('--colw',col+'px');app.style.setProperty('--colx',Math.max(0,(app.clientWidth-col)/2)+'px');const tall=!!profile.settings.tall||renderer.actualTall;app.classList.toggle('tall',tall);app.classList.toggle('wide',renderer.pad>1);if(tall&&!jokeStarted)startJokes();}
+let jokeStarted=false,jokeQ=jokeOrder(),jokeI=0;
+function nextJoke(){const t=$('jokeText'),track=t.parentElement;t.textContent=JOKES[jokeQ[jokeI++%jokeQ.length]];const tw=track.clientWidth||300;t.style.setProperty('--tw',tw+'px');const dist=t.offsetWidth+tw;t.style.animation='none';void t.offsetWidth;t.style.animation='jokeScroll '+Math.max(9,dist/48)+'s linear 1 both';t.onanimationend=nextJoke;}
+function startJokes(){jokeStarted=true;requestAnimationFrame(nextJoke);}
+function resize(){renderer?.resize();layoutApp();if(window.innerWidth>window.innerHeight&&window.innerHeight<550)pause();if(game)renderer?.draw(game,0,profile.truck);}
 window.addEventListener('resize',resize);window.visualViewport?.addEventListener('resize',resize);
 let hudAccumulator=0,checkpointClock=0;function frame(now){const dt=clamp((now-lastTime)/1000,0,.04);lastTime=now;if(game&&state==='playing'){game.tick(dt);handleEvents();checkpointClock+=dt;if(checkpointClock>5){save();checkpointClock=0;}renderer.draw(game,dt,profile.truck);hudAccumulator+=dt;if(hudAccumulator>.05){updateHud();hudAccumulator=0;}}requestAnimationFrame(frame);}
 updateHome();
-loadImages().then(images=>{renderer=new Renderer($('road'),images,profile.settings);$('tapPrompt').disabled=false;$('tapLabel').textContent='TAP TO START';updateHome();requestAnimationFrame(frame);}).catch(()=>$('loadError').classList.remove('hidden'));
+loadImages().then(images=>{renderer=new Renderer($('road'),images,profile.settings);layoutApp();$('tapPrompt').disabled=false;$('tapLabel').textContent='TAP TO START';updateHome();requestAnimationFrame(frame);}).catch(()=>$('loadError').classList.remove('hidden'));
 if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
 
 // Read-only QA surface on localhost; no extra players, scores or network endpoints.

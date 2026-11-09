@@ -1,7 +1,8 @@
-import {roadAt,hash,steeringX,CHUNK_LENGTH,surfaceAt,sceneryProps} from './route-world.js';
+import {roadAt,hash,steeringX,CHUNK_LENGTH,surfaceAt,sceneryProps,sideProps} from './route-world.js';
 import {roadTheme} from './geometry.js';
 import {ROUTE_ATLAS} from './route-atlas.js';
 import {HAZARD_SPECS,PICKUP_SPECS} from './route-hazards.js';
+import {drawProp} from './propart.js';
 const mod=(n,m)=>((n%m)+m)%m;
 export class RoutePainter{
  constructor(renderer){this.r=renderer;this.patterns=[];this.makePatterns();}
@@ -19,15 +20,15 @@ export class RoutePainter{
  paint(id,x,y,w,h,offset){const c=this.r.ctx,p=this.patterns[id];if(!p)return;p.setTransform(new DOMMatrix().translate(0,offset));c.fillStyle=p;c.fillRect(x,y,w,h);}
  road(g){const r=this.r,c=r.ctx,scale=r.worldScale,offset=mod(r.playerY+g.distance*scale,256);
   const topZ=g.distance+r.playerY/scale,bottomZ=g.distance+(r.playerY-r.H)/scale;
-  this.paint([7,3,12,11][roadTheme(bottomZ)],0,0,420,r.H,offset);
+  this.paint([7,3,12,11][roadTheme(bottomZ)],-r.pad,0,420+2*r.pad,r.H,offset);
   const boundary=(Math.floor(bottomZ/5400)+1)*5400,by=r.playerY-(boundary-g.distance)*scale;
-  if(by>0&&by<r.H){c.save();c.beginPath();c.rect(0,0,420,by);c.clip();this.paint([7,3,12,11][roadTheme(boundary+1)],0,0,420,r.H,offset);c.restore();}
+  if(by>0&&by<r.H){c.save();c.beginPath();c.rect(-r.pad,0,420+2*r.pad,by);c.clip();this.paint([7,3,12,11][roadTheme(boundary+1)],-r.pad,0,420+2*r.pad,r.H,offset);c.restore();}
   const samples=[];for(let y=-8;y<=r.H+8;y+=4)samples.push({y,z:g.distance+(r.playerY-y)/scale,a:roadAt(g.distance+(r.playerY-y)/scale,g.seed)});
   const polygon=(rows,getBand,expand=0)=>{const path=new Path2D();if(!rows.length)return path;
    rows.forEach((row,i)=>{const b=getBand(row);const x=b.left-expand;i?path.lineTo(x,row.y):path.moveTo(x,row.y);});
    for(let i=rows.length-1;i>=0;i--){const b=getBand(rows[i]);path.lineTo(b.right+expand,rows[i].y);}path.closePath();return path;};
-  const fills=(path,id)=>{c.save();c.clip(path);this.paint(id,0,0,420,r.H,offset);c.restore();};
-  const river=samples.filter(row=>row.a.motif==='river-bend'&&row.a.gate>.45);if(river.length)fills(polygon(river,row=>row.a.side<0?{left:row.a.bands[0].right+20,right:420}:{left:0,right:row.a.bands[0].left-20}),14);
+  const fills=(path,id)=>{c.save();c.clip(path);this.paint(id,-r.pad,0,420+2*r.pad,r.H,offset);c.restore();};
+  const river=samples.filter(row=>row.a.motif==='river-bend'&&row.a.gate>.45);if(river.length)fills(polygon(river,row=>row.a.side<0?{left:row.a.bands[0].right+20,right:420+r.pad}:{left:-r.pad,right:row.a.bands[0].left-20}),14);
   // Each complete road ribbon is filled once. Scanline rectangles leave tiny
   // antialias seams on high-DPI screens, so they are deliberately not used.
   const all=new Path2D(),shoulders=new Path2D();
@@ -53,6 +54,7 @@ export class RoutePainter{
   // Roadside props are anchored in world coordinates and never drift relative
   // to the road. Their footprints stay outside the driveable asphalt.
   for(const p of sceneryProps(g.distance+(r.playerY-r.H)/scale-150,g.distance+r.playerY/scale+150,g.seed))this.atlas(p.sheet||'routeProps',p.sprite,p.x,r.playerY-(p.z-g.distance)*scale,p.width,p.height*scale,0,.98);
+  for(const p of sideProps(g.distance+(r.playerY-r.H)/scale-150,g.distance+r.playerY/scale+150,g.seed,r.pad))this.atlas(p.sheet,p.sprite,p.x,r.playerY-(p.z-g.distance)*scale,p.width,p.height*scale,0,.98);
   this.signs(g);
  }
  signs(g){const r=this.r,c=r.ctx,start=Math.max(0,Math.floor(g.distance/CHUNK_LENGTH)-1),end=start+2;
@@ -67,14 +69,17 @@ export class RoutePainter{
    for(const b of a.bands){const x=(b.left+b.right)/2,y=r.playerY-(z-g.distance)*r.worldScale;c.save();c.translate(x,y);if(b.rule==='oneway')c.rotate(Math.PI);c.fillStyle=b.rule?'#ffdfc3a0':'#e9eddca0';c.beginPath();c.moveTo(0,-17);c.lineTo(10,-4);c.lineTo(4,-4);c.lineTo(4,13);c.lineTo(-4,13);c.lineTo(-4,-4);c.lineTo(-10,-4);c.closePath();c.fill();c.restore();}
   }
  }
- hazards(g){const r=this.r,c=r.ctx;for(const e of g.items){if(e.done)continue;const spec=HAZARD_SPECS[e.type];if(!spec)continue;const x=steeringX(e.lane),y=r.playerY-(e.z-g.distance)*r.worldScale;if(y< -160||y>r.H+160)continue;
+ hazards(g){const r=this.r,c=r.ctx;this.leaving(g);for(const e of g.items){if(e.done)continue;const spec=HAZARD_SPECS[e.type];if(!spec)continue;const x=steeringX(e.lane),y=r.playerY-(e.z-g.distance)*r.worldScale;if(y< -160||y>r.H+160)continue;
    const h=spec.height*r.worldScale+(e.length||0)*r.worldScale;
-   if(spec.sheet.startsWith('route'))this.atlas(spec.sheet,spec.sprite,x,y-(e.length||0)*r.worldScale/2,spec.width,h,e.oncoming?Math.PI:0);
+   if(spec.draw){c.save();c.translate(x,y);c.scale(1,r.worldScale);drawProp(c,spec.draw,spec.width,spec.height,r.time+e.id);c.restore();}
+   else if(spec.sheet.startsWith('route'))this.atlas(spec.sheet,spec.sprite,x,y-(e.length||0)*r.worldScale/2,spec.width,h,e.oncoming?Math.PI:0);
    else r.sprite(spec.sprite,x,y-(e.length||0)*r.worldScale/2,spec.width,h,e.oncoming?Math.PI:0,1,spec.sheet);
    if(e.oncoming){r.label('ONCOMING',x,y-43,'#ffd1aa',7);}
    if(['lowbridge','weakbridge','bus','footpath'].includes(e.type)){const labels={lowbridge:'LOW BRIDGE',weakbridge:'WEIGHT LIMIT',bus:'BUS ONLY',footpath:'PUBLIC PATH'};r.label(labels[e.type],x,y-h/2-8,'#ffebb5',7);}
    if(r.settings.hitboxes){c.save();c.strokeStyle='#ff4bcc';c.lineWidth=1;c.strokeRect(x-spec.hitWidth/2,y-(e.length||0)*r.worldScale-spec.hitHeight*r.worldScale/2,spec.hitWidth,(spec.hitHeight+(e.length||0))*r.worldScale);c.restore();}
   }
  }
- pickup(e,x,y){const spec=PICKUP_SPECS[e.type];if(!spec)return false;this.atlas(spec.sheet,spec.sprite,x,y,spec.width,spec.height);this.r.label(e.type==='hitch'?'HITCH UP':'£85 BONUS',x,y-29,e.type==='hitch'?'#a3ffd0':'#ffe7a2',8);return true;}
+ pickup(e,x,y){const spec=PICKUP_SPECS[e.type];if(!spec)return false;const c=this.r.ctx;if(spec.draw){c.save();c.translate(x,y);drawProp(c,spec.draw,spec.width,spec.height,this.r.time+e.id);c.restore();}else this.atlas(spec.sheet,spec.sprite,x,y,spec.width,spec.height);const L={hitch:['HITCH UP','#a3ffd0'],prize:['£85 BONUS','#ffe7a2'],shield:['LUCKY SHOE','#fff0a8']}[e.type];this.r.label(L[0],x,y-29,L[1],8);return true;}
+ /* Cows and geese you've honked away trot off to the side and fade. */
+ leaving(g){const r=this.r,c=r.ctx;for(const d of g.leaving||[]){const spec=HAZARD_SPECS[d.type];if(!spec)continue;const y=r.playerY-(d.z-g.distance)*r.worldScale,x=steeringX(d.lane)+d.dir*d.age*130;c.save();c.globalAlpha=Math.max(0,1-d.age/1.4);c.translate(x,y);c.scale(1,r.worldScale);c.rotate(d.dir*.5*Math.min(1,d.age*3));drawProp(c,spec.draw,spec.width,spec.height,r.time*3);c.restore();}}
 }

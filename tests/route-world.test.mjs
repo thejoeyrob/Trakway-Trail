@@ -46,7 +46,7 @@ test('green hitch and new job both restore a real trailer with no payout exploit
 });
 test('a missed hitch is offered again and drop state survives checkpoint restore',()=>{
  const g=new Drive({seed:2});quiet(g);g.dropTrailer();g.grip=3.2;const restored=Drive.restore(JSON.parse(JSON.stringify(g.snapshot())));assert.equal(restored.hasTrailer,false);assert.equal(restored.grip,3.2);assert.equal(restored.nextHitch,g.nextHitch);
- g.nextHitch=500;g.spawn();assert.ok(g.items.some(e=>e.type==='hitch'));const h=g.items.find(e=>e.type==='hitch');h.done=true;g.distance=g.nextHitch;g.spawn();assert.equal(g.items.filter(e=>e.type==='hitch').length,2);
+ g.nextHitch=500;g.spawn();assert.ok(g.items.some(e=>e.type==='hitch'));const h=g.items.find(e=>e.type==='hitch');h.done=true;g.distance=g.nextHitch;for(let i=0;i<40&&!g.items.some(e=>e.type==='hitch'&&!e.done);i++){g.distance+=25;g.spawn();}assert.ok(g.items.some(e=>e.type==='hitch'&&!e.done),'a fresh hitch is offered after one is missed (retries until a lane is clear)');
 });
 test('mud weakens steering temporarily, expires on asphalt, and preserves upgrades',()=>{
  const dry=new Drive({seed:2}),wet=new Drive({seed:2});quiet(dry);quiet(wet);wet.collect(wet.add('mud',0,2));dry.move(1);wet.move(1);dry.tick(.05);wet.tick(.05);assert.ok(wet.x<dry.x);assert.ok(wet.grip>4);

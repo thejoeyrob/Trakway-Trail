@@ -5,12 +5,15 @@ export function roadTheme(z){const sector=Math.floor(Math.max(0,z)/5400);for(let
 export function roadShape(z){return {width:368/.56,stage:roadTheme(z)};}
 export function roadCurve(z){return 0;}
 export function laneX(lane,z){return 54+78*lane;}
+/* The rig is drawn 1.3x bigger than the first build so it sits properly on the wider roads.
+   RIG holds the shared size + collision numbers (collision is a touch smaller than the art, so it stays fair). */
+export const RIG={S:1.3,cabW:64,cabL:119,trailerW:61,trailerL:151,flatW:60,flatL:138,cabHX:21,cabHZ:28,trHX:22,trHZ:64};
 export function rigPose(x,y,cabAngle,trailerAngle,rearAngle){
- const back=(p,d,a)=>({x:p.x-Math.sin(a)*d,y:p.y+Math.cos(a)*d});
+ const S=RIG.S,back=(p,d,a)=>({x:p.x-Math.sin(a)*d,y:p.y+Math.cos(a)*d});
  // 5th wheel is behind, not inside the tractor cab; both trailers rotate about connected hitches.
- const hitch=back({x,y},34,cabAngle);
- const trailer={...back(hitch,38,trailerAngle),angle:trailerAngle};
- const rearHitch=back(hitch,101,trailerAngle);
- const rear={...back(rearHitch,45,rearAngle),angle:rearAngle};
+ const hitch=back({x,y},34*S,cabAngle);
+ const trailer={...back(hitch,38*S,trailerAngle),angle:trailerAngle};
+ const rearHitch=back(hitch,101*S,trailerAngle);
+ const rear={...back(rearHitch,45*S,rearAngle),angle:rearAngle};
  return {hitch,trailer,rearHitch,rear};
 }

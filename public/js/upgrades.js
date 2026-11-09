@@ -11,10 +11,28 @@ export const CATALOG=[
 ].map(([id,name,description,cost,icon])=>({id,name,description,cost,icon}));
 export const defaults=()=>Object.fromEntries(CATALOG.map(u=>[u.id,0]));
 export const normalize=(v={})=>Object.fromEntries(CATALOG.map(u=>[u.id,Math.min(3,Math.max(0,Math.floor(Number(v?.[u.id])||0)))]));
-export const DECALS=[{id:0,name:'FACTORY',cost:0,icon:null},{id:1,name:'GOLD WINGS',cost:700,icon:4},{id:2,name:'HOT HAUL',cost:900,icon:5},{id:3,name:'FLOCK ROYALTY',cost:1100,icon:6}];
-export const deliveryBonus=(u,truck,decal)=>u.bunk*.03+(truck===2?.02:truck===3?.04:0)+(decal>0?.02:0);
-export const TRUCKS=[{id:0,name:'THE OLD FAITHFUL',desc:'Your trusty turquoise mile muncher.',cost:0},{id:2,name:'THE TANGERINE DREAM',desc:'Sunset paint · +2% delivery earnings.',cost:1200},{id:3,name:'THE NIGHT SHIFT',desc:'Midnight paint · +4% delivery earnings.',cost:2800}];
-export const DECAL_TAGS=['Factory finish. Honest and humble.','Golden wings for a golden driver. +2% on deliveries.','Flames on a lorry. Speed not included. +2% on deliveries.','Flock Royalty: the sheep approve. +2% on deliveries.'];
+/* Paint styles are shared by the cab and the trailer: unlock one and either can wear it (or both). Trailer default is white. */
+export const TRUCKS=[
+ {id:1,name:'ARCTIC WHITE',desc:'Clean, crisp and entirely forgettable. The trailer’s factory colour.',cost:0,bonus:0},
+ {id:0,name:'THE OLD FAITHFUL',desc:'Your trusty turquoise mile muncher.',cost:0,bonus:0},
+ {id:2,name:'THE TANGERINE DREAM',desc:'Sunset paint · +2% delivery earnings.',cost:1200,bonus:2},
+ {id:3,name:'THE NIGHT SHIFT',desc:'Midnight purple · +4% delivery earnings.',cost:2800,bonus:4},
+ {id:4,name:'POST HASTE',desc:'Pillar-box red. Stops traffic and fits through letterboxes. Not really.',cost:1600,bonus:2},
+ {id:5,name:'RACING GREEN',desc:'Proper British green · for drivers with taste and a flat cap.',cost:2000,bonus:3}
+];
+/* Roof graphics, drawn as vector art clipped to the cab and trailer roofs (see rigart.js). */
+export const DECALS=[
+ {id:0,name:'FACTORY',cost:0},
+ {id:1,name:'TWIN STRIPE',cost:700},
+ {id:2,name:'CHEVRON HAUL',cost:900},
+ {id:3,name:'CARBON & GOLD',cost:1100},
+ {id:4,name:'SHARD',cost:1400},
+ {id:5,name:'ROYAL FLOCK',cost:1800}
+];
+export const DECAL_TAGS=['Factory finish. Honest and humble.','Twin gold racing stripes. Clean and quick. +2% on deliveries.','Hi-vis chevrons. Be seen, be safe, be smug. +2% on deliveries.','Carbon-fibre panel with gold keyline. Serious business. +2% on deliveries.','Midnight shards with a cyan edge. +2% on deliveries.','A crowned sheep crest. The flock approves. +2% on deliveries.'];
+export const PAINT_IDS=TRUCKS.map(t=>t.id);
+export const DECAL_IDS=DECALS.map(d=>d.id);
+export const deliveryBonus=(u,truck,decal)=>u.bunk*.03+((TRUCKS.find(t=>t.id===truck)?.bonus)||0)/100+(decal>0?.02:0);
 export const STATS={
  stability:{label:'SWAY SETTLES',f:l=>l?l*20+'% faster':'stock'},
  suspension:{label:'TRAILER ANGLE',f:l=>l?l*8+'% less':'stock'},

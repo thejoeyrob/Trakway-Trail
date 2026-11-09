@@ -1,14 +1,24 @@
 import {RoutePainter} from './route-render.js';
+import {drawRig,drawTrailerOnly} from './rigart.js';
 import {HAZARD_SPECS} from './route-hazards.js';
 import {clamp,ROAD_TYPES,PICKUPS} from './model.js';
-import {rigPose,roadShape,roadCurve,laneX,roadTheme} from './geometry.js';
+import {rigPose,roadShape,roadCurve,laneX,roadTheme,RIG} from './geometry.js';
 import {SPRITE_RECTS,HAZARD_RECTS,TERRAIN_RECTS,EXTRAS_RECTS} from './atlas.js';
 export const SPR={truck:0,trailer:1,orange:2,purple:3,car:4,redcar:5,cone:6,barrier:7,taco:8,job:9,finish:10,coin:11,sheep:12,face:13,flatbed:14,oil:15,crumb:11};
 const HAZ={lowbridge:0,weakbridge:1,bus:2,noentry:3,narrow:4,sheepWarning:5,house:6,grass:7};
 const LABELS={lowbridge:'LOW BRIDGE',weakbridge:'WEAK BRIDGE',bus:'BUS LANE',noentry:'NO ENTRY',house:'MIND THE HOUSE',grass:'KEEP OFF',narrow:'NARROW PASS'};
 export class Renderer {
- constructor(canvas,images,settings){this.canvas=canvas;this.ctx=canvas.getContext('2d',{alpha:false});this.images=images;this.settings=settings;this.W=420;this.H=800;this.fx=[];this.shake=0;this.time=0;this.resize();this.world=new RoutePainter(this);}
- resize(){const r=this.canvas.getBoundingClientRect();this.H=420*r.height/r.width;let d=Math.min(window.devicePixelRatio||1,2);this.canvas.width=Math.round(r.width*d);this.canvas.height=Math.round(r.height*d);this.scale=this.canvas.width/420;this.ctx.setTransform(this.scale,0,0,this.scale,0,0);this.ctx.imageSmoothingEnabled=true;this.playerY=this.H*.66;this.worldScale=.72;}
+ constructor(canvas,images,settings,opts={}){this.opts=opts;this.pad=0;this.canvas=canvas;this.ctx=canvas.getContext('2d',{alpha:false});this.images=images;this.settings=settings;this.W=420;this.H=800;this.fx=[];this.shake=0;this.time=0;this.resize();this.world=new RoutePainter(this);}
+ /* The road column is always 420 world units wide and at least 747 tall (iPhone SE proportions). A taller phone just shows more road.
+    A wider screen (iPad) or the "tall phone preview" shrinks the world to fit and the spare width becomes side scenery (this.pad on each side). */
+ resize(){const r=this.canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);
+  let k,pad=0;
+  if(this.opts.fixedWidth){k=r.width/420;this.H=420*r.height/r.width;}
+  else{const hreq=this.settings.tall?909:747;k=Math.min(r.width/420,r.height/hreq);const Wc=r.width/k;pad=Math.max(0,(Wc-420)/2);this.H=r.height/k;}
+  this.k=k;this.pad=pad;this.cssCol=420*k;this.actualTall=420*r.height/r.width>=830;
+  this.canvas.width=Math.round(r.width*dpr);this.canvas.height=Math.round(r.height*dpr);this.scale=k*dpr;
+  this.ctx.setTransform(this.scale,0,0,this.scale,this.scale*pad,0);this.ctx.imageSmoothingEnabled=true;
+  this.playerY=this.opts.fixedWidth?this.H*.66:493+Math.max(0,this.H-747)*.36;this.worldScale=.72;}
  shape(z){return roadShape(z);}
  curve(z){return roadCurve(z);}
  x(lane,z){return laneX(lane,z);}
@@ -20,26 +30,7 @@ export class Renderer {
     plus a faint glow in the lane the truck is heading for. Hazards, pickups and breadcrumbs all share these lane centres. */
  laneGuides(g){const c=this.ctx;c.save();c.fillStyle='#9dffe117';c.fillRect(this.x(g.lane,g.distance)-31,120,62,this.playerY-120);c.restore();}
  terrain(g){this.world.hazards(g);}
- rig(g,truckIndex,px,py,alpha){
-  const c=this.ctx,angle=clamp((g.lane-g.x)*.16,-.2,.2),pose=rigPose(px,0,angle,g.angle||0,clamp((g.trailer-g.rear)*.55,-.8,.8)),u=g.upgrades||{},decal=g.decal||0,scale=this.worldScale||.72;
-  c.save();c.translate(0,py);c.scale(1,scale);
-  const draw=(id,x,y,w,h,a=0)=>this.world.atlas('routeTrucks',id,x,y,w,h,a,alpha);
-  // Trailer kingpin is 20 units behind the nose, on the tractor fifth wheel.
-  // Apply the longitudinal camera scale after all hitch rotations.
-  draw(({0:0,2:1,3:2})[truckIndex]||0,px,0,49,91,angle);
-  if(g.hasTrailer!==false){
-   if(g.job?.double)draw(4,pose.rear.x,pose.rear.y,46,106,pose.rear.angle);
-   draw(3,pose.trailer.x,pose.trailer.y,47,116,pose.trailer.angle);
-   if(decal)this.sprite(decal+3,pose.trailer.x,pose.trailer.y-4,30,27,pose.trailer.angle,alpha,'extras');
-  }
-  const mount=(id,x,y,w,h)=>{c.save();c.translate(px,0);c.rotate(angle);this.world.atlas('routeTrucks',id,x,y,w,h,0,alpha);c.restore();};
-  if(u.washroom||u.bunk)mount(7,0,-23,18,12);
-  if(u.exhaust)mount(5,0,-5,45,29);
-  if(u.lights)mount(6,0,-40,32,7);
-  if(decal)this.sprite(decal+3,px+Math.sin(angle)*21,-Math.cos(angle)*21,21,16,angle,alpha,'extras');
-  if(g.grip>0){c.globalAlpha=Math.min(.3,g.grip*.07);c.fillStyle='#91704d';for(const side of [-1,1])c.fillRect(px+side*19-3,34,6,15);}
-  c.restore();
- }
+ rig(g,truckIndex,px,py,alpha){drawRig(this,{truck:g.truck,decal:g.decal,trailerPaint:g.trailerPaint,trailerDecal:g.trailerDecal,upgrades:g.upgrades,lane:g.lane,x:g.x,angle:g.angle,trailer:g.trailer,rear:g.rear,hasTrailer:g.hasTrailer!==false,job:g.job,grip:g.grip,boost:g.boost,shield:g.shield,hornAge:g.time-(g.hornAt??-10)},px,py,alpha,1,this.worldScale||.72,this.time);}
  nightLight(g){if(!g.night)return;const c=this.ctx,px=this.x(g.x,g.distance),reach=230+(g.upgrades.lights||0)*65;
   if(!this.dark){this.dark=document.createElement('canvas');this.dark.width=420;}
   if(this.dark.height!==Math.ceil(this.H))this.dark.height=Math.ceil(this.H);
@@ -58,7 +49,7 @@ export class Renderer {
  else this.sprite(SPR[e.type]??6,x,y,w,h,e.oncoming?Math.PI:0);
  }
  if(g.sheep){const s=g.sheep,y=this.playerY-(s.z-g.distance)*this.worldScale;for(let i=0;i<5;i++){let x=this.x(i,s.z),rot=Math.sin(this.time*5+i)*.12;let sy=y+Math.sin(i*3)*17;if(s.cleared){const move=Math.max(0,(g.time-s.baaAt-.3))*120;x+=(i<2?-1:1)*move;rot=i<2?-1.5:1.5;sy+=Math.sin(this.time*20+i)*5;}this.sprite(12,x,sy,50,52,rot);}}
- for(const d of g.detached||[])this.world.atlas('routeTrucks',3,d.x,this.playerY-(d.z-g.distance)*this.worldScale,47,116*this.worldScale,d.angle,Math.max(0,1-d.age/3));
+ for(const d of g.detached||[])drawTrailerOnly(this,g.trailerPaint??1,g.trailerDecal??0,d.x,this.playerY-(d.z-g.distance)*this.worldScale,RIG.trailerW,RIG.trailerL*this.worldScale,d.angle,Math.max(0,1-d.age/3));
  const px=this.x(g.x,g.distance);let alpha=g.invulnerable>0&&Math.floor(this.time*13)%2===0?.55:1;this.nightLight(g);this.rig(g,truckIndex,px,this.playerY,alpha);
  for(const f of this.fx){f.age+=dt;f.x+=f.vx*dt;f.y+=f.vy*dt;if(f.kind!=='text')f.vy+=190*dt;let a=clamp(1-f.age/f.life,0,1);if(f.kind==='text'){c.save();c.globalAlpha=a;this.label(f.text,f.x,f.y,'#fff0ad',17);c.restore();}else this.sprite(f.kind==='loss'?11:11,f.x,f.y,13,13,f.rot+f.age*7,a);}
  this.fx=this.fx.filter(f=>f.age<f.life);c.restore();}

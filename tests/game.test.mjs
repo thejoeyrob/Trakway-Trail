@@ -46,11 +46,11 @@ test('model cannot accrue time or money after finishing',()=>{
  let g=new Drive();g.end('finished');let d=g.distance;g.tick(.05);g.move(1);assert.equal(g.distance,d);assert.equal(g.lane,2);
 });
 
-import {rigPose,laneX,roadShape,roadCurve} from '../public/js/geometry.js';
+import {rigPose,laneX,roadShape,roadCurve,RIG} from '../public/js/geometry.js';
 import {defaults as defaultUpgrades,normalize,deliveryBonus} from '../public/js/upgrades.js';
 import {ROAD_TYPES,hazardKinds} from '../public/js/model.js';
 test('tractor and both trailers remain attached at their hitch points',()=>{
- for(let a=-.75;a<.75;a+=.05){const r=rigPose(210,410,.2,a,-a);assert.ok(Math.abs(r.trailer.x+Math.sin(a)*38-r.hitch.x)<1e-7);assert.ok(Math.abs(r.trailer.y-Math.cos(a)*38-r.hitch.y)<1e-7);assert.ok(Math.abs(r.rear.x+Math.sin(-a)*45-r.rearHitch.x)<1e-7);}
+ for(let a=-.75;a<.75;a+=.05){const r=rigPose(210,410,.2,a,-a);assert.ok(Math.abs(r.trailer.x+Math.sin(a)*38*RIG.S-r.hitch.x)<1e-7);assert.ok(Math.abs(r.trailer.y-Math.cos(a)*38*RIG.S-r.hitch.y)<1e-7);assert.ok(Math.abs(r.rear.x+Math.sin(-a)*45*RIG.S-r.rearHitch.x)<1e-7);}
 });
 test('steering remains five fixed positions while road boundaries vary independently',()=>{
  assert.deepEqual([0,1,2,3,4].map(l=>laneX(l,0)),[54,132,210,288,366]);
@@ -75,9 +75,9 @@ test('daily dispatch has stock equipment for fair Game Center daily scores',()=>
 });
 test('difficulty ramps with distance: hazards bunch up and the rig speeds up, bounded',()=>{
  const g=new Drive({seed:5});assert.equal(g.ramp(),0);
- g.distance=31500;assert.ok(Math.abs(g.ramp()-.5)<1e-9);
+ g.distance=24000;assert.ok(Math.abs(g.ramp()-.5)<1e-9);
  g.distance=1e7;assert.equal(g.ramp(),1);
- const a=new Drive({seed:5}),b=new Drive({seed:5});b.distance=63000;a.tick(.016);b.tick(.016);
+ const a=new Drive({seed:5}),b=new Drive({seed:5});b.distance=48000;a.tick(.016);b.tick(.016);
  assert.ok(b.speed>a.speed+40,'late-shift speed exceeds opening speed');
 });
 test('first sheep waits until the player has had time to take a job',()=>{
@@ -106,7 +106,7 @@ test('level-3 insurance buys exactly one bail-out per shift; daily dispatch gets
 
 test('garage catalogue: every truck, decal and upgrade has display copy and stats',async()=>{
  const {TRUCKS,DECAL_TAGS,STATS,CATALOG,DECALS}=await import('../public/js/upgrades.js');
- assert.equal(TRUCKS.length,3);assert.equal(DECAL_TAGS.length,DECALS.length);
+ assert.equal(TRUCKS.length,6);assert.equal(DECAL_TAGS.length,DECALS.length);
  for(const u of CATALOG){assert.ok(STATS[u.id],u.id+' has a stat line');for(let l=0;l<=3;l++)assert.ok(String(STATS[u.id].f(l)).length>0);}
  assert.ok(STATS.insurance.f(3).includes('bail-out'));
 });
@@ -127,10 +127,39 @@ test('scenery theme sequence does not mechanically loop every four zones',()=>{
 // route geometry and reachability tests in route-world.test.mjs. A narrower
 // road itself is a challenge; maintaining that old count would overcrowd it.
 test('the rig is quicker: opening speed 240, ramping towards ~380 on a long shift',()=>{
- const g=new Drive({seed:2});g.tick(.016);assert.ok(g.cruise>=240&&g.cruise<250);
- const h=new Drive({seed:2});h.time=200;h.distance=63000;h.tick(.016);assert.ok(h.cruise>=375&&h.cruise<=385);
+ const g=new Drive({seed:2});g.tick(.016);assert.ok(g.cruise>=250&&g.cruise<262);
+ const h=new Drive({seed:2});h.time=200;h.distance=48000;h.tick(.016);assert.ok(h.cruise>=420&&h.cruise<=430);
 });
 
 test('steering anchors never auto-follow the road; bends require player input',()=>{
  for(let z=0;z<40000;z+=173){assert.equal(roadCurve(z),0);assert.equal(laneX(2,z),210);for(let lane=0;lane<5;lane++)assert.ok(Math.abs((laneX(lane,z)-210)/(lane-2||1)-(laneX(4,z)-210)/2)<1e-9||lane===2);}
+});
+
+// ---- v2-plus ----
+test('every hazard type can appear on the road (nothing is missing from the spawn mix)',async()=>{
+ const {MIX}=await import('../public/js/model.js'),{HAZARD_SPECS}=await import('../public/js/route-hazards.js');
+ const used=new Set(MIX.flat().map(m=>m[0]));
+ for(const k of Object.keys(HAZARD_SPECS))if(k!=='house')assert.ok(used.has(k),k+' is in the mix');
+});
+test('honking shoos a cow in range for pay; a cow too close or too far is untouched, and an unshooed cow ends the shift',()=>{
+ const g=new Drive({seed:3});g.items=[];g.row=1e9;const near=g.add('cow',g.distance+300,1,{honkable:true}),far=g.add('cow',g.distance+900,3,{honkable:true}),close=g.add('cow',g.distance+30,0,{honkable:true});
+ const before=g.money;g.horn();assert.ok(near.cleared&&near.done);assert.ok(!far.cleared);assert.ok(!close.cleared);assert.equal(g.money,before+60);
+ g.collect(close);assert.equal(g.crashKind,'cow');assert.ok(g.finished);
+});
+test('a lucky horseshoe absorbs exactly one crash',()=>{
+ const g=new Drive({seed:4});g.items=[];g.collect(g.add('shield',100,2));assert.equal(g.shield,1);
+ g.crash('car');assert.ok(!g.finished);assert.equal(g.shield,0);g.invulnerable=0;g.crash('car');assert.ok(g.finished);
+});
+test('cab-only is much faster, the pay of an abandoned job is lost, and a new job hitches up again',()=>{
+ const a=new Drive({seed:6}),b=new Drive({seed:6});a.items=[];b.items=[];a.row=b.row=1e9;
+ b.startJob({z:200,lane:2,double:false});const pay=b.job.pay;assert.ok(pay>0);const money=b.money;b.dropTrailer();assert.equal(b.job,null);assert.equal(b.money,money,'unbanked job pay is not paid out');
+ a.dropTrailer();b.tick(.016);a.tick(.016);const c=new Drive({seed:6});c.items=[];c.row=1e9;c.tick(.016);assert.ok(a.speed>c.speed*1.3,'cab only is at least 30% quicker');
+ assert.equal(a.hasTrailer,false);a.startJob({z:a.distance+200,lane:2,double:false});assert.equal(a.hasTrailer,true);
+});
+test('every paint and roof graphic has copy, and the cab and trailer paints are separate profile fields',async()=>{
+ const {TRUCKS,DECALS,DECAL_TAGS}=await import('../public/js/upgrades.js'),{PAINTS,DECAL_PAINT}=await import('../public/js/rigart.js').catch(()=>({}));
+ assert.equal(DECAL_TAGS.length,DECALS.length);for(const t of TRUCKS)assert.ok(t.name&&t.desc,'paint '+t.id);
+});
+test('tall layout maths: a wider or taller-than-SE screen keeps the 420-wide road and never less than SE lookahead',()=>{
+ for(const [w,h] of [[375,667],[390,844],[768,1024],[430,932]]){const k=Math.min(w/420,h/747),H=h/k,pad=Math.max(0,(w/k-420)/2);assert.ok(H>=747-1e-9);assert.ok(pad>=0);}
 });

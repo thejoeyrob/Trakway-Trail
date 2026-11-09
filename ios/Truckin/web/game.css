@@ -226,3 +226,37 @@
 .hud-bottom{gap:9px}.hud-bottom .sway-wrap{flex:1;min-width:0}.hud-bottom #hornButton{min-width:71px;width:74px}.hud-bottom .sway-wrap small{font-size:8px}.job-box{top:calc(env(safe-area-inset-top) + 163px)}
 .truck-card-art{display:block;width:58px;height:94px;margin:auto;background-image:url('./assets/route-v2/trucks.webp');background-repeat:no-repeat;background-size:464px 232px;background-position:-30px -3px;filter:drop-shadow(0 5px 4px #0007)}.truck-art-2{background-position:-148px -3px}.truck-art-3{background-position:-264px -3px}
 @media(max-height:700px){.route-decision{top:calc(env(safe-area-inset-top) + 85px);padding:5px 3px}.route-decision small{font-size:7px}.job-box{top:calc(env(safe-area-inset-top) + 143px)}#trailerButton{min-width:79px}.hud-bottom{gap:5px}}
+
+/* ---- v2-plus garage: real in-game preview, cab/trailer paint, livery target ---- */
+.paint-thumb{display:block;height:58px;width:auto;margin:auto;filter:drop-shadow(0 5px 4px #0007);pointer-events:none}.paint-thumb.trailer{height:62px}
+.gcard.locked .paint-thumb{filter:grayscale(.55) brightness(.8) drop-shadow(0 4px 3px #0006)}
+.gtabs button{font-size:9.5px;letter-spacing:1.1px;padding:9px 0}
+.gtarget{display:flex;align-items:center;justify-content:center;gap:6px;margin:6px 0 0}.gtarget span{font-size:8.5px;font-weight:900;letter-spacing:1.4px;color:#9fbab9;margin-right:2px}
+.gtarget button{padding:5px 12px;border-radius:12px;background:#0a2227;border:1px solid #3a6b70;color:#bcd6d3;font-size:9.5px;font-weight:900;letter-spacing:1.2px}
+.gtarget button.active{background:linear-gradient(180deg,#ffe98f,#f0a91d);color:#10343a;border-color:#f0a91d}
+#gBoth{margin:6px 0 0;width:100%;padding:9px;font-size:11px;font-weight:900;letter-spacing:1.4px}
+.hidden{display:none!important}
+@media(max-height:720px){.paint-thumb{height:42px}.paint-thumb.trailer{height:46px}}
+
+/* ---- v2-plus: bigger honk, tall-phone layout, wide-screen column, jokes ticker, comic emoji ---- */
+.hud-bottom #hornButton{width:96px;height:96px;min-width:96px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:0;background:radial-gradient(circle at 36% 26%,#fff3b4,#ffd445 52%,#e7a21a);box-shadow:0 6px 0 #a9791f,0 10px 18px #0006,inset 0 0 0 3px #fff6;border:0;pointer-events:auto}
+#hornButton svg{width:46px;height:35px;margin-top:2px;filter:drop-shadow(0 1px 0 #fff8)}#hornButton b{font-size:16px;font-weight:950;letter-spacing:.8px;line-height:1;color:#183538}#hornButton span{font-size:7px;font-weight:900;letter-spacing:.9px;color:#183538cc}
+#hornButton:active{transform:translateY(5px) scale(.96);box-shadow:0 1px 0 #a9791f,0 4px 10px #0006,inset 0 0 0 3px #fff6}
+#hornButton.alert{animation:honkPulse .38s ease-in-out infinite}
+.hud-bottom{align-items:flex-end}
+#trailerButton{min-height:60px}
+#app.playing{max-width:none}
+#hud{left:var(--colx,0);right:auto;width:var(--colw,100%)}
+.joke-bar{display:none;position:absolute;z-index:6;top:calc(env(safe-area-inset-top) + 5px);left:calc(var(--colx,0px) + 8px);width:calc(var(--colw,100%) - 16px);height:38px;background:linear-gradient(#0e262b,#0b1f23);border:1px solid #ffffff22;border-radius:12px;box-shadow:0 4px 14px #0006;align-items:center;overflow:hidden;pointer-events:none}
+.joke-bar b{flex:none;padding:0 9px;font-size:8px;line-height:1.15;font-weight:950;letter-spacing:1.3px;color:#10343a;background:linear-gradient(#ffe98f,#f0a91d);align-self:stretch;display:flex;align-items:center;text-align:center}
+.joke-track{position:relative;flex:1;height:100%;overflow:hidden;mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
+#jokeText{position:absolute;left:100%;top:50%;translate:0 -50%;white-space:nowrap;font-size:12.5px;font-weight:700;color:#f6f1d9}
+@keyframes jokeScroll{from{transform:translateX(0)}to{transform:translateX(calc(-100% - var(--tw,300px)))}}
+#app.tall.playing .joke-bar{display:flex}
+#app.tall.playing #hud{top:46px}
+#app.playing:not(.tall) .joke-bar{display:none}
+#comic .emo{position:absolute;font-size:112px;line-height:1;filter:drop-shadow(0 8px 6px #0007)}
+#comic .emo.b{left:50%;top:46%;translate:-50% -50%;animation:emoPop 1.6s cubic-bezier(.2,1.4,.4,1) both}
+#comic .emo.a{left:50%;top:64%;translate:-50% -50%;animation:emoRam 1.1s ease-out both}
+@keyframes emoRam{0%{transform:translateX(-220px) rotate(-8deg)}60%{transform:translateX(8px) rotate(3deg)}100%{transform:translateX(0) rotate(-2deg)}}
+@keyframes emoPop{0%{transform:scale(.2)}45%{transform:scale(1.25) rotate(8deg)}100%{transform:scale(1) rotate(-6deg)}}

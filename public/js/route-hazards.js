@@ -15,7 +15,13 @@ export const HAZARD_SPECS={
  narrow:{width:72,height:145,hitWidth:52,hitHeight:60,effect:'fine',sprite:4,sheet:'terrain'},
  bus:{width:72,height:160,hitWidth:58,hitHeight:120,effect:'fine',sprite:2,sheet:'terrain'},
  noentry:{width:72,height:160,hitWidth:58,hitHeight:120,effect:'fine',sprite:3,sheet:'terrain'},
- grass:{width:72,height:145,hitWidth:60,hitHeight:100,effect:'grip-fine',sprite:8,sheet:'routeProps'}
+ grass:{width:72,height:145,hitWidth:60,hitHeight:100,effect:'grip-fine',sprite:8,sheet:'routeProps'},
+ // Hand-drawn (see propart.js). Cow and ice-cream van end the shift; honking shoos cows and geese away in time.
+ cow:{width:60,height:96,hitWidth:46,hitHeight:70,effect:'crash',draw:'cow',sheet:'draw'},
+ tractor:{width:62,height:108,hitWidth:50,hitHeight:88,effect:'fine',draw:'tractor',sheet:'draw'},
+ haybale:{width:64,height:58,hitWidth:52,hitHeight:46,effect:'fine',draw:'haybale',sheet:'draw'},
+ icecream:{width:60,height:112,hitWidth:48,hitHeight:94,effect:'crash',draw:'icecream',sheet:'draw'},
+ geese:{width:68,height:64,hitWidth:54,hitHeight:48,effect:'fine',draw:'geese',sheet:'draw'}
 };
-export const PICKUP_SPECS={hitch:{sprite:13,sheet:'routeProps',width:45,height:45},prize:{sprite:12,sheet:'routeProps',width:40,height:40}};
+export const PICKUP_SPECS={hitch:{sprite:13,sheet:'routeProps',width:45,height:45},prize:{sprite:12,sheet:'routeProps',width:40,height:40},shield:{draw:'horseshoe',width:46,height:46}};
 export function sweptOverlap(a0,a1,half,e0,e1){return Math.max(a0,a1)+half>=e0&&Math.min(a0,a1)-half<=e1;}
