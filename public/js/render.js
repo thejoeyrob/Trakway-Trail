@@ -32,14 +32,14 @@ export class Renderer {
  terrain(g){this.world.hazards(g);}
  rig(g,truckIndex,px,py,alpha){drawRig(this,{truck:g.truck,decal:g.decal,trailerPaint:g.trailerPaint,trailerDecal:g.trailerDecal,upgrades:g.upgrades,lane:g.lane,x:g.x,angle:g.angle,trailer:g.trailer,rear:g.rear,hasTrailer:g.hasTrailer!==false,job:g.job,grip:g.grip,boost:g.boost,shield:g.shield,hornAge:g.time-(g.hornAt??-10)},px,py,alpha,1,this.worldScale||.72,this.time);}
  nightLight(g){if(!g.night)return;const c=this.ctx,px=this.x(g.x,g.distance),reach=230+(g.upgrades.lights||0)*65;
-  if(!this.dark){this.dark=document.createElement('canvas');this.dark.width=420;}
-  if(this.dark.height!==Math.ceil(this.H))this.dark.height=Math.ceil(this.H);
-  const m=this.dark.getContext('2d');m.clearRect(0,0,420,this.H);m.fillStyle='rgba(5,12,33,.78)';m.fillRect(0,0,420,this.H);
-  m.globalCompositeOperation='destination-out';
+  const full=Math.ceil(420+2*this.pad);if(!this.dark)this.dark=document.createElement('canvas');
+  if(this.dark.width!==full)this.dark.width=full;if(this.dark.height!==Math.ceil(this.H))this.dark.height=Math.ceil(this.H);
+  const m=this.dark.getContext('2d');m.clearRect(0,0,full,this.H);m.fillStyle='rgba(5,12,33,.78)';m.fillRect(0,0,full,this.H);
+  m.save();m.translate(this.pad,0);m.globalCompositeOperation='destination-out';
   for(const dir of [-1,1]){m.save();m.translate(px+dir*15,this.playerY-36-reach*.37);m.scale(.45,1);
    const gr=m.createRadialGradient(0,0,10,0,0,reach*.70);gr.addColorStop(0,'rgba(0,0,0,.98)');gr.addColorStop(.60,'rgba(0,0,0,.81)');gr.addColorStop(1,'rgba(0,0,0,0)');
    m.fillStyle=gr;m.beginPath();m.arc(0,0,reach*.70,0,Math.PI*2);m.fill();m.restore();}
-  m.globalCompositeOperation='source-over';c.drawImage(this.dark,0,0,420,this.H);
+  m.globalCompositeOperation='source-over';m.restore();c.drawImage(this.dark,-this.pad,0,full,this.H);
  }
  draw(g,dt,truckIndex){const c=this.ctx;this.time+=dt;c.save();if(this.shake>0&&this.settings.motion){c.translate((Math.random()-.5)*this.shake,(Math.random()-.5)*this.shake);this.shake*=Math.exp(-dt*12);}this.road(g);if(this.settings.guides===true)this.laneGuides(g);this.terrain(g);
  for(const e of g.items){if(e.done||HAZARD_SPECS[e.type])continue;const y=this.playerY-(e.z-g.distance)*this.worldScale,x=this.x(e.lane,e.z);if(y< -100||y>this.H+100)continue;const collectible=PICKUPS.includes(e.type);const bob=collectible&&this.settings.motion?Math.sin(this.time*5+e.id)*5:0;let w=e.type==='crumb'?23:e.type==='coin'?31:e.type==='car'?46:e.type==='finish'?58:e.type==='job'?54:49;let h=e.type==='car'?68:w;
@@ -52,6 +52,11 @@ export class Renderer {
  for(const d of g.detached||[])drawTrailerOnly(this,g.trailerPaint??1,g.trailerDecal??0,d.x,this.playerY-(d.z-g.distance)*this.worldScale,RIG.trailerW,RIG.trailerL*this.worldScale,d.angle,Math.max(0,1-d.age/3));
  const px=this.x(g.x,g.distance);let alpha=g.invulnerable>0&&Math.floor(this.time*13)%2===0?.55:1;this.nightLight(g);this.rig(g,truckIndex,px,this.playerY,alpha);
  for(const f of this.fx){f.age+=dt;f.x+=f.vx*dt;f.y+=f.vy*dt;if(f.kind!=='text')f.vy+=190*dt;let a=clamp(1-f.age/f.life,0,1);if(f.kind==='text'){c.save();c.globalAlpha=a;this.label(f.text,f.x,f.y,'#fff0ad',17);c.restore();}else this.sprite(f.kind==='loss'?11:11,f.x,f.y,13,13,f.rot+f.age*7,a);}
- this.fx=this.fx.filter(f=>f.age<f.life);c.restore();}
+ this.fx=this.fx.filter(f=>f.age<f.life);
+ if(this.highlight){const h=this.highlight,t=this.time-h.t0,pulse=1+Math.sin(t*9)*.08,x=h.x,y=h.y;
+  if(h.item)this.world.hazards({items:[{...h.item,done:false}],distance:g.distance,leaving:[]});   // the thing you hit, drawn on top so it's plainly visible
+  c.save();c.strokeStyle='#ff4b3a';c.lineWidth=4;c.shadowColor='#ff4b3a';c.shadowBlur=14;c.beginPath();c.ellipse(x,y,h.rx*pulse,h.ry*pulse,0,0,Math.PI*2);c.stroke();c.shadowBlur=0;
+  c.font='900 15px -apple-system,sans-serif';c.textAlign='center';const w=c.measureText(h.label).width+26,ly=Math.max(30,y-h.ry-30);c.fillStyle='#1c0b0b';c.strokeStyle='#ff4b3a';c.lineWidth=2.5;c.beginPath();c.roundRect(Math.min(420-w/2-8,Math.max(w/2+8,x))-w/2,ly-17,w,28,9);c.fill();c.stroke();c.fillStyle='#fff3e0';c.fillText(h.label,Math.min(420-w/2-8,Math.max(w/2+8,x)),ly+3);c.restore();}
+ c.restore();}
 }
 export async function loadImages(){const names=['sprites','roads','restrictions','cover','terrain','extras'];const extra={routeSurfaces:'surfaces',routeProps:'props',routeTrucks:'trucks',routeShowroom:'showroom',routeScenery:'scenery'};let result={};await Promise.all([...names,...Object.keys(extra)].map(n=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>{result[n]=i;res();};i.onerror=()=>rej(new Error(n));i.src='./assets/'+(extra[n]?'route-v2/'+extra[n]:n)+'.webp';})));return result;}

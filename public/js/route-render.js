@@ -47,22 +47,27 @@ export class RoutePainter{
     if(edge==='outerLeft')x=b[0].left+2;else if(edge==='outerRight')x=b.at(-1).right-2;else if(gap)x=edge==='innerLeft'?b[0].right-2:b[1].left+2;
     if(x===undefined){active=false;continue;}if(active)c.lineTo(x,row.y);else c.moveTo(x,row.y);active=true;
    }c.stroke();}
+  // Lane dividers: a wide road is painted as 4-5 proper lanes (about 74 units each); narrower roads and fork branches get 2-3.
   c.strokeStyle='#eee5ccaa';c.lineWidth=1.5;
-  for(let branch=0;branch<2;branch++){c.beginPath();let active=false;for(const row of samples){let b=row.a.bands,split=b.length===2&&b[0].right<b[1].left;
+  for(let branch=0;branch<2;branch++)for(let k=1;k<=4;k++){c.beginPath();let active=false,prevN=0;for(const row of samples){let b=row.a.bands,split=b.length===2&&b[0].right<b[1].left;
     if(!split)b=[{left:b[0].left,right:b.at(-1).right,surface:'asphalt'}];const lane=b[branch];
-    if(!lane||lane.surface==='mud'||mod(row.z,100)>43){active=false;continue;}const x=(lane.left+lane.right)/2;active?c.lineTo(x,row.y):c.moveTo(x,row.y);active=true;}c.stroke();}c.restore();
+    const w=lane?lane.right-lane.left:0,n=w>=340?5:Math.max(1,Math.round(w/74));
+    if(!lane||lane.surface==='mud'||n<=k||mod(row.z,100)>43){active=false;continue;}
+    const lw=Math.min(78,w/n),x=(lane.left+lane.right)/2+(k-n/2)*lw;if(n!==prevN)active=false;prevN=n;active?c.lineTo(x,row.y):c.moveTo(x,row.y);active=true;}c.stroke();}
+  c.restore();
   // Roadside props are anchored in world coordinates and never drift relative
   // to the road. Their footprints stay outside the driveable asphalt.
   for(const p of sceneryProps(g.distance+(r.playerY-r.H)/scale-150,g.distance+r.playerY/scale+150,g.seed))this.atlas(p.sheet||'routeProps',p.sprite,p.x,r.playerY-(p.z-g.distance)*scale,p.width,p.height*scale,0,.98);
   for(const p of sideProps(g.distance+(r.playerY-r.H)/scale-150,g.distance+r.playerY/scale+150,g.seed,r.pad))this.atlas(p.sheet,p.sprite,p.x,r.playerY-(p.z-g.distance)*scale,p.width,p.height*scale,0,.98);
   this.signs(g);
  }
+ /* Signs stand on the verge beside the road, never on it, and only where the driver has a decision to make (forks and roadworks). */
+ post(x,y,lines,tone){const c=this.r.ctx,w=42,h=lines.length>1?30:22;c.save();c.fillStyle='#0b1c1fcc';c.fillRect(x-1.2,y+h/2,2.4,16);c.fillStyle=tone;c.strokeStyle='#f3f6e6';c.lineWidth=1.6;c.beginPath();c.roundRect(x-w/2,y-h/2,w,h,3);c.fill();c.stroke();
+  c.fillStyle='#fbfcef';c.font='800 6.6px -apple-system,sans-serif';c.textAlign='center';lines.forEach((t,i)=>c.fillText(t,x,y+(lines.length>1?-2.5+i*9:2.5)));c.restore();}
  signs(g){const r=this.r,c=r.ctx,start=Math.max(0,Math.floor(g.distance/CHUNK_LENGTH)-1),end=start+2;
-  for(let i=start;i<=end;i++){const a=roadAt(i*CHUNK_LENGTH+900,g.seed),y=r.playerY-(a.signZ-g.distance)*r.worldScale;if(y< -70||y>r.H+70)continue;
-   const split=!!a.sign.left,w=split?342:264,x=(420-w)/2;
-   c.save();c.fillStyle='#0c292dcc';c.fillRect(x+12,y+20,5,55);c.fillRect(x+w-17,y+20,5,55);c.fillStyle='#143e38';c.strokeStyle='#e4efde';c.lineWidth=2;c.beginPath();c.roundRect(x,y-25,w,48,6);c.fill();c.stroke();
-   c.fillStyle='#f6f7e5';c.font='800 11px -apple-system,sans-serif';c.textAlign='center';
-   if(split){c.fillText('← '+a.sign.left,125,y+4);c.fillText(a.sign.right+' →',295,y+4);c.fillStyle='#e4efde88';c.fillRect(209,y-16,1,31);}else c.fillText(a.sign.text,210,y+3);c.restore();
+  for(let i=start;i<=end;i++){const a=roadAt(i*CHUNK_LENGTH+900,g.seed),y=r.playerY-(a.signZ-g.distance)*r.worldScale;if(y< -50||y>r.H+50)continue;
+   if(a.sign.left){this.post(13,y,a.sign.left.split(' • '),a.sign.left==='MAIN ROAD'?'#1d5b3a':'#7a2a1e');this.post(407,y,a.sign.right.split(' • '),a.sign.right==='MAIN ROAD'?'#1d5b3a':'#7a2a1e');}
+   else if(a.motif==='roadworks'){const t=a.sign.text.split(' • ');this.post(a.side<0?407:13,y,t,'#b8651a');}
   }
   // Arrows belong to the road. No-entry branch points toward the driver.
   for(let z=Math.floor((g.distance-300)/340)*340;z<g.distance+r.playerY/r.worldScale;z+=340){const a=roadAt(z,g.seed);if(a.gate<.97||a.bands.length<2)continue;
