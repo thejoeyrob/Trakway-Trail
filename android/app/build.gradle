@@ -1,0 +1,48 @@
+plugins { id 'com.android.application' }
+
+// Version comes from the release workflow (-PversionCode=N -PversionName=x.y.z); sensible defaults for a local build.
+def vCode = (project.findProperty('versionCode') ?: '1').toInteger()
+def vName = (project.findProperty('versionName') ?: '2.1.0').toString()
+
+android {
+    namespace 'com.jweds.truckinanddrivin'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.jweds.truckinanddrivin'
+        minSdk 24
+        targetSdk 35
+        versionCode vCode
+        versionName vName
+    }
+
+    // The upload key lives ONLY in GitHub secrets / your machine. Nothing here contains a key.
+    signingConfigs {
+        release {
+            def path = System.getenv('ANDROID_KEYSTORE_PATH')
+            if (path) {
+                storeFile file(path)
+                storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('ANDROID_KEY_ALIAS')
+                keyPassword System.getenv('ANDROID_KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (System.getenv('ANDROID_KEYSTORE_PATH')) signingConfig signingConfigs.release
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    // The audio and WebP art are already compressed; don't let aapt try again.
+    androidResources { noCompress 'wav', 'mp3', 'webp', 'png' }
+    bundle { language { enableSplit = false } }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.12.1'
+}

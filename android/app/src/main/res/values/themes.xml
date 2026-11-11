@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.Truckin" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@color/truckin_bg</item>
+        <item name="android:statusBarColor">@color/truckin_bg</item>
+        <item name="android:navigationBarColor">@color/truckin_bg</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
+</resources>

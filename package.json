@@ -1,6 +1,6 @@
 {
   "name": "truckin-and-drivin",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "description": "Truckin' & Drivin' - portrait arcade HGV game. Static PWA + native iOS wrapper.",
   "type": "module",

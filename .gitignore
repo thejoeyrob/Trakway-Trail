@@ -43,3 +43,14 @@ yarn-error.log*
 
 # OS metadata
 .DS_Store
+/android/app/src/main/assets/web/
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/local.properties
+*.keystore
+*.jks
+*.p8
+*.p12
+*.aab
+*.apk

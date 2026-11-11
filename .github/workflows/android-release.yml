@@ -1,0 +1,80 @@
+name: Android build (Google Play bundle + test APK)
+on:
+  workflow_dispatch:
+    inputs:
+      upload_to_play:
+        description: 'Upload the signed bundle to the Google Play INTERNAL testing track (needs the Play secrets)'
+        type: boolean
+        default: false
+      release_notes:
+        description: 'What is new (shown to testers)'
+        default: 'New hazards, honkable cows, garage upgrades and tall-phone view.'
+        required: false
+  push:
+    branches: ['store/**']
+    paths: ['android/**', 'public/**', 'tools/sync-android.mjs', '.github/workflows/android-release.yml']
+permissions:
+  contents: read
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      VERSION_NAME: '2.1.0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Test the game and copy it into the Android app
+        run: |
+          npm test
+          npm run check
+          node tools/sync-android.mjs
+          test -f android/app/src/main/assets/web/play.html
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.9' }
+      - name: Version code (always increases)
+        run: echo "VERSION_CODE=$(( ${{ github.run_number }} + ${{ vars.ANDROID_VERSION_CODE_OFFSET || 0 }} ))" >> "$GITHUB_ENV"
+      - name: Decode the upload keystore (only if the secret exists)
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KS" ]; then
+            echo "$KS" | base64 -d > "$RUNNER_TEMP/upload.keystore"
+            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/upload.keystore" >> "$GITHUB_ENV"
+            echo "SIGNED=true" >> "$GITHUB_ENV"
+          else
+            echo "No ANDROID_KEYSTORE_BASE64 secret: building an UNSIGNED bundle for checking only."
+            echo "SIGNED=false" >> "$GITHUB_ENV"
+          fi
+      - name: Build test APK (debug-signed, installs on any phone) and Play bundle
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          gradle -p android --no-daemon -PversionCode=$VERSION_CODE -PversionName=$VERSION_NAME assembleDebug bundleRelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Truckin-Android-test-APK
+          path: android/app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Truckin-Android-Play-bundle-${{ env.SIGNED == 'true' && 'SIGNED' || 'UNSIGNED' }}
+          path: android/app/build/outputs/bundle/release/*.aab
+          retention-days: 30
+      - name: Upload to Google Play internal testing
+        if: ${{ inputs.upload_to_play && env.SIGNED == 'true' }}
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.jweds.truckinanddrivin
+          releaseFiles: android/app/build/outputs/bundle/release/*.aab
+          track: internal
+          status: draft
