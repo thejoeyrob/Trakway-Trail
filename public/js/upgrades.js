@@ -23,13 +23,11 @@ export const TRUCKS=[
 /* Roof graphics, drawn as vector art clipped to the cab and trailer roofs (see rigart.js). */
 export const DECALS=[
  {id:0,name:'FACTORY',cost:0},
- {id:1,name:'GOLD PINSTRIPE',cost:700},
- {id:2,name:'JW EDS HAULAGE',cost:900},
- {id:3,name:'HI-VIS TAPE',cost:1100},
- {id:4,name:'TWO-TONE',cost:1400},
- {id:5,name:'ROYAL FLOCK',cost:1800}
+ {id:1,name:'GOLD WINGS',cost:700},
+ {id:2,name:'HOT HAUL',cost:900},
+ {id:3,name:'FLOCK ROYALTY',cost:1100}
 ];
-export const DECAL_TAGS=['Factory finish. Honest and humble.','Fine gold keylines. Understated and expensive. +2% on deliveries.','Your name on the roof, like a proper fleet. +2% on deliveries.','Red and white conspicuity tape. Safe, legal and strangely stylish. +2% on deliveries.','Navy rear with a cyan edge. Smart, sharp, serious. +2% on deliveries.','A sheep crest with gold trim. The flock approves. +2% on deliveries.'];
+export const DECAL_TAGS=['Factory finish. Honest and humble.','Golden wings for a golden driver. +2% on deliveries.','Flames on a lorry. Speed not included. +2% on deliveries.','Flock Royalty: the sheep approve. +2% on deliveries.'];
 export const PAINT_IDS=TRUCKS.map(t=>t.id);
 export const DECAL_IDS=DECALS.map(d=>d.id);
 export const deliveryBonus=(u,truck,decal)=>u.bunk*.03+((TRUCKS.find(t=>t.id===truck)?.bonus)||0)/100+(decal>0?.02:0);

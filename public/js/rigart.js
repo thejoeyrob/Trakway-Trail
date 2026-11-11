@@ -33,30 +33,14 @@ function tintBody(c,tint){const x=c.getContext('2d'),d=x.getImageData(0,0,c.widt
  x.putImageData(d,0,0);return c;}
 /* ---- vector decals, painted inside a zone of the roof. part = 'cab' | 'trailer' ---- */
 const GOLD='#e9bd4a',GOLD2='#a67a1a';
-export const DECAL_PAINT={
- 1(c,x,y,w,h,part){ // PINSTRIPE: fine double gold keylines running along the roof edges
-  for(const [i,a] of [[.06,1],[.1,.55]]){c.strokeStyle=GOLD;c.globalAlpha=a;c.lineWidth=part==='cab'?2:2.6;c.beginPath();c.roundRect(x+w*i,y+h*(i*.5),w*(1-2*i),h*(1-i*1.0),6);c.stroke();}
-  c.globalAlpha=1;if(part==='trailer'){c.strokeStyle=GOLD;c.lineWidth=2.4;c.beginPath();c.moveTo(x+w/2,y+h*.04);c.lineTo(x+w/2,y+h*.96);c.stroke();}},
- 2(c,x,y,w,h,part){ // HAULIER: company lettering along the roof, like a real fleet number
-  c.fillStyle='#1b2024';c.textAlign='center';c.textBaseline='middle';
-  if(part==='trailer'){c.save();c.translate(x+w/2,y+h*.5);c.rotate(-Math.PI/2);c.font='900 '+Math.round(w*.62)+'px "Arial Black",Impact,-apple-system,sans-serif';c.fillText('JW EDS',0,-w*.04);c.fillStyle=GOLD;c.fillRect(-h*.3,w*.3,h*.6,w*.05);c.restore();}
-  else{c.save();c.translate(x+w/2,y+h*.78);c.font='900 '+Math.round(w*.2)+'px "Arial Black",Impact,-apple-system,sans-serif';c.fillText('JW EDS',0,0);c.restore();}},
- 3(c,x,y,w,h,part){ // HI-VIS: red and white conspicuity tape around the edge, as on a real rear marker board
-  const t=part==='cab'?7:9,seg=part==='cab'?10:13;
-  const tape=(x0,y0,x1,y1)=>{const len=Math.hypot(x1-x0,y1-y0),ang=Math.atan2(y1-y0,x1-x0);c.save();c.translate(x0,y0);c.rotate(ang);for(let i=0;i*seg<len;i++){c.fillStyle=i%2?'#f4f4ee':'#d3262a';c.fillRect(i*seg,-t/2,Math.min(seg,len-i*seg),t);}c.restore();};
-  const m=part==='cab'?w*.04:w*.05;tape(x+m,y+m,x+w-m,y+m);tape(x+m,y+h-m,x+w-m,y+h-m);if(part==='trailer'){tape(x+m,y+m,x+m,y+h-m);tape(x+w-m,y+m,x+w-m,y+h-m);}},
- 4(c,x,y,w,h,part){ // TWO-TONE: a navy block across the rear of the trailer, cut on a clean diagonal, with a cyan keyline
-  if(part==='cab'){c.fillStyle='#37e6d3';c.fillRect(x+w*.04,y+h*.02,w*.92,4);c.fillStyle='#0f1b2d';c.fillRect(x+w*.04,y+h*.02+4,w*.92,3);return;}
-  c.fillStyle='#10213a';c.beginPath();c.moveTo(x,y+h*.52);c.lineTo(x+w,y+h*.4);c.lineTo(x+w,y+h);c.lineTo(x,y+h);c.closePath();c.fill();
-  c.strokeStyle='#37e6d3';c.lineWidth=4;c.beginPath();c.moveTo(x,y+h*.5);c.lineTo(x+w,y+h*.38);c.stroke();},
- 5(c,x,y,w,h,part){ // CREST: a gold-ringed sheep crest, centred like a heraldic roof badge
-  const cx=x+w/2,cy=part==='cab'?y+h*.55:y+h*.5,R=part==='cab'?w*.17:w*.3;
-  c.fillStyle='#16191c';c.beginPath();c.arc(cx,cy,R*1.1,0,TAU);c.fill();c.strokeStyle=GOLD;c.lineWidth=R*.14;c.beginPath();c.arc(cx,cy,R*.98,0,TAU);c.stroke();
-  c.fillStyle='#f6f2e6';for(const[a,b]of[[-.42,-.36],[0,-.5],[.42,-.36],[-.5,-.02],[.5,-.02],[-.28,.2],[.28,.2]]){c.beginPath();c.arc(cx+a*R*.8,cy+b*R*.8,R*.22,0,TAU);c.fill();}
-  c.fillStyle='#23272a';c.beginPath();c.ellipse(cx,cy+R*.12,R*.24,R*.3,0,0,TAU);c.fill();c.fillStyle='#fff';c.beginPath();c.arc(cx-R*.1,cy+R*.05,R*.04,0,TAU);c.arc(cx+R*.1,cy+R*.05,R*.04,0,TAU);c.fill();
-  if(part==='trailer'){c.strokeStyle=GOLD;c.lineWidth=2.4;c.strokeRect(x+w*.08,y+h*.03,w*.84,h*.94);}}
-};
-const ZONE={cab:[22,14,178,52],trailer:[16,12,112,330]};
+/* The original painted emblems (gold wings, hot-rod flames, crowned sheep), now sized and aligned to the roofs: one big badge on the
+   trailer roof, a matching badge on the cab roof's front strip, flames pointing up the road. */
+const EMBLEM={1:{rect:[24,410,332,238],rot:0,m:1},2:{rect:[386,388,334,300],rot:-Math.PI/4,m:1.3},3:{rect:[738,388,333,292],rot:0,m:1.12}};
+function emblem(id){return(c,x,y,w,h,part,r)=>{const img=r?.images?.extras,e=EMBLEM[id];if(!img)return;const[sx,sy,sw,sh]=e.rect,cs=Math.abs(Math.cos(e.rot)),sn=Math.abs(Math.sin(e.rot)),rw=sw*cs+sh*sn,rh=sw*sn+sh*cs;
+  const box=part==='cab'?[w*.86,h*.96]:[w*.98,h*.62],k=Math.min(box[0]/rw,box[1]/rh)*(part==='cab'?1:e.m),cx=x+w/2,cy=part==='cab'?y+h*.5:y+h*.5;
+  c.save();c.translate(cx,cy);c.rotate(e.rot);c.shadowColor='#0007';c.shadowBlur=3;c.drawImage(img,sx,sy,sw,sh,-sw*k/2,-sh*k/2,sw*k,sh*k);c.restore();};}
+export const DECAL_PAINT={1:emblem(1),2:emblem(2),3:emblem(3)};
+const ZONE={cab:[26,14,170,50],trailer:[16,12,112,330]};
 function composed(r,kind,paint,decal){
  const key=kind+':'+paint+':'+decal,hit=cache.get(key);if(hit)return hit;
  const P=PAINTS[paint]||PAINTS[0],img=r.images.routeTrucks;if(!img)return null;
@@ -64,9 +48,9 @@ function composed(r,kind,paint,decal){
  if(kind==='cab'&&(P.cab.hue||P.cab.sat!==undefined||P.cab.light||P.cab.white))hueShift(c,P.cab);
  if(kind==='trailer'&&P.tint)tintBody(c,P.tint);
  const dp=DECAL_PAINT[decal];
- if(dp){const x=c.getContext('2d'),z=ZONE[kind];x.save();x.globalCompositeOperation='source-atop';x.globalAlpha=.94;x.beginPath();x.rect(...z);x.clip();dp(x,z[0],z[1],z[2],z[3],kind);x.restore();
+ if(dp){const x=c.getContext('2d'),z=ZONE[kind];x.save();x.globalCompositeOperation='source-atop';x.globalAlpha=.94;x.beginPath();x.rect(...z);x.clip();dp(x,z[0],z[1],z[2],z[3],kind,r);x.restore();
   // put the original panel ribbing and lighting back over the graphic so it reads as paint, not a sticker
-  x.save();x.globalCompositeOperation='soft-light';x.globalAlpha=.9;x.drawImage(crop(img,rect),0,0);x.restore();}
+  x.save();x.globalCompositeOperation='soft-light';x.globalAlpha=.35;x.drawImage(crop(img,rect),0,0);x.restore();}
  cache.set(key,c);return c;
 }
 const chrome=(c,x0,x1)=>{const g=c.createLinearGradient(x0,0,x1,0);g.addColorStop(0,'#6f7a80');g.addColorStop(.35,'#f4f8fa');g.addColorStop(.7,'#a9b4ba');g.addColorStop(1,'#555f66');return g;};
