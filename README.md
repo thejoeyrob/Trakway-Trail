@@ -61,3 +61,7 @@ The browser leaderboard at `app/api` / `db` is a distinct hosted backend. The iP
 ## Release honesty
 
 The 19 model tests and all JavaScript syntax checks passed in this environment. The code has not been compiled with Xcode, signed by your Apple Team, accepted into TestFlight or tested on a physical iPhone here. The real-sheep WAV download occurs during the cloud release workflow, not in this offline ZIP. This is a **cloud-build-ready source package**, not an already signed `.ipa`, and Apple review approval cannot be guaranteed.
+
+
+## Store releases
+See `docs/STORE-RELEASE.md` (Apple + Google Play), `store/LISTING.md` (listing copy) and `store/` (screenshots and graphics).
