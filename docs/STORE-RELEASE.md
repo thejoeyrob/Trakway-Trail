@@ -7,7 +7,7 @@ Branch: `store/v2.1-release` (built on `v2-plus`, the upgraded ChatGPT v2 game).
 | Item | State |
 |---|---|
 | Game tests (52) + asset check | Pass |
-| iOS project (SwiftUI-free WKWebView wrapper), version **2.1.0**, bundle `com.jweds.truckinanddrivin`, portrait, iPhone + iPad | Ready. Simulator build check passed in GitHub Actions (run on this branch). |
+| iOS project (WKWebView wrapper), version **2.1.0**, bundle `com.jweds.truckinanddrivin`, portrait, iPhone + iPad | Ready. Simulator build check passed in GitHub Actions (run on this branch). |
 | TestFlight workflow (`testflight.yml`) | Ready, **needs your Apple secrets** (below). Not run: no Apple account here. |
 | Android wrapper (`android/`) — full-screen WebView serving the bundled game, no internet permission, haptics + share bridge, adaptive icon, portrait | Built in GitHub Actions: **test APK (16.8 MB) and unsigned Play bundle (16.4 MB)** were produced. **Not yet installed on a real phone.** |
 | Android signing + Play upload | Ready in `android-release.yml`, **needs your upload key + Play service account** (below). |
