@@ -50,7 +50,7 @@ jobs:
           echo "ASC_KEY_PATH=$RUNNER_TEMP/keys/AuthKey_${{ vars.APPSTORE_API_KEY_ID }}.p8" >> "$GITHUB_ENV"
       # Automatic signing: with an Admin API key Xcode creates and manages the distribution certificate and App Store profile itself,
       # so no .p12 or provisioning profile has to be stored anywhere.
-      - name: Archive (Xcode signs it through the API key)
+      - name: Archive (unsigned; it is signed for the App Store at export)
         run: |
           xcodebuild -project ios/Truckin.xcodeproj -scheme Truckin -configuration Release \
             -sdk iphoneos -destination 'generic/platform=iOS' \
@@ -62,12 +62,12 @@ jobs:
             "DEVELOPMENT_TEAM=$APPSTORE_TEAM_ID" \
             "PRODUCT_BUNDLE_IDENTIFIER=$APPSTORE_BUNDLE_ID" \
             "CURRENT_PROJECT_VERSION=${GITHUB_RUN_NUMBER}" \
-            CODE_SIGN_STYLE=Automatic archive
+            CODE_SIGN_STYLE=Automatic CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO archive
       - name: Export the App Store IPA
         run: |
           python3 - <<'PY'
           import os,plistlib
-          obj={'method':'app-store-connect','signingStyle':'automatic','teamID':os.environ['APPSTORE_TEAM_ID'],'uploadSymbols':True,'destination':'export'}
+          obj={'method':'app-store-connect','signingStyle':'automatic','teamID':os.environ['APPSTORE_TEAM_ID'],'uploadSymbols':True,'destination':'export','signingCertificate':'Apple Distribution'}
           with open('ios/ExportOptions.plist','wb') as f:plistlib.dump(obj,f)
           PY
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Truckin.xcarchive" \
