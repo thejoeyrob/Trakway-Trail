@@ -9,7 +9,7 @@ android {
     compileSdk 35
 
     defaultConfig {
-        applicationId 'com.jweds.truckinanddrivin'
+        applicationId 'com.thejoeyrob.truckinanddrivin'
         minSdk 24
         targetSdk 35
         versionCode vCode

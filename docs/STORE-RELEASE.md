@@ -7,7 +7,7 @@ Branch: `store/v2.1-release` (built on `v2-plus`, the upgraded ChatGPT v2 game).
 | Item | State |
 |---|---|
 | Game tests (52) + asset check | Pass |
-| iOS project (WKWebView wrapper), version **2.1.0**, bundle `com.jweds.truckinanddrivin`, portrait, iPhone + iPad | Ready. Simulator build check passed in GitHub Actions (run on this branch). |
+| iOS project (WKWebView wrapper), version **2.1.0**, bundle `com.thejoeyrob.truckinanddrivin`, portrait, iPhone + iPad | Ready. Simulator build check passed in GitHub Actions (run on this branch). |
 | TestFlight workflow (`testflight.yml`) | Ready, **needs your Apple secrets** (below). Not run: no Apple account here. |
 | Android wrapper (`android/`) — full-screen WebView serving the bundled game, no internet permission, haptics + share bridge, adaptive icon, portrait | Built in GitHub Actions: **test APK (16.8 MB) and unsigned Play bundle (16.4 MB)** were produced. **Not yet installed on a real phone.** |
 | Android signing + Play upload | Ready in `android-release.yml`, **needs your upload key + Play service account** (below). |
@@ -23,7 +23,7 @@ Not done and not possible from here: creating the Apple/Google accounts or app r
 
 ## Apple (iOS + iPad)
 You need: Apple Developer Program membership (£79/yr).
-1. developer.apple.com → Identifiers → register App ID `com.jweds.truckinanddrivin` with **Game Center** enabled (or change the bundle ID everywhere).
+1. developer.apple.com → Identifiers → register App ID `com.thejoeyrob.truckinanddrivin` with **Game Center** enabled (or change the bundle ID everywhere).
 2. App Store Connect → My Apps → New App (iOS), same bundle ID, name “Truckin’ & Drivin’”, SKU anything.
 3. (Optional) Game Center → create leaderboards `truckin.earnings` (Classic) and `truckin.daily` (Recurring daily). Without them the in-game Leaderboard button shows the player’s own best.
 4. Create an **App Store Connect API key** (.p8, role **Admin**). No certificate file is needed: the workflow lets Xcode create the distribution certificate and profile through the key (automatic signing).
@@ -36,7 +36,7 @@ You need: Apple Developer Program membership (£79/yr).
 
 ## Google Play
 You need: Play Console developer account (one-off fee). **New personal accounts must usually run a closed test with a minimum number of testers for about two weeks before production — check the current rule in Play Console.**
-1. Play Console → Create app → package `com.jweds.truckinanddrivin`. Enrol in **Play App Signing** (default).
+1. Play Console → Create app → package `com.thejoeyrob.truckinanddrivin`. Enrol in **Play App Signing** (default).
 2. Make an upload key **on your own computer** (do not share or commit it):
    ```
    keytool -genkeypair -v -keystore truckin-upload.keystore -alias truckin -keyalg RSA -keysize 2048 -validity 10000

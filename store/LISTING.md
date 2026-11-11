@@ -7,7 +7,7 @@ Owner TODOs are marked **[OWNER]**. Everything else is ready to paste.
 |---|---|---|
 | App name | Truckin’ & Drivin’ | Truckin’ & Drivin’ (max 30) |
 | Subtitle / short description | **Big rigs. Little roads.** (23/30) | **Swipe, dodge and honk your way through Britain’s most ridiculous roads.** (70/80) |
-| Bundle / package | `com.jweds.truckinanddrivin` | `com.jweds.truckinanddrivin` |
+| Bundle / package | `com.thejoeyrob.truckinanddrivin` | `com.thejoeyrob.truckinanddrivin` |
 | Category | Games → Racing (secondary: Arcade) | Games → Racing (or Arcade) |
 | Price | Free, no in-app purchases, no ads | Free, no ads, no in-app purchases |
 

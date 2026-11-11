@@ -10,7 +10,7 @@ The app contains no remote script loading, monetisation SDKs or third-party runt
 
 1. Open ios/Truckin.xcodeproj in a current supported Xcode on a Mac.
 2. Select the Truckin target. Set your Apple Developer team in Signing & Capabilities.
-3. Confirm or replace the bundle identifier com.jweds.truckinanddrivin with an identifier you own. It has not been registered by this build.
+3. Confirm or replace the bundle identifier com.thejoeyrob.truckinanddrivin with an identifier you own. It has not been registered by this build.
 4. Enable Game Center for that App ID and let Xcode create/update the provisioning profile.
 5. Build and run on a real iPhone. Complete the checks below.
 6. Archive with a physical-device / Any iOS Device destination, then validate and distribute through Xcode Organizer to App Store Connect/TestFlight.
