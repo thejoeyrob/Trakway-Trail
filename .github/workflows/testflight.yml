@@ -40,41 +40,42 @@ jobs:
           : "${APPSTORE_TEAM_ID:?Set GitHub variable APPSTORE_TEAM_ID}"
           test -n '${{ vars.APPSTORE_ISSUER_ID }}'
           test -n '${{ vars.APPSTORE_API_KEY_ID }}'
-      - name: Import Apple Distribution certificate
-        uses: Apple-Actions/import-codesign-certs@v7
-        with:
-          p12-file-base64: ${{ secrets.APPSTORE_CERTIFICATES_FILE_BASE64 }}
-          p12-password: ${{ secrets.APPSTORE_CERTIFICATES_PASSWORD }}
-      - name: Download App Store provisioning profile
-        uses: Apple-Actions/download-provisioning-profiles@v6
-        with:
-          bundle-id: ${{ vars.APPSTORE_BUNDLE_ID }}
-          issuer-id: ${{ vars.APPSTORE_ISSUER_ID }}
-          api-key-id: ${{ vars.APPSTORE_API_KEY_ID }}
-          api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
-      - name: Generate export settings
+      - name: Put the App Store Connect API key where Xcode can use it
+        env:
+          KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
         run: |
-          python3 - <<'PY'
-          import os,plistlib
-          bundle=os.environ['APPSTORE_BUNDLE_ID'];team=os.environ['APPSTORE_TEAM_ID']
-          obj={'method':'app-store-connect','signingStyle':'manual','teamID':team,
-               'provisioningProfiles':{bundle:'AppStore '+bundle},'uploadSymbols':True}
-          with open('ios/ExportOptions.plist','wb') as f:plistlib.dump(obj,f)
-          PY
-      - name: Archive signed iPhone app
+          : "${KEY:?Add the APPSTORE_API_PRIVATE_KEY secret (the contents of the .p8 file)}"
+          mkdir -p "$RUNNER_TEMP/keys"
+          printf '%s\n' "$KEY" > "$RUNNER_TEMP/keys/AuthKey_${{ vars.APPSTORE_API_KEY_ID }}.p8"
+          echo "ASC_KEY_PATH=$RUNNER_TEMP/keys/AuthKey_${{ vars.APPSTORE_API_KEY_ID }}.p8" >> "$GITHUB_ENV"
+      # Automatic signing: with an Admin API key Xcode creates and manages the distribution certificate and App Store profile itself,
+      # so no .p12 or provisioning profile has to be stored anywhere.
+      - name: Archive (Xcode signs it through the API key)
         run: |
           xcodebuild -project ios/Truckin.xcodeproj -scheme Truckin -configuration Release \
             -sdk iphoneos -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/Truckin.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "${{ vars.APPSTORE_API_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ vars.APPSTORE_ISSUER_ID }}" \
             "DEVELOPMENT_TEAM=$APPSTORE_TEAM_ID" \
             "PRODUCT_BUNDLE_IDENTIFIER=$APPSTORE_BUNDLE_ID" \
             "CURRENT_PROJECT_VERSION=${GITHUB_RUN_NUMBER}" \
-            CODE_SIGN_STYLE=Manual \
-            "PROVISIONING_PROFILE_SPECIFIER=AppStore $APPSTORE_BUNDLE_ID" archive
-      - name: Export signed IPA
+            CODE_SIGN_STYLE=Automatic archive
+      - name: Export the App Store IPA
         run: |
+          python3 - <<'PY'
+          import os,plistlib
+          obj={'method':'app-store-connect','signingStyle':'automatic','teamID':os.environ['APPSTORE_TEAM_ID'],'uploadSymbols':True,'destination':'export'}
+          with open('ios/ExportOptions.plist','wb') as f:plistlib.dump(obj,f)
+          PY
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Truckin.xcarchive" \
-            -exportPath "$RUNNER_TEMP/TestFlight" -exportOptionsPlist ios/ExportOptions.plist
+            -exportPath "$RUNNER_TEMP/TestFlight" -exportOptionsPlist ios/ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "${{ vars.APPSTORE_API_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ vars.APPSTORE_ISSUER_ID }}"
       - id: ipa
         name: Find exported IPA
         run: |

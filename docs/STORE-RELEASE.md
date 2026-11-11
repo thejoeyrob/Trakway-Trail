@@ -26,10 +26,10 @@ You need: Apple Developer Program membership (£79/yr).
 1. developer.apple.com → Identifiers → register App ID `com.jweds.truckinanddrivin` with **Game Center** enabled (or change the bundle ID everywhere).
 2. App Store Connect → My Apps → New App (iOS), same bundle ID, name “Truckin’ & Drivin’”, SKU anything.
 3. (Optional) Game Center → create leaderboards `truckin.earnings` (Classic) and `truckin.daily` (Recurring daily). Without them the in-game Leaderboard button shows the player’s own best.
-4. Create an **Apple Distribution** certificate (.p12) and an **App Store Connect API key** (.p8, role App Manager).
+4. Create an **App Store Connect API key** (.p8, role **Admin**). No certificate file is needed: the workflow lets Xcode create the distribution certificate and profile through the key (automatic signing).
 5. GitHub repo → Settings → Secrets and variables → Actions:
    * Variables: `APPSTORE_BUNDLE_ID`, `APPSTORE_TEAM_ID`, `APPSTORE_ISSUER_ID`, `APPSTORE_API_KEY_ID`
-   * Secrets: `APPSTORE_CERTIFICATES_FILE_BASE64` (`base64 -i cert.p12`), `APPSTORE_CERTIFICATES_PASSWORD`, `APPSTORE_API_PRIVATE_KEY` (contents of the .p8)
+   * Secret: `APPSTORE_API_PRIVATE_KEY` (the full contents of the .p8 file, including the BEGIN/END lines)
    (Never commit these. The repo ignores `*.p8`, `*.p12`, `*.jks`, `*.keystore`.)
 6. Actions → **Build and upload to TestFlight** → Run workflow on branch `store/v2.1-release`. It tests, bundles the game, archives, signs, uploads. Build number = run number (always increases).
 7. In App Store Connect: add testers, then fill the listing from `store/LISTING.md`, upload `store/screenshots/ios-*`, answer privacy (“Data Not Collected”) and age rating, pick the build, **Submit for Review**.
