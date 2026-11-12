@@ -5,6 +5,7 @@
 <title>Truckin’ & Drivin’</title><meta name="description" content="Big rigs. Little roads. Questionable decisions.">
 <link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./assets/icon-180.png"><link rel="icon" href="./assets/icon.png">
 <link rel="stylesheet" href="./game.css">
+<link rel="stylesheet" href="./ui-v3.css">
 </head><body>
 <main id="app">
  <canvas id="road" aria-label="Top-down truck driving game. Swipe left or right to move one position. Double tap to sound your horn." tabindex="0"></canvas>
@@ -42,7 +43,11 @@
   <div id="jobBox" class="job-box hidden"><span class="job-icon sprite" data-sprite="9"></span><div><small id="jobTitle">SUPERMARKET SWEEP</small><b id="jobMoney">£150</b><span id="jobCount">0 / 10 stops</span></div><div class="job-progress"><i id="jobProgress"></i></div></div>
   <div id="sheepWarning" class="sheep-warning hidden" role="status"><img src="./assets/farmer.webp" alt="A panicky farmer"><div><b id="sheepText">BEEP THE SHEEP!</b><small id="sheepHint">Wait for the baa…</small></div></div>
   <div id="floatingToast" class="floating-toast hidden" aria-live="polite"></div>
-  <div class="hud-bottom"><div class="sway-wrap"><span id="swayLabel">TRAILER SWAY</span><div class="meter"><i id="swayFill"></i></div><small id="drivingHint">Easy does it, driver.</small></div><button id="trailerButton" aria-label="Drop trailer and abandon any unbanked delivery"><b>DROP TRAILER</b><small>GAIN SPEED</small></button><button id="hornButton" aria-label="Sound air horn"><svg viewBox="0 0 64 48" aria-hidden="true"><path d="M6 17h10l22-11v36L16 31H6z" fill="#183538"/><rect x="8" y="31" width="7" height="9" rx="2" fill="#183538"/><path d="M44 14q8 10 0 20M50 8q13 16 0 32" stroke="#183538" stroke-width="4" fill="none" stroke-linecap="round"/></svg><b>HONK</b><span>DOUBLE TAP</span></button></div>
+  <div class="hud-bottom"><div class="sway-wrap"><span id="swayLabel">TRAILER SWAY</span><div class="meter"><i id="swayFill"></i></div><small id="drivingHint">Easy does it, driver.</small></div><button id="trailerButton" aria-label="Drop trailer and abandon any unbanked delivery"><b>DROP TRAILER</b><small>GAIN SPEED</small></button><button id="hornButton" aria-label="Sound air horn"><svg viewBox="0 0 84 58" aria-hidden="true"><defs>
+<linearGradient id="hornChrome" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".28" stop-color="#dfe7eb"/><stop offset=".55" stop-color="#9fb0b9"/><stop offset=".8" stop-color="#e9eff2"/><stop offset="1" stop-color="#5d6b73"/></linearGradient>
+<g id="hornBody"><path d="M4 25 L24 25 L56 13 L56 45 L24 33 L4 33 Z" fill="url(#hornChrome)" stroke="#2b3a40" stroke-width="2" stroke-linejoin="round"/><ellipse cx="56" cy="29" rx="4.2" ry="16" fill="#1b2529" stroke="#2b3a40" stroke-width="2"/><path d="M8 27.2 L26 27.2 L52 18" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".85"/></g></defs>
+<use href="#hornBody" transform="rotate(-17 4 29) scale(.74)"/><use href="#hornBody" transform="rotate(17 4 29) scale(.74)"/><use href="#hornBody"/>
+<g fill="none" stroke="#183538" stroke-width="3.6" stroke-linecap="round"><path d="M67 17 q9 12 0 24"/><path d="M73 9 q15 20 0 40" opacity=".85"/><path d="M79 3 q20 26 0 52" opacity=".6"/></g></svg><b>HONK</b><span>DOUBLE TAP</span></button></div>
   <div id="tutorialHint" class="tutorial-hint">‹ SWIPE ONE STEP ›<small>Keep your trailer in check</small></div>
  </section>
  <section id="sheet" class="hidden" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="sheet-card"><div class="sheet-head"><div><span id="sheetEyebrow" class="eyebrow"></span><h2 id="sheetTitle"></h2></div><button id="closeSheet" class="round" aria-label="Close panel">×</button></div><div id="sheetBody"></div></div></section>

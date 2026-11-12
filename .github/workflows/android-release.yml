@@ -28,6 +28,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
+      - name: Install the genuine CC0 sheep bleat (falls back to the synthesised one if the download fails)
+        continue-on-error: true
+        run: bash tools/prepare-sheep-audio.sh
       - name: Test the game and copy it into the Android app
         run: |
           npm test

@@ -7,7 +7,7 @@ await cp(path.join(root,'public/assets/comic'),path.join(dst,'assets/comic'),{re
 await cp(path.join(root,'public/assets/route-v2'),path.join(dst,'assets/route-v2'),{recursive:true});
 await cp(path.join(root,'public/assets/menu'),path.join(dst,'assets/menu'),{recursive:true});
 for(const f of ['sprites.webp','roads.webp','restrictions.webp','cover.webp','intro-jw.png','icon.png','farmer.webp','terrain.webp','extras.webp','icon-180.png'])await copyFile(path.join(root,'public/assets',f),path.join(dst,'assets',f));
-await copyFile(path.join(root,'public/game.css'),path.join(dst,'game.css'));
+await copyFile(path.join(root,'public/game.css'),path.join(dst,'game.css'));await copyFile(path.join(root,'public/ui-v3.css'),path.join(dst,'ui-v3.css'));await cp(path.join(root,'public/assets/fonts'),path.join(dst,'assets/fonts'),{recursive:true});
 const files=['route-atlas.js','propart.js','uksigns.js','route-world.js','route-hazards.js','route-render.js','showroom.js','atlas.js','geometry.js','rigart.js','road-events.js','upgrades.js','model.js','audio.js','render.js','wheel.js','jokes.js','garage.js','game.js'];
 const functions=[];
 for(const name of files){let source=await readFile(path.join(root,'public/js',name),'utf8');const exports=[];
@@ -24,7 +24,7 @@ const bundle=`(function(){'use strict';const modules={${functions.join(',\n')}};
 await writeFile(path.join(dst,'js/game.bundle.js'),bundle);
 let html=(await readFile(path.join(root,'public/play.html'),'utf8')).replace('<link rel="manifest" href="./manifest.webmanifest">','').replace('<script type="module" src="./js/game.js"></script>','<script src="./js/audio-data.js"></script><script src="./js/image-data.js"></script><script src="./js/game.bundle.js"></script>');
 await writeFile(path.join(dst,'play.html'),html);
-const MP3=['roadtrip','menumusic','jweds-jingle'],data={};for(const n of ['roadtrip','menumusic','ignition','idle','rev','cash','crumb','pickup','delivery','horn','sheep','flush','brake','click','scatter','bonus','jweds-jingle']){try{data[n]=(await readFile(path.join(root,'public/audio',n+(MP3.includes(n)?'.mp3':'.wav')))).toString('base64');}catch(e){if(n!=='jweds-jingle')throw e;}}
+const MP3=['roadtrip','menumusic','jweds-jingle'],data={};for(const n of ['roadtrip','menumusic','ignition','idle','rev','cash','crumb','pickup','delivery','horn','sheep','flush','brake','click','scatter','bonus','moo','chime','morris','cyclebell','clang','splat','shield','shieldbreak','goose','jweds-jingle']){try{data[n]=(await readFile(path.join(root,'public/audio',n+(MP3.includes(n)?'.mp3':'.wav')))).toString('base64');}catch(e){if(n!=='jweds-jingle')throw e;}}
 /* Images whose pixels the game reads (paint recolouring, decals, garage thumbnails) are embedded as data: URLs. Images loaded from file:// are
    cross-origin to the page in WKWebView and would block that; data: images are not. */
 const imageData={};for(const [key,file] of [['routeTrucks','route-v2/trucks.webp'],['extras','extras.webp'],['routeSurfaces','route-v2/surfaces.webp']])imageData[key]='data:image/webp;base64,'+(await readFile(path.join(root,'public/assets',file))).toString('base64');
