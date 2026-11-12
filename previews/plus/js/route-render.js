@@ -6,12 +6,15 @@ import {drawProp} from './propart.js';
 const mod=(n,m)=>((n%m)+m)%m;
 export class RoutePainter{
  constructor(renderer){this.r=renderer;this.patterns=[];this.makePatterns();}
- makePatterns(){const img=this.r.images.routeSurfaces;if(!img)return;
-  for(const rect of ROUTE_ATLAS.surfaces.rects){const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');
-   // Mirror each texture cell in both axes. Adjacent edges are identical,
-   // so no visible joins or cross-fade stripes interrupt the scrolling road.
-   for(let sy=0;sy<2;sy++)for(let sx=0;sx<2;sx++){x.save();x.translate(sx?256:0,sy?256:0);x.scale(sx?-1:1,sy?-1:1);x.drawImage(img,...rect,0,0,128,128);x.restore();}
-   this.patterns.push(this.r.ctx.createPattern(c,'repeat'));
+ /* Seamless ground textures. The atlas cells have a bright 1-2 px border and are not tileable, so each cell is cropped inward and made
+    periodic by cross-fading it with a half-tile-shifted copy (no mirroring, so no kaleidoscope pattern or seam line every 256 px). */
+ makePatterns(){const img=this.r.images.routeSurfaces;if(!img)return;const N=256,inset=12;
+  for(const rect of ROUTE_ATLAS.surfaces.rects){
+   const A=document.createElement('canvas');A.width=A.height=N;const ax=A.getContext('2d');ax.drawImage(img,rect[0]+inset,rect[1]+inset,rect[2]-2*inset,rect[3]-2*inset,0,0,N,N);
+   const a=ax.getImageData(0,0,N,N),out=ax.createImageData(N,N),d=a.data,o=out.data;
+   for(let y=0;y<N;y++){const wy=.5-.5*Math.cos(2*Math.PI*y/N);for(let x=0;x<N;x++){const wx=.5-.5*Math.cos(2*Math.PI*x/N),w=wx*wy,i=(y*N+x)*4,j=(((y+N/2)%N)*N+((x+N/2)%N))*4;
+    o[i]=d[i]*w+d[j]*(1-w);o[i+1]=d[i+1]*w+d[j+1]*(1-w);o[i+2]=d[i+2]*w+d[j+2]*(1-w);o[i+3]=255;}}
+   ax.putImageData(out,0,0);this.patterns.push(this.r.ctx.createPattern(A,'repeat'));
   }
  }
  atlas(sheet,id,x,y,w,h,angle=0,alpha=1){const r=this.r,c=r.ctx,key=sheet.replace('route','').toLowerCase(),meta=ROUTE_ATLAS[key],img=r.images[sheet],rect=meta?.rects[id];if(!img||!rect)return;
@@ -28,7 +31,8 @@ export class RoutePainter{
    rows.forEach((row,i)=>{const b=getBand(row);const x=b.left-expand;i?path.lineTo(x,row.y):path.moveTo(x,row.y);});
    for(let i=rows.length-1;i>=0;i--){const b=getBand(rows[i]);path.lineTo(b.right+expand,rows[i].y);}path.closePath();return path;};
   const fills=(path,id)=>{c.save();c.clip(path);this.paint(id,-r.pad,0,420+2*r.pad,r.H,offset);c.restore();};
-  const river=samples.filter(row=>row.a.motif==='river-bend'&&row.a.gate>.45);if(river.length)fills(polygon(river,row=>row.a.side<0?{left:row.a.bands[0].right+20,right:420+r.pad}:{left:-r.pad,right:row.a.bands[0].left-20}),14);
+  const river=samples.filter(row=>row.a.motif==='river-bend'&&row.a.gate>.04),bank=g=>{const t=Math.max(0,Math.min(1,(g-.04)/.5));return t*t*(3-2*t);};
+  if(river.length)fills(polygon(river,row=>{const t=bank(row.a.gate);if(row.a.side<0){const l=row.a.bands[0].right+20;return {left:l,right:l+(420+r.pad-l)*t};}const rt=row.a.bands[0].left-20;return {left:rt-(rt+r.pad)*t,right:rt};}),14);
   // Each complete road ribbon is filled once. Scanline rectangles leave tiny
   // antialias seams on high-DPI screens, so they are deliberately not used.
   const all=new Path2D(),shoulders=new Path2D();
@@ -39,6 +43,9 @@ export class RoutePainter{
   fills(shoulders,2);fills(all,0);
   for(let branch=0;branch<2;branch++){let mud=[];const flush=()=>{if(mud.length){fills(polygon(mud,r=>r.a.bands[branch]),5);mud=[];}};
    for(const row of samples){if(row.a.bands[branch]?.surface==='mud')mud.push(row);else flush();}flush();}
+  // Soft entry into the mud: faded slices just before the surface turns to mud, so there is no hard cut across the lane.
+  for(let branch=0;branch<2;branch++){const fade=samples.filter(row=>row.a.motif==='farm-fork'&&row.a.bands[branch]&&row.a.bands[branch].branch===row.a.restricted&&row.a.gate>.4&&row.a.bands[branch].surface!=='mud');
+   for(let i=0;i+1<fade.length;i++){if(fade[i+1].y-fade[i].y>8)continue;const t=Math.max(0,Math.min(1,(fade[i].a.gate-.4)/.25)),k=t*t*(3-2*t);c.save();c.globalAlpha=k;fills(polygon([fade[i],fade[i+1]],r=>r.a.bands[branch]),5);c.restore();}}
   // Only the outside boundary is stroked while branches overlap. Once they
   // separate, the island gains its own continuous pair of edge markings.
   c.save();c.strokeStyle='#eeeaddb0';c.lineWidth=1.5;
@@ -79,6 +86,7 @@ export class RoutePainter{
    if(spec.draw){c.save();c.translate(x,y);c.scale(1,r.worldScale);drawProp(c,spec.draw,spec.width,spec.height,r.time+e.id);c.restore();}
    else if(spec.sheet.startsWith('route'))this.atlas(spec.sheet,spec.sprite,x,y-(e.length||0)*r.worldScale/2,spec.width,h,e.oncoming?Math.PI:0);
    else r.sprite(spec.sprite,x,y-(e.length||0)*r.worldScale/2,spec.width,h,e.oncoming?Math.PI:0,1,spec.sheet);
+   if(e.honkable&&e.z-g.distance>60&&e.z-g.distance<620)r.label('HONK!',x,y-h/2-6,'#fff0a8',9);
    if(e.oncoming){r.label('ONCOMING',x,y-43,'#ffd1aa',7);}
    if(['lowbridge','weakbridge','bus','footpath'].includes(e.type)){const labels={lowbridge:'LOW BRIDGE',weakbridge:'WEIGHT LIMIT',bus:'BUS ONLY',footpath:'PUBLIC PATH'};r.label(labels[e.type],x,y-h/2-8,'#ffebb5',7);}
    if(r.settings.hitboxes){c.save();c.strokeStyle='#ff4bcc';c.lineWidth=1;c.strokeRect(x-spec.hitWidth/2,y-(e.length||0)*r.worldScale-spec.hitHeight*r.worldScale/2,spec.hitWidth,(spec.hitHeight+(e.length||0))*r.worldScale);c.restore();}

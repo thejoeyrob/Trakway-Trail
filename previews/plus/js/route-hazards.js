@@ -21,7 +21,11 @@ export const HAZARD_SPECS={
  tractor:{width:62,height:108,hitWidth:50,hitHeight:88,effect:'fine',draw:'tractor',sheet:'draw'},
  haybale:{width:64,height:58,hitWidth:52,hitHeight:46,effect:'fine',draw:'haybale',sheet:'draw'},
  icecream:{width:60,height:112,hitWidth:48,hitHeight:94,effect:'crash',draw:'icecream',sheet:'draw'},
- geese:{width:68,height:64,hitWidth:54,hitHeight:48,effect:'fine',draw:'geese',sheet:'draw'}
+ geese:{width:68,height:64,hitWidth:54,hitHeight:48,effect:'fine',draw:'geese',sheet:'draw'},
+ morris:{width:70,height:62,hitWidth:56,hitHeight:50,effect:'fine',draw:'morris',sheet:'draw'},
+ cyclists:{width:66,height:76,hitWidth:52,hitHeight:60,effect:'fine',draw:'cyclists',sheet:'draw'},
+ caravan:{width:60,height:156,hitWidth:50,hitHeight:132,effect:'fine',draw:'caravan',sheet:'draw'},
+ binlorry:{width:64,height:132,hitWidth:52,hitHeight:112,effect:'crash',draw:'binlorry',sheet:'draw'}
 };
 export const PICKUP_SPECS={hitch:{sprite:13,sheet:'routeProps',width:45,height:45},prize:{sprite:12,sheet:'routeProps',width:40,height:40},shield:{draw:'horseshoe',width:46,height:46}};
 export function sweptOverlap(a0,a1,half,e0,e1){return Math.max(a0,a1)+half>=e0&&Math.min(a0,a1)-half<=e1;}
