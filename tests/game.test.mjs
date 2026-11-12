@@ -21,8 +21,12 @@ test('double trailer pays double for the same trail',()=>{
  for(const c of g.items.filter(x=>x.type==='crumb'))g.collect(c);
  assert.equal(g.job.pay,800);g.collect(g.items.find(x=>x.type==='finish'));assert.equal(g.money,1300);
 });
-test('horn rejects early and late input, accepts tight timing window',()=>{
- for(const [time,baa,expected] of [[0,false,false],[.4,true,true],[1.2,true,false]]){let g=new Drive();g.sheep={z:1000,baa,baaAt:0,cleared:false};g.time=time;g.horn();assert.equal(g.sheep.cleared,expected);assert.equal(g.money,expected?575:500);}
+test('horn: forgiving sheep window (from just before the baa until they are almost on you); way too early is rejected',()=>{
+ const mk=(z,baa)=>{const g=new Drive();g.items=[];g.speed=300;g.sheep={z,baa,baaAt:0,cleared:false};return g;};
+ let g=mk(2000,false);g.horn();assert.equal(g.sheep.cleared,false,'long before the baa: rejected');
+ g=mk(480,false);g.horn();assert.equal(g.sheep.cleared,true,'a hair before the baa: accepted');
+ g=mk(300,true);g.time=1.2;g.sheep.baaAt=0;g.horn();assert.equal(g.sheep.cleared,true,'1.2 s after the baa (used to be too late): accepted');
+ g=mk(20,true);g.horn();assert.equal(g.sheep.cleared,false,'when they are already under the wheels: too late');
 });
 test('missed sheep ends the shift without physical collision depiction',()=>{
  let g=new Drive();g.sheep={z:60,baa:true,baaAt:-3,cleared:false};g.tick(.016);assert.equal(g.finished,true);assert.equal(g.sheepFail,1);assert.ok(g.events.some(e=>e.type==='sheepFail'));
@@ -139,7 +143,7 @@ test('steering anchors never auto-follow the road; bends require player input',(
 test('every hazard type can appear on the road (nothing is missing from the spawn mix)',async()=>{
  const {MIX}=await import('../public/js/model.js'),{HAZARD_SPECS}=await import('../public/js/route-hazards.js');
  const used=new Set(MIX.flat().map(m=>m[0]));
- for(const k of Object.keys(HAZARD_SPECS))if(k!=='house')assert.ok(used.has(k),k+' is in the mix');
+ const {FUNNY}=await import('../public/js/model.js');for(const k of Object.keys(HAZARD_SPECS))if(k!=='house')assert.ok(used.has(k)||FUNNY.includes(k),k+' is in the mix or the funny bag');
 });
 test('honking shoos a cow in range for pay; a cow too close or too far is untouched, and an unshooed cow ends the shift',()=>{
  const g=new Drive({seed:3});g.items=[];g.row=1e9;const near=g.add('cow',g.distance+300,1,{honkable:true}),far=g.add('cow',g.distance+900,3,{honkable:true}),close=g.add('cow',g.distance+30,0,{honkable:true});
@@ -162,4 +166,14 @@ test('every paint and roof graphic has copy, and the cab and trailer paints are 
 });
 test('tall layout maths: a wider or taller-than-SE screen keeps the 420-wide road and never less than SE lookahead',()=>{
  for(const [w,h] of [[375,667],[390,844],[768,1024],[430,932]]){const k=Math.min(w/420,h/747),H=h/k,pad=Math.max(0,(w/k-420)/2);assert.ok(H>=747-1e-9);assert.ok(pad>=0);}
+});
+
+test('the funny encounters come round in a shuffled bag: every kind turns up, and none is a rarity',async()=>{
+ const {FUNNY}=await import('../public/js/model.js');const g=new Drive({seed:77});g.items=[];g.row=1e9;g.nextSheep=1e9;g.nextNight=1e9;g.nextJob=1e9;const seen=new Set();
+ for(let i=0;i<FUNNY.length*4&&seen.size<FUNNY.length;i++){g.items=[];g.distance=i*2500;g.nextFunny=g.distance;g.spawn();for(const e of g.items)if(FUNNY.includes(e.type))seen.add(e.type);}
+ assert.equal(seen.size,FUNNY.length,'seen '+[...seen]);
+});
+test('honking shoos Morris dancers and cyclists too; hitting a bin lorry ends the shift',()=>{
+ const g=new Drive({seed:8});g.items=[];const m=g.add('morris',g.distance+300,1,{honkable:true}),c=g.add('cyclists',g.distance+350,3,{honkable:true});g.horn();assert.ok(m.cleared&&c.cleared);
+ const b=g.add('binlorry',g.distance+10,2);g.collect(b);assert.equal(g.crashKind,'binlorry');
 });

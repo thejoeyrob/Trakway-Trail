@@ -88,10 +88,14 @@ export function reachableCorridor(items,z0,z1,seed=1,start=[0,1,2,3,4],maxSpeed=
  return true;
 }
 export function routeWarning(distance,seed=1){const index=Math.floor(Math.max(0,distance)/CHUNK_LENGTH),r=roadAt(index*CHUNK_LENGTH+900,seed);if(distance-r.start<1100)return {...r.sign,distance:Math.max(0,Math.round((r.decisionZ-distance)/10)),id:r.id};return null;}
+/* Outermost edge of the road on one side over the whole length of a prop, so a prop never overhangs the carriageway on a bend. */
+export function roadEdge(z,side,seed=1,span=62){let o=side<0?Infinity:-Infinity;for(const dz of[-span,-span/2,0,span/2,span]){const a=roadAt(z+dz,seed),v=side<0?Math.min(...a.bands.map(b=>b.left)):Math.max(...a.bands.map(b=>b.right));o=side<0?Math.min(o,v):Math.max(o,v);}return o;}
+/* Side of the road with water at a river bend (props are not placed on the water). */
+export const waterSide=a=>a.motif==='river-bend'&&a.gate>.4?-a.side:0;
 export function sceneryProps(z0,z1,seed=1){
  const props=[];for(let n=Math.floor(z0/210);n<=Math.ceil(z1/210);n++){
   if(n<0)continue;const z=n*210+hash(n+123,seed)%70,a=roadAt(z,seed),stage=roadTheme(z);
-  for(const side of [-1,1]){const outer=side<0?Math.min(...a.bands.map(b=>b.left)):Math.max(...a.bands.map(b=>b.right));
+  for(const side of [-1,1]){if(waterSide(a)===side)continue;const outer=roadEdge(z,side,seed);
    const sprite=stage===0||stage===2?(hash(n+side,seed)%3===0?1:0):stage===3?[4,7,2][hash(n+side,seed)%3]:1;
    const width=sprite===1?92:91,height=sprite===0?109:sprite===4?125:87;
    const variant=hash(n+side+880,seed)%4;
@@ -112,7 +116,7 @@ export function sideProps(z0,z1,seed=1,pad=0){
  for(let n=Math.floor(z0/260);n<=Math.ceil(z1/260);n++){if(n<0)continue;
   for(const side of[-1,1])for(let col=0;col<cols;col++){
    const h=hash(n*7+col*131+(side>0?977:13),seed+51),z=n*260+(h%140);
-   const a=roadAt(z,seed),stage=roadTheme(z),outer=side<0?Math.min(...a.bands.map(b=>b.left)):Math.max(...a.bands.map(b=>b.right));
+   const a=roadAt(z,seed),stage=roadTheme(z),outer=roadEdge(z,side,seed,70);if(waterSide(a)===side)continue;
    const roll=h>>>8&7;if(col>0&&roll<2)continue;   // gaps, so the rows look natural
    const treeish=roll>=5||stage===1;
    const sprite=treeish?1:stage===3?[4,7,2][roll%3]:0,sheet='routeProps';

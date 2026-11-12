@@ -7,15 +7,18 @@ export const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export const themes=['THE TOWN RUN','COUNTRY MILES','SUBURBAN SHORTCUT','HARD HAT HAUL'];
 export const ROAD_TYPES=['lowbridge','weakbridge','bus','noentry','narrow','grass','house','works'];
 /* Hazards that end the shift outright, each with its own comic vignette (see COMICS in game.js) and result-sheet line. */
-export const CRASHES={car:'Not a bumper car.',lowbridge:'Height restriction. Not a suggestion.',weakbridge:'Weight limit: less than you.',oil:'Slick move, driver.',house:'Planning permission denied.',sheep:'Ewe had one job.',cow:'Holy cow. Literally.',icecream:'Chocolate flake-ing disaster.'};
+export const CRASHES={car:'Not a bumper car.',lowbridge:'Height restriction. Not a suggestion.',weakbridge:'Weight limit: less than you.',oil:'Slick move, driver.',house:'Planning permission denied.',sheep:'Ewe had one job.',cow:'Holy cow. Literally.',icecream:'Chocolate flake-ing disaster.',binlorry:'Bin there, done that.'};
 export const PICKUPS=['job','crumb','finish','taco','coin','night','boost','hitch','prize','shield'];
 /* Weighted hazard mix per scenery stage. Every hazard type in route-hazards.js appears somewhere, so the road never feels empty or samey. */
 export const MIX=[
- [['car',4],['cone',3],['bus',2],['noentry',2],['lowbridge',1.5],['barrier',2],['narrow',1.5],['pit',1.5],['icecream',1],['geese',1]],
- [['mud',3],['car',2],['weakbridge',1.5],['grass',2],['cow',2.5],['tractor',2],['haybale',2.5],['pit',1],['oil',1],['lowbridge',1],['geese',1.5]],
- [['car',3],['footpath',2.5],['cone',2],['icecream',1.5],['noentry',1.5],['narrow',2],['barrier',1.5],['lowbridge',1.5],['geese',1],['oil',1]],
+ [['car',4],['cone',3],['bus',2],['noentry',2],['lowbridge',1.5],['barrier',2],['narrow',1.5],['pit',1.5],['geese',1]],
+ [['mud',3],['car',2],['weakbridge',1.5],['grass',2],['haybale',2.5],['pit',1],['oil',1],['lowbridge',1],['geese',1.5]],
+ [['car',3],['footpath',2.5],['cone',2],['noentry',1.5],['narrow',2],['barrier',1.5],['lowbridge',1.5],['oil',1]],
  [['works',3],['pit',2.5],['oil',2],['barrier',2.5],['cone',2],['lowbridge',1],['weakbridge',1.5],['mud',1.5],['noentry',1]]
 ];
+/* The funny stuff: every kind turns up in rotation (a shuffled bag), about every 1,500-2,200 units, so none of them is a rarity. */
+export const FUNNY=['cow','icecream','morris','cyclists','geese','tractor','caravan','binlorry'];
+const FUNNY_PAY={cow:[60,'MOO-VE ALONG!'],geese:[35,'SHOOED!'],morris:[45,'JIG’S UP!'],cyclists:[40,'PELOTON PARTED!']};
 const pickWeighted=(list,r)=>{let t=list.reduce((a,b)=>a+b[1],0)*r;for(const [k,w] of list){t-=w;if(t<=0)return k;}return list[0][0];};
 export function seeded(seed){const fn=()=>{seed|=0;seed=(seed+0x6D2B79F5)|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;fn.state=seed;return((t^t>>>14)>>>0)/4294967296;};fn.state=seed;return fn;}
 export function jobPath(lane,rng,count=10){const p=[];for(let i=0;i<count;i++){if(i%2)lane=clamp(lane+(rng()>.5?1:-1),0,4);p.push(lane);}return p;}
@@ -28,7 +31,7 @@ export class Drive {
   this.truck=this.mode==='daily'?0:(options.truck||0);this.decal=this.mode==='daily'?0:(options.decal||0);this.trailerPaint=this.mode==='daily'?1:(options.trailerPaint??1);this.trailerDecal=this.mode==='daily'?0:(options.trailerDecal||0);this.hornAt=-10;
   this.events=[];this.items=[];this.distance=0;this.time=0;this.money=500;this.earned=0;this.fines=0;this.jobs=0;this.crumbs=0;this.horns=0;this.near=0;
   this.lane=2;this.x=2;this.trailer=2;this.rear=2;this.sway=0;this.angle=0;this.rapid=0;this.lastMove=-10;this.invulnerable=0;this.speed=180;
-  this.lastScenario='';this.cruise=240;this.row=900;this.nextJob=600;this.nextSheep=6500;this.nextNight=5600;this.nextBoost=1700;this.nextShield=3600;this.shield=0;this.leaving=[];this.night=null;this.nights=0;this.boost=0;this.rested=this.upgrades.bunk?20+8*this.upgrades.bunk:0;
+  this.lastScenario='';this.cruise=240;this.row=900;this.nextJob=600;this.nextSheep=6500;this.nextNight=5600;this.nextBoost=1700;this.nextFunny=1500;this.funnyBag=[];this.nextShield=3600;this.shield=0;this.leaving=[];this.night=null;this.nights=0;this.boost=0;this.rested=this.upgrades.bunk?20+8*this.upgrades.bunk:0;
   this.job=null;this.sheep=null;this.finished=false;this.endReason='';this.stage=0;this.slow=0;this.multiplier=1;this.id=0;this.sheepFail=0;this.combo=0;this.crashKind='';this.lives=this.upgrades.insurance>=3?1:0;
  }
  snapshot(){const d={...this,rngState:this.rng.state};delete d.rng;d.events=[];return d;}
@@ -47,9 +50,13 @@ export class Drive {
  hitchTrailer(){if(this.hasTrailer)return;this.hasTrailer=true;this.trailer=this.rear=this.x;this.angle=this.rapid=this.sway=0;this.dropCooldown=1.5;this.emit('trailerHitch');}
  move(direction){if(this.finished)return;const next=clamp(this.lane+direction,0,4);if(next===this.lane)return;this.rapid=clamp(this.rapid+(this.time-this.lastMove<.2?.3:.07),0,1.5);this.lastMove=this.time;this.lane=next;this.emit('steer');}
  horn(){if(this.finished)return;this.hornAt=this.time;this.emit('horn');
-  /* A honk shoos cows and geese off the road if they are close enough to hear it (but not so close it's too late). */
-  for(const e of this.items){if(e.honkable&&!e.done&&!e.cleared){const d=e.z-this.distance;if(d>70&&d<470){e.cleared=true;e.done=true;this.leaving.push({type:e.type,lane:e.lane,z:e.z,dir:e.lane<2?-1:e.lane>2?1:(this.rng()<.5?-1:1),age:0});this.horns++;this.award(e.type==='cow'?60:35,e.type==='cow'?'MOO-VE ALONG!':'SHOOED!');this.emit('shoo',{kind:e.type});}}}
-  if(!this.sheep||this.sheep.cleared)return;const s=this.sheep,delta=this.time-s.baaAt;if(s.baa&&delta>=0&&delta<=.75+this.upgrades.horn*.16){s.cleared=true;this.horns++;this.award(75,'WOOL DONE!');this.emit('sheepClear');}else this.emit('hint',{text:s.baa?'Too late! Brake for the flock.':'Wait for the BAA…'});}
+  /* A honk shoos cows, geese, Morris dancers and cyclists off the road if they are close enough to hear it (but not so close it is too late). */
+  for(const e of this.items){if(e.honkable&&!e.done&&!e.cleared){const d=e.z-this.distance;if(d>70&&d<500){e.cleared=true;e.done=true;this.leaving.push({type:e.type,lane:e.lane,z:e.z,dir:e.lane<2?-1:e.lane>2?1:(this.rng()<.5?-1:1),age:0});this.horns++;const pay=FUNNY_PAY[e.type]||[35,'SHOOED!'];this.award(pay[0],pay[1]);this.emit('shoo',{kind:e.type});}}}
+  if(!this.sheep||this.sheep.cleared)return;
+  // Sheep: any honk from the baa until they are almost on you clears them (it used to be a 0.75 s window that expired well before impact).
+  // A honk up to a quarter-second before the baa (more with a better horn) also counts, so quick fingers are rewarded, not punished.
+  const s=this.sheep,ahead=s.z-this.distance,trigger=Math.max(375,this.speed*1.5),lead=.25+this.upgrades.horn*.16;
+  if(s.baa?ahead>35:ahead<trigger+this.speed*lead){s.cleared=true;this.horns++;this.award(75,'WOOL DONE!');this.emit('sheepClear');}else this.emit('hint',{text:'Wait for the BAA…'});}
  award(value,label){this.money+=value;this.earned+=value;this.emit('cash',{value,label});}
  fine(value,label){if(this.invulnerable>0)return;value=Math.round(value*(1-.12*this.upgrades.insurance));this.money-=value;this.fines+=value;this.combo=0;this.invulnerable=1.3;this.slow=.8;this.emit('loss',{value,label});if(this.money<=0)this.end('The float has floated away.');}
  jobValue(value){return Math.round(value*this.multiplier*(1+deliveryBonus(this.upgrades,this.truck,this.decal)));}
@@ -65,7 +72,7 @@ export class Drive {
   this.row=Math.max(this.row,end+650);this.nextJob=Math.max(this.nextJob,end+760);this.nextSheep=Math.max(this.nextSheep,end+1100);this.nextNight=end+4300;this.emit('night');}
  collect(e){if(e.done)return;e.done=true;if(!PICKUPS.includes(e.type))this.lastHit={type:e.type,lane:e.lane,z:e.z,item:e};switch(e.type){
   case 'hitch':this.hitchTrailer();break;case 'shield':this.shield=1;this.emit('shield');break;
-  case 'cow':case 'icecream':this.crash(e.type);break;case 'tractor':this.fine(110,'Slow lane. Slower tractor.');break;case 'haybale':this.fine(60,'Hay fever. £60.');break;case 'geese':this.fine(75,'Goose bumps. £75.');break;case 'prize':this.award(85,'RISK REWARDED');this.emit('prize');break;
+  case 'cow':case 'icecream':case 'binlorry':this.crash(e.type);break;case 'morris':this.fine(90,'Morris dancers: bells and bruises.');break;case 'cyclists':this.fine(80,'Lycra everywhere. Sorry, peloton.');break;case 'caravan':this.fine(120,'Caravan of regret. £120.');break;case 'tractor':this.fine(110,'Slow lane. Slower tractor.');break;case 'haybale':this.fine(60,'Hay fever. £60.');break;case 'geese':this.fine(75,'Goose bumps. £75.');break;case 'prize':this.award(85,'RISK REWARDED');this.emit('prize');break;
   case 'mud':this.grip=Math.max(this.grip,4.8);this.emit('mud');break;case 'pit':this.fine(95,'That pothole has ambition.');break;case 'footpath':this.fine(90,'Public path. Private embarrassment.');break;
   case 'job':this.startJob(e);break;case 'night':this.startNight(e);break;
   case 'boost':this.boost=7+this.upgrades.exhaust;this.emit('boost');break;
@@ -133,11 +140,26 @@ export class Drive {
  }
  /* A clear lane for a pickup near z: the closest legal lane with no hazard footprint on it. null = try again next frame. */
  freeLane(z,pref=2){const lanes=routeLanes(z,this.seed,{legal:true}).sort((a,b)=>Math.abs(a-pref)-Math.abs(b-pref));return lanes.find(l=>!this.laneBusy(l,z-170,z+170,100))??null;}
+ /* One funny encounter, taken from the shuffled bag. Honkable ones can be shooed; cow, ice-cream van and bin lorry end the shift if you hit them. */
+ spawnFunny(z){
+  if(!this.funnyBag.length){const a=FUNNY.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(this.rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}this.funnyBag=a;}
+  const kind=this.funnyBag[0],spec=HAZARD_SPECS[kind],reserve=kind==='tractor'||kind==='caravan'?650:0;
+  const corridor=laneCorridor(z-100,z+260,this.seed,true);if(corridor.length<3)return false;
+  const order=corridor.slice();for(let i=order.length-1;i>0;i--){const j=Math.floor(this.rng()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
+  for(const lane of order){
+   if(this.laneBusy(lane,z-220,z+260+reserve,100))continue;
+   const cand={type:kind,lane,z,length:0,reserve,done:false,collectible:false};
+   if(!reachableCorridor([...this.items.filter(e=>!e.collectible&&!e.done),cand],z-500,z+650,this.seed))continue;
+   const props={length:0,warning:430};if(kind==='tractor'||kind==='caravan'){props.drift=kind==='caravan'?85:95;props.reserve=reserve;}if(['cow','geese','morris','cyclists'].includes(kind))props.honkable=true;
+   this.add(kind,z,lane,props);this.funnyBag.shift();return true;}
+  return false;
+ }
  spawn(){const busy=this.job||this.sheep||this.night,pending=this.items.some(e=>['job','night'].includes(e.type)&&!e.done);
   if(!busy&&!pending){if(this.distance>this.nextNight-1100){const l=this.freeLane(this.distance+700,2);if(l!==null){this.add('night',this.distance+700,l);this.nextNight=this.distance+6500;}}else if(this.distance>this.nextJob-1100){const z=Math.max(this.nextJob,this.distance+700),l=this.freeLane(z,2);if(l!==null){this.add('job',z,l,{double:this.jobs>0&&this.rng()>.5});this.nextJob+=3300;}}}
   if(!busy&&this.distance>this.nextBoost-700){const l=this.freeLane(this.distance+550,Math.floor(this.rng()*5));if(l!==null){this.add('boost',this.distance+550,l);this.nextBoost=this.distance+3300;}}
   if(!busy&&!this.shield&&this.distance>this.nextShield-700&&!this.items.some(e=>e.type==='shield'&&!e.done)){const z=this.distance+620,l=nearestLane(z,Math.floor(this.rng()*5),this.seed);if(!this.laneBusy(l,z-100,z+100,100)){this.add('shield',z,l);this.nextShield=this.distance+6200+this.rng()*2500;}}
   if(!this.hasTrailer&&this.nextHitch&&this.distance>this.nextHitch-700&&!this.items.some(e=>e.type==='hitch'&&!e.done)){const z=this.distance+650,lane=nearestLane(z,this.lane,this.seed);if(!this.laneBusy(lane,z-100,z+100,100)){this.add('hitch',z,lane);this.nextHitch=z+1500;}}
+  if(!this.sheep&&!this.night&&this.distance>this.nextFunny-1300){const z=Math.max(this.nextFunny,this.distance+900);if(this.spawnFunny(z))this.nextFunny=z+1250+this.rng()*750-this.ramp()*300;else this.nextFunny=this.distance+200;}
   while(this.row<this.distance+1300){
    const r=this.ramp(),gapSec=Math.max(.5,.9-.38*r);
    const nearJob=this.items.some(e=>['job','night'].includes(e.type)&&!e.done&&Math.abs(e.z-this.row)<520);
