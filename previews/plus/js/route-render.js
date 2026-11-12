@@ -1,20 +1,26 @@
-import {roadAt,hash,steeringX,CHUNK_LENGTH,surfaceAt,sceneryProps,sideProps} from './route-world.js';
+import {roadAt,hash,steeringX,CHUNK_LENGTH,surfaceAt,sceneryProps,sideProps,roadEdge} from './route-world.js';
 import {roadTheme} from './geometry.js';
 import {ROUTE_ATLAS} from './route-atlas.js';
 import {HAZARD_SPECS,PICKUP_SPECS} from './route-hazards.js';
 import {drawProp} from './propart.js';
+import {drawSign} from './uksigns.js';
 const mod=(n,m)=>((n%m)+m)%m;
 export class RoutePainter{
  constructor(renderer){this.r=renderer;this.patterns=[];this.makePatterns();}
  /* Seamless ground textures. The atlas cells have a bright 1-2 px border and are not tileable, so each cell is cropped inward and made
     periodic by cross-fading it with a half-tile-shifted copy (no mirroring, so no kaleidoscope pattern or seam line every 256 px). */
  makePatterns(){const img=this.r.images.routeSurfaces;if(!img)return;const N=256,inset=12;
+  // Raised-cosine alpha mask (generated, never read back), so the whole thing works with images loaded from local files on iOS.
+  const mask=document.createElement('canvas');mask.width=mask.height=N;{const mx=mask.getContext('2d'),md=mx.createImageData(N,N);
+   for(let y=0;y<N;y++){const wy=.5-.5*Math.cos(2*Math.PI*y/N);for(let x=0;x<N;x++){const wx=.5-.5*Math.cos(2*Math.PI*x/N),i=(y*N+x)*4;md.data[i+3]=Math.round(255*wx*wy);}}mx.putImageData(md,0,0);}
   for(const rect of ROUTE_ATLAS.surfaces.rects){
    const A=document.createElement('canvas');A.width=A.height=N;const ax=A.getContext('2d');ax.drawImage(img,rect[0]+inset,rect[1]+inset,rect[2]-2*inset,rect[3]-2*inset,0,0,N,N);
-   const a=ax.getImageData(0,0,N,N),out=ax.createImageData(N,N),d=a.data,o=out.data;
-   for(let y=0;y<N;y++){const wy=.5-.5*Math.cos(2*Math.PI*y/N);for(let x=0;x<N;x++){const wx=.5-.5*Math.cos(2*Math.PI*x/N),w=wx*wy,i=(y*N+x)*4,j=(((y+N/2)%N)*N+((x+N/2)%N))*4;
-    o[i]=d[i]*w+d[j]*(1-w);o[i+1]=d[i+1]*w+d[j+1]*(1-w);o[i+2]=d[i+2]*w+d[j+2]*(1-w);o[i+3]=255;}}
-   ax.putImageData(out,0,0);this.patterns.push(this.r.ctx.createPattern(A,'repeat'));
+   const out=document.createElement('canvas');out.width=out.height=N;const ox=out.getContext('2d');
+   // B: the tile shifted by half a tile in both directions (wrapped)
+   for(const dx of[-N/2,N/2])for(const dy of[-N/2,N/2])ox.drawImage(A,dx,dy);
+   // A, faded out towards its edges by the mask, laid over B
+   const Am=document.createElement('canvas');Am.width=Am.height=N;const amx=Am.getContext('2d');amx.drawImage(A,0,0);amx.globalCompositeOperation='destination-in';amx.drawImage(mask,0,0);
+   ox.drawImage(Am,0,0);this.patterns.push(this.r.ctx.createPattern(out,'repeat'));
   }
  }
  atlas(sheet,id,x,y,w,h,angle=0,alpha=1){const r=this.r,c=r.ctx,key=sheet.replace('route','').toLowerCase(),meta=ROUTE_ATLAS[key],img=r.images[sheet],rect=meta?.rects[id];if(!img||!rect)return;
@@ -72,10 +78,17 @@ export class RoutePainter{
  post(x,y,lines,tone){const c=this.r.ctx,w=42,h=lines.length>1?30:22;c.save();c.fillStyle='#0b1c1fcc';c.fillRect(x-1.2,y+h/2,2.4,16);c.fillStyle=tone;c.strokeStyle='#f3f6e6';c.lineWidth=1.6;c.beginPath();c.roundRect(x-w/2,y-h/2,w,h,3);c.fill();c.stroke();
   c.fillStyle='#fbfcef';c.font='800 6.6px -apple-system,sans-serif';c.textAlign='center';lines.forEach((t,i)=>c.fillText(t,x,y+(lines.length>1?-2.5+i*9:2.5)));c.restore();}
  signs(g){const r=this.r,c=r.ctx,start=Math.max(0,Math.floor(g.distance/CHUNK_LENGTH)-1),end=start+2;
-  for(let i=start;i<=end;i++){const a=roadAt(i*CHUNK_LENGTH+900,g.seed),y=r.playerY-(a.signZ-g.distance)*r.worldScale;if(y< -50||y>r.H+50)continue;
-   if(a.sign.left){this.post(13,y,a.sign.left.split(' • '),a.sign.left==='MAIN ROAD'?'#1d5b3a':'#7a2a1e');this.post(407,y,a.sign.right.split(' • '),a.sign.right==='MAIN ROAD'?'#1d5b3a':'#7a2a1e');}
-   else if(a.motif==='roadworks'){const t=a.sign.text.split(' • ');this.post(a.side<0?407:13,y,t,'#b8651a');}
+  // UK-style signs, on the verge only, and only where they mean something: forks, roadworks and warnings ahead of hazards.
+  const edge=(z,side)=>{const e=roadEdge(z,side,g.seed,20)+side*16;return Math.max(-r.pad+14,Math.min(420+r.pad-14,e));},sy=z=>r.playerY-(z-g.distance)*r.worldScale;
+  for(let i=start;i<=end;i++){const a=roadAt(i*CHUNK_LENGTH+900,g.seed),y=sy(a.signZ);if(y<-50||y>r.H+50)continue;
+   if(a.sign&&a.sign.left){const rs=a.restricted==='left'?-1:1,ls=-rs,kind=a.motif==='contraflow'?'noentry':a.motif==='estate-fork'?'dir':'slippery';
+    if(kind==='dir')drawSign(c,'dir',edge(a.signZ,rs),y,26,{lines:['ACCESS','ONLY']});else drawSign(c,kind,edge(a.signZ,rs),y,26);
+    drawSign(c,'dir',edge(a.signZ,ls),y,26,{lines:['MAIN','ROAD']});}
+   else if(a.motif==='roadworks'){const side=a.side<0?-1:1;drawSign(c,'works',edge(a.signZ,side),y,26);drawSign(c,'arrow',edge(a.signZ+70,side),sy(a.signZ+70),24,{dir:a.side});}
   }
+  const PLATES=["12'6\"","13'3\"","14'0\"","14'6\""],MAP={lowbridge:'low',weakbridge:'limit',bus:'bus',noentry:'noentry',footpath:'peds',narrow:'narrow',works:'works',barrier:'works',mud:'slippery',oil:'slippery',cow:'cattle'};
+  for(const e of g.items){const t=MAP[e.type];if(!t||e.done)continue;const z=e.z-300,y=sy(z);if(y<-40||y>r.H+40||z<g.distance-120)continue;const side=e.lane<2?-1:1;
+   drawSign(c,t,edge(z,side),y,26,t==='low'?{plate:PLATES[e.id%4]}:t==='limit'?{text:'7.5t'}:{});}
   // Arrows belong to the road. No-entry branch points toward the driver.
   for(let z=Math.floor((g.distance-300)/340)*340;z<g.distance+r.playerY/r.worldScale;z+=340){const a=roadAt(z,g.seed);if(a.gate<.97||a.bands.length<2)continue;
    for(const b of a.bands){const x=(b.left+b.right)/2,y=r.playerY-(z-g.distance)*r.worldScale;c.save();c.translate(x,y);if(b.rule==='oneway')c.rotate(Math.PI);c.fillStyle=b.rule?'#ffdfc3a0':'#e9eddca0';c.beginPath();c.moveTo(0,-17);c.lineTo(10,-4);c.lineTo(4,-4);c.lineTo(4,13);c.lineTo(-4,13);c.lineTo(-4,-4);c.lineTo(-10,-4);c.closePath();c.fill();c.restore();}
@@ -88,7 +101,7 @@ export class RoutePainter{
    else r.sprite(spec.sprite,x,y-(e.length||0)*r.worldScale/2,spec.width,h,e.oncoming?Math.PI:0,1,spec.sheet);
    if(e.honkable&&e.z-g.distance>60&&e.z-g.distance<620)r.label('HONK!',x,y-h/2-6,'#fff0a8',9);
    if(e.oncoming){r.label('ONCOMING',x,y-43,'#ffd1aa',7);}
-   if(['lowbridge','weakbridge','bus','footpath'].includes(e.type)){const labels={lowbridge:'LOW BRIDGE',weakbridge:'WEIGHT LIMIT',bus:'BUS ONLY',footpath:'PUBLIC PATH'};r.label(labels[e.type],x,y-h/2-8,'#ffebb5',7);}
+   // (the old floating text labels are gone: warning signs stand on the verge ahead, see signs())
    if(r.settings.hitboxes){c.save();c.strokeStyle='#ff4bcc';c.lineWidth=1;c.strokeRect(x-spec.hitWidth/2,y-(e.length||0)*r.worldScale-spec.hitHeight*r.worldScale/2,spec.hitWidth,(spec.hitHeight+(e.length||0))*r.worldScale);c.restore();}
   }
  }

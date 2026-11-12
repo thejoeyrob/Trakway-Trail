@@ -45,8 +45,9 @@ function composed(r,kind,paint,decal){
  const key=kind+':'+paint+':'+decal,hit=cache.get(key);if(hit)return hit;
  const P=PAINTS[paint]||PAINTS[0],img=r.images.routeTrucks;if(!img)return null;
  const rect=ROUTE_ATLAS.trucks.rects[kind==='cab'?P.cab.sprite:3];let c=crop(img,rect);
- if(kind==='cab'&&(P.cab.hue||P.cab.sat!==undefined||P.cab.light||P.cab.white))hueShift(c,P.cab);
- if(kind==='trailer'&&P.tint)tintBody(c,P.tint);
+ // Pixel recolouring needs readable pixels. If a platform blocks that, fall back to the unpainted sprite rather than failing.
+ try{if(kind==='cab'&&(P.cab.hue||P.cab.sat!==undefined||P.cab.light||P.cab.white))hueShift(c,P.cab);
+ if(kind==='trailer'&&P.tint)tintBody(c,P.tint);}catch(e){c=crop(img,rect);}
  const dp=DECAL_PAINT[decal];
  if(dp){const x=c.getContext('2d'),z=ZONE[kind];x.save();x.globalCompositeOperation='source-atop';x.globalAlpha=.94;x.beginPath();x.rect(...z);x.clip();dp(x,z[0],z[1],z[2],z[3],kind,r);x.restore();
   // put the original panel ribbing and lighting back over the graphic so it reads as paint, not a sticker
@@ -124,4 +125,4 @@ export function drawTrailerOnly(r,paint,decal,x,y,w,h,angle,alpha){const t=compo
 const thumbs=new Map();
 export function thumb(r,kind,paint,decal){const key=kind+':'+paint+':'+decal;if(thumbs.has(key))return thumbs.get(key);
  const src=composed(r,kind,paint,decal);if(!src)return '';const c=mk(Math.round(src.width*.55),Math.round(src.height*.55));c.getContext('2d').drawImage(src,0,0,c.width,c.height);
- const url=c.toDataURL('image/png');thumbs.set(key,url);return url;}
+ let url='';try{url=c.toDataURL('image/png');}catch(e){url='';}thumbs.set(key,url);return url;}
