@@ -31,7 +31,7 @@ export class Drive {
   this.truck=this.mode==='daily'?0:(options.truck||0);this.decal=this.mode==='daily'?0:(options.decal||0);this.trailerPaint=this.mode==='daily'?1:(options.trailerPaint??1);this.trailerDecal=this.mode==='daily'?0:(options.trailerDecal||0);this.hornAt=-10;
   this.events=[];this.items=[];this.distance=0;this.time=0;this.money=500;this.earned=0;this.fines=0;this.jobs=0;this.crumbs=0;this.horns=0;this.near=0;
   this.lane=2;this.x=2;this.trailer=2;this.rear=2;this.sway=0;this.angle=0;this.rapid=0;this.lastMove=-10;this.invulnerable=0;this.speed=180;
-  this.lastScenario='';this.cruise=240;this.row=900;this.nextJob=600;this.nextSheep=6500;this.nextNight=5600;this.nextBoost=1700;this.nextFunny=1500;this.funnyBag=[];this.nextShield=3600;this.shield=0;this.leaving=[];this.night=null;this.nights=0;this.boost=0;this.rested=this.upgrades.bunk?20+8*this.upgrades.bunk:0;
+  this.lastScenario='';this.cruise=240;this.row=900;this.nextJob=600;this.nextSheep=7200;this.nextNight=5600;this.nextBoost=1700;this.nextFunny=1500;this.funnyBag=[];this.nextShield=3600;this.shield=0;this.leaving=[];this.night=null;this.nights=0;this.boost=0;this.rested=this.upgrades.bunk?20+8*this.upgrades.bunk:0;
   this.job=null;this.sheep=null;this.finished=false;this.endReason='';this.stage=0;this.slow=0;this.multiplier=1;this.id=0;this.sheepFail=0;this.combo=0;this.crashKind='';this.lives=this.upgrades.insurance>=3?1:0;
  }
  snapshot(){const d={...this,rngState:this.rng.state};delete d.rng;d.events=[];return d;}
@@ -56,7 +56,7 @@ export class Drive {
   // Sheep: any honk from the baa until they are almost on you clears them (it used to be a 0.75 s window that expired well before impact).
   // A honk up to a quarter-second before the baa (more with a better horn) also counts, so quick fingers are rewarded, not punished.
   const s=this.sheep,ahead=s.z-this.distance,trigger=Math.max(375,this.speed*1.5),lead=.25+this.upgrades.horn*.16;
-  if(s.baa?ahead>35:ahead<trigger+this.speed*lead){s.cleared=true;this.horns++;this.award(75,'WOOL DONE!');this.emit('sheepClear');}else this.emit('hint',{text:'Wait for the BAA…'});}
+  if(s.baa?ahead>35:ahead<trigger+this.speed*lead){s.cleared=true;this.horns++;this.award(75,s.kind==='cows'?'MOO-VE ALONG!':'WOOL DONE!');this.emit('sheepClear',{kind:s.kind});}else this.emit('hint',{text:'Wait for the BAA…'});}
  award(value,label){this.money+=value;this.earned+=value;this.emit('cash',{value,label});}
  fine(value,label){if(this.invulnerable>0)return;value=Math.round(value*(1-.12*this.upgrades.insurance));this.money-=value;this.fines+=value;this.combo=0;this.invulnerable=1.3;this.slow=.8;this.emit('loss',{value,label});if(this.money<=0)this.end('The float has floated away.');}
  jobValue(value){return Math.round(value*this.multiplier*(1+deliveryBonus(this.upgrades,this.truck,this.decal)));}
@@ -142,7 +142,7 @@ export class Drive {
  freeLane(z,pref=2){const lanes=routeLanes(z,this.seed,{legal:true}).sort((a,b)=>Math.abs(a-pref)-Math.abs(b-pref));return lanes.find(l=>!this.laneBusy(l,z-170,z+170,100))??null;}
  /* One funny encounter, taken from the shuffled bag. Honkable ones can be shooed; cow, ice-cream van and bin lorry end the shift if you hit them. */
  spawnFunny(z){
-  if(!this.funnyBag.length){const a=FUNNY.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(this.rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}this.funnyBag=a;}
+  if(!this.funnyBag.length){const a=FUNNY.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(this.rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}if(!this.funnyStarted){a.splice(a.indexOf('cow'),1);a.unshift('cow');this.funnyStarted=true;}this.funnyBag=a;}
   const kind=this.funnyBag[0],spec=HAZARD_SPECS[kind],reserve=kind==='tractor'||kind==='caravan'?650:0;
   const corridor=laneCorridor(z-100,z+260,this.seed,true);if(corridor.length<3)return false;
   const order=corridor.slice();for(let i=order.length-1;i>0;i--){const j=Math.floor(this.rng()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
@@ -166,7 +166,7 @@ export class Drive {
    if(this.sheep||nearJob){this.row+=this.cruise*(gapSec+this.rng()*.4);continue;}
    if(this.spawnEncounter(this.row)){this.row+=600+this.cruise*(.9+this.rng()*.5);continue;}
    this.row+=this.makeRow(this.row,gapSec)+this.cruise*(gapSec+this.rng()*.4);}
-  if(this.distance>this.nextSheep-850&&!busy&&!this.items.some(e=>e.type==='night'&&!e.done)){this.sheep={z:this.distance+850,baa:false,baaAt:Infinity,cleared:false};this.emit('sheepWarning');for(const e of this.items)if(e.type==='job'&&!e.done&&e.z>this.distance)e.z=this.sheep.z+900;this.items=this.items.filter(e=>e.type==='job'||e.z+(e.length||0)<this.sheep.z-450||e.z>this.sheep.z+400);this.nextSheep=this.distance+5200;}
+  if(this.distance>this.nextSheep-850&&!busy&&!this.items.some(e=>e.type==='night'&&!e.done)){const kind=((this.herdN=(this.herdN||0)+1)%2===1)!==(this.rng()<.25)?'sheep':'cows';this.sheep={z:this.distance+850,baa:false,baaAt:Infinity,cleared:false,kind};this.emit('sheepWarning',{kind});for(const e of this.items)if(e.type==='job'&&!e.done&&e.z>this.distance)e.z=this.sheep.z+900;this.items=this.items.filter(e=>e.type==='job'||e.z+(e.length||0)<this.sheep.z-450||e.z>this.sheep.z+400);this.nextSheep=this.distance+7600+this.rng()*1800;}
  }
  /* 0 at the depot gate -> 1 after ~7 miles: hazards bunch up and the rig gets quicker so long shifts end on skill, not boredom */
  ramp(){return clamp(this.distance/48000,0,1);}
@@ -181,7 +181,7 @@ export class Drive {
   this.sway=this.hasTrailer?clamp(Math.abs(this.x-this.trailer)*.3+this.rapid*(this.job?.double?.72:.32)+(this.grip>0?.12:0),0,1):0;
   if(this.sway>.98&&this.job?.double){this.fine(260,'JACKKNIFE! Double trouble.');this.emit('jackknife');this.items=this.items.filter(e=>!['crumb','finish'].includes(e.type));this.job=null;this.multiplier=1;this.rapid=0;}
   if(this.night&&this.distance>this.night.end){this.night=null;this.emit('dawn');}this.spawn();
-  if(this.sheep){const s=this.sheep,ahead=s.z-this.distance;if(ahead<Math.max(375,this.speed*1.5)&&!s.baa){s.baa=true;s.baaAt=this.time;this.emit('baa');}if(ahead<65&&!s.cleared){this.sheepFail=1;this.crashKind='sheep';this.emit('sheepFail');this.end(CRASHES.sheep);}if(ahead< -200&&s.cleared)this.sheep=null;}
+  if(this.sheep){const s=this.sheep,ahead=s.z-this.distance;if(ahead<Math.max(375,this.speed*1.5)&&!s.baa){s.baa=true;s.baaAt=this.time;this.emit('baa',{kind:s.kind});}if(ahead<65&&!s.cleared){this.sheepFail=1;this.crashKind=s.kind==='cows'?'cow':'sheep';this.emit('sheepFail',{kind:s.kind});this.end(CRASHES[this.crashKind]);}if(ahead< -200&&s.cleared)this.sheep=null;}
   // Contraflow traffic approaches against the scrolling road; same collision rules as cars.
   for(const e of this.items)if(!e.done&&e.drift)e.z+=e.drift*dt;
   for(const e of this.items)if(!e.done&&e.oncoming){e.previousZ=e.z;e.z-=(e.speed||this.speed*.55)*dt;if(e.stopZ&&e.z<e.stopZ)e.done=true;}
