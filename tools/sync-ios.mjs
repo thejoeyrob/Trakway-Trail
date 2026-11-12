@@ -22,8 +22,12 @@ for(const name of files){let source=await readFile(path.join(root,'public/js',na
 }
 const bundle=`(function(){'use strict';const modules={${functions.join(',\n')}};const cache={};function require(n){if(cache[n])return cache[n].exports;if(!modules[n])throw new Error('Missing '+n);const m={exports:{}};cache[n]=m;modules[n](m,m.exports,require);return m.exports;}require('./game.js');})();`;
 await writeFile(path.join(dst,'js/game.bundle.js'),bundle);
-let html=(await readFile(path.join(root,'public/play.html'),'utf8')).replace('<link rel="manifest" href="./manifest.webmanifest">','').replace('<script type="module" src="./js/game.js"></script>','<script src="./js/audio-data.js"></script><script src="./js/game.bundle.js"></script>');
+let html=(await readFile(path.join(root,'public/play.html'),'utf8')).replace('<link rel="manifest" href="./manifest.webmanifest">','').replace('<script type="module" src="./js/game.js"></script>','<script src="./js/audio-data.js"></script><script src="./js/image-data.js"></script><script src="./js/game.bundle.js"></script>');
 await writeFile(path.join(dst,'play.html'),html);
 const MP3=['roadtrip','menumusic','jweds-jingle'],data={};for(const n of ['roadtrip','menumusic','ignition','idle','rev','cash','crumb','pickup','delivery','horn','sheep','flush','brake','click','scatter','bonus','jweds-jingle']){try{data[n]=(await readFile(path.join(root,'public/audio',n+(MP3.includes(n)?'.mp3':'.wav')))).toString('base64');}catch(e){if(n!=='jweds-jingle')throw e;}}
+/* Images whose pixels the game reads (paint recolouring, decals, garage thumbnails) are embedded as data: URLs. Images loaded from file:// are
+   cross-origin to the page in WKWebView and would block that; data: images are not. */
+const imageData={};for(const [key,file] of [['routeTrucks','route-v2/trucks.webp'],['extras','extras.webp'],['routeSurfaces','route-v2/surfaces.webp']])imageData[key]='data:image/webp;base64,'+(await readFile(path.join(root,'public/assets',file))).toString('base64');
+await writeFile(path.join(dst,'js/image-data.js'),'window.TRUCKIN_IMAGE_DATA='+JSON.stringify(imageData)+';');
 await writeFile(path.join(dst,'js/audio-data.js'),'window.TRUCKIN_AUDIO_DATA='+JSON.stringify(data)+';');
 console.log('Offline native web bundle synced: '+(bundle.length/1024).toFixed(1)+' KB of JS; all game art and audio included.');

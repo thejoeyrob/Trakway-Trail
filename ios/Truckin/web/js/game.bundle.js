@@ -320,12 +320,17 @@ class RoutePainter{
  /* Seamless ground textures. The atlas cells have a bright 1-2 px border and are not tileable, so each cell is cropped inward and made
     periodic by cross-fading it with a half-tile-shifted copy (no mirroring, so no kaleidoscope pattern or seam line every 256 px). */
  makePatterns(){const img=this.r.images.routeSurfaces;if(!img)return;const N=256,inset=12;
+  // Raised-cosine alpha mask (generated, never read back), so the whole thing works with images loaded from local files on iOS.
+  const mask=document.createElement('canvas');mask.width=mask.height=N;{const mx=mask.getContext('2d'),md=mx.createImageData(N,N);
+   for(let y=0;y<N;y++){const wy=.5-.5*Math.cos(2*Math.PI*y/N);for(let x=0;x<N;x++){const wx=.5-.5*Math.cos(2*Math.PI*x/N),i=(y*N+x)*4;md.data[i+3]=Math.round(255*wx*wy);}}mx.putImageData(md,0,0);}
   for(const rect of ROUTE_ATLAS.surfaces.rects){
    const A=document.createElement('canvas');A.width=A.height=N;const ax=A.getContext('2d');ax.drawImage(img,rect[0]+inset,rect[1]+inset,rect[2]-2*inset,rect[3]-2*inset,0,0,N,N);
-   const a=ax.getImageData(0,0,N,N),out=ax.createImageData(N,N),d=a.data,o=out.data;
-   for(let y=0;y<N;y++){const wy=.5-.5*Math.cos(2*Math.PI*y/N);for(let x=0;x<N;x++){const wx=.5-.5*Math.cos(2*Math.PI*x/N),w=wx*wy,i=(y*N+x)*4,j=(((y+N/2)%N)*N+((x+N/2)%N))*4;
-    o[i]=d[i]*w+d[j]*(1-w);o[i+1]=d[i+1]*w+d[j+1]*(1-w);o[i+2]=d[i+2]*w+d[j+2]*(1-w);o[i+3]=255;}}
-   ax.putImageData(out,0,0);this.patterns.push(this.r.ctx.createPattern(A,'repeat'));
+   const out=document.createElement('canvas');out.width=out.height=N;const ox=out.getContext('2d');
+   // B: the tile shifted by half a tile in both directions (wrapped)
+   for(const dx of[-N/2,N/2])for(const dy of[-N/2,N/2])ox.drawImage(A,dx,dy);
+   // A, faded out towards its edges by the mask, laid over B
+   const Am=document.createElement('canvas');Am.width=Am.height=N;const amx=Am.getContext('2d');amx.drawImage(A,0,0);amx.globalCompositeOperation='destination-in';amx.drawImage(mask,0,0);
+   ox.drawImage(Am,0,0);this.patterns.push(this.r.ctx.createPattern(out,'repeat'));
   }
  }
  atlas(sheet,id,x,y,w,h,angle=0,alpha=1){const r=this.r,c=r.ctx,key=sheet.replace('route','').toLowerCase(),meta=ROUTE_ATLAS[key],img=r.images[sheet],rect=meta?.rects[id];if(!img||!rect)return;
@@ -525,8 +530,9 @@ function composed(r,kind,paint,decal){
  const key=kind+':'+paint+':'+decal,hit=cache.get(key);if(hit)return hit;
  const P=PAINTS[paint]||PAINTS[0],img=r.images.routeTrucks;if(!img)return null;
  const rect=ROUTE_ATLAS.trucks.rects[kind==='cab'?P.cab.sprite:3];let c=crop(img,rect);
- if(kind==='cab'&&(P.cab.hue||P.cab.sat!==undefined||P.cab.light||P.cab.white))hueShift(c,P.cab);
- if(kind==='trailer'&&P.tint)tintBody(c,P.tint);
+ // Pixel recolouring needs readable pixels. If a platform blocks that, fall back to the unpainted sprite rather than failing.
+ try{if(kind==='cab'&&(P.cab.hue||P.cab.sat!==undefined||P.cab.light||P.cab.white))hueShift(c,P.cab);
+ if(kind==='trailer'&&P.tint)tintBody(c,P.tint);}catch(e){c=crop(img,rect);}
  const dp=DECAL_PAINT[decal];
  if(dp){const x=c.getContext('2d'),z=ZONE[kind];x.save();x.globalCompositeOperation='source-atop';x.globalAlpha=.94;x.beginPath();x.rect(...z);x.clip();dp(x,z[0],z[1],z[2],z[3],kind,r);x.restore();
   // put the original panel ribbing and lighting back over the graphic so it reads as paint, not a sticker
@@ -604,7 +610,7 @@ function drawTrailerOnly(r,paint,decal,x,y,w,h,angle,alpha){const t=composed(r,'
 const thumbs=new Map();
 function thumb(r,kind,paint,decal){const key=kind+':'+paint+':'+decal;if(thumbs.has(key))return thumbs.get(key);
  const src=composed(r,kind,paint,decal);if(!src)return '';const c=mk(Math.round(src.width*.55),Math.round(src.height*.55));c.getContext('2d').drawImage(src,0,0,c.width,c.height);
- const url=c.toDataURL('image/png');thumbs.set(key,url);return url;}
+ let url='';try{url=c.toDataURL('image/png');}catch(e){url='';}thumbs.set(key,url);return url;}
 
 module.exports={PAINTS,DECAL_PAINT,drawRig,drawTrailerOnly,thumb};
 
@@ -1021,7 +1027,7 @@ class Renderer {
   c.font='900 15px -apple-system,sans-serif';c.textAlign='center';const w=c.measureText(h.label).width+26,ly=Math.max(30,y-h.ry-30);c.fillStyle='#1c0b0b';c.strokeStyle='#ff4b3a';c.lineWidth=2.5;c.beginPath();c.roundRect(Math.min(420-w/2-8,Math.max(w/2+8,x))-w/2,ly-17,w,28,9);c.fill();c.stroke();c.fillStyle='#fff3e0';c.fillText(h.label,Math.min(420-w/2-8,Math.max(w/2+8,x)),ly+3);c.restore();}
  c.restore();}
 }
-async function loadImages(){const names=['sprites','roads','restrictions','cover','terrain','extras'];const extra={routeSurfaces:'surfaces',routeProps:'props',routeTrucks:'trucks',routeShowroom:'showroom',routeScenery:'scenery'};let result={};await Promise.all([...names,...Object.keys(extra)].map(n=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>{result[n]=i;res();};i.onerror=()=>rej(new Error(n));i.src='./assets/'+(extra[n]?'route-v2/'+extra[n]:n)+'.webp';})));return result;}
+async function loadImages(){const names=['sprites','roads','restrictions','cover','terrain','extras'];const extra={routeSurfaces:'surfaces',routeProps:'props',routeTrucks:'trucks',routeShowroom:'showroom',routeScenery:'scenery'};let result={};await Promise.all([...names,...Object.keys(extra)].map(n=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>{result[n]=i;res();};i.onerror=()=>rej(new Error(n));i.src=(window.TRUCKIN_IMAGE_DATA&&window.TRUCKIN_IMAGE_DATA[n])||('./assets/'+(extra[n]?'route-v2/'+extra[n]:n)+'.webp');})));return result;}
 
 module.exports={SPR,Renderer,loadImages};
 
