@@ -16,38 +16,100 @@ function glowSpot(c,x,y){const g=c.createRadialGradient(x,y,1,x,y,14);g.addColor
 function grad(c,x0,y0,x1,y1,a,b){const g=c.createLinearGradient(x0,y0,x1,y1);g.addColorStop(0,a);g.addColorStop(1,b);return g;}
 const ART={
  cow(c,w,h,t){
-  shadow(c,w*.95,h*.8);
-  const sw=Math.sin(t*3)*3;
-  // tail, legs
-  c.strokeStyle='#d8d2c4';c.lineWidth=2.4;c.lineCap='round';c.beginPath();c.moveTo(0,-h*.32);c.quadraticCurveTo(sw*1.4,-h*.45,sw*2,-h*.5);c.stroke();blob(c,sw*2,-h*.5,2.6,3.4,'#2a2622');
-  for(const [x,y] of [[-.27,-.2],[.27,-.2],[-.27,.14],[.27,.14]])blob(c,x*w,y*h,w*.07,h*.06,'#27231f');
-  // body
-  c.fillStyle=grad(c,-w*.4,0,w*.4,0,'#fbf8ef','#e1dccd');rr(c,-w*.37,-h*.34,w*.74,h*.62,w*.3);c.fill();
-  c.fillStyle='#262320';
-  c.beginPath();c.ellipse(-w*.14,-h*.15,w*.17,h*.12,.4,0,TAU);c.fill();c.beginPath();c.ellipse(w*.16,h*.02,w*.2,h*.1,-.3,0,TAU);c.fill();c.beginPath();c.ellipse(-w*.1,h*.15,w*.1,h*.07,0,0,TAU);c.fill();
-  c.strokeStyle='#bdb7a6';c.lineWidth=1.3;c.beginPath();c.moveTo(0,-h*.32);c.lineTo(0,h*.26);c.stroke();
-  // head, facing the truck (down the screen)
-  blob(c,0,h*.36,w*.22,h*.15,'#f0ebde');blob(c,-w*.08,h*.34,w*.1,h*.07,'#262320');
-  blob(c,0,h*.43,w*.15,h*.07,'#f3b3b0');blob(c,-w*.05,h*.44,1.6,1.4,'#7a3b3b');blob(c,w*.05,h*.44,1.6,1.4,'#7a3b3b');
-  blob(c,-w*.12,h*.33,2.4,2.6,'#101010');blob(c,w*.12,h*.33,2.4,2.6,'#101010');
-  blob(c,-w*.3,h*.31,w*.09,h*.04,'#e8e2d2',-.4);blob(c,w*.3,h*.31,w*.09,h*.04,'#e8e2d2',.4);
-  c.strokeStyle='#e9d9a5';c.lineWidth=2.4;c.beginPath();c.moveTo(-w*.16,h*.28);c.lineTo(-w*.2,h*.24);c.moveTo(w*.16,h*.28);c.lineTo(w*.2,h*.24);c.stroke();
+  shadow(c,w*1.0,h*.82);
+  const sw=Math.sin(t*3)*3,ink='#1d1f20';
+  c.strokeStyle='#d9d3c3';c.lineWidth=2.6;c.lineCap='round';c.beginPath();c.moveTo(0,-h*.3);c.quadraticCurveTo(sw*1.4,-h*.43,sw*2.2,-h*.5);c.stroke();blob(c,sw*2.2,-h*.5,3,4.2,ink);   // tail
+  for(const [x,y] of [[-.29,-.2],[.29,-.2],[-.29,.14],[.29,.14]]){blob(c,x*w,y*h,w*.075,h*.065,'#2a2622');blob(c,x*w-1,y*h-1,w*.03,h*.02,'#ffffff30');}   // hooves
+  // body: big Friesian patches
+  c.save();c.beginPath();c.roundRect(-w*.4,-h*.35,w*.8,h*.64,w*.3);c.clip();
+  c.fillStyle=grad(c,-w*.4,0,w*.4,0,'#fffdf6','#e4dfd0');c.fillRect(-w*.5,-h*.4,w,h*.8);
+  c.fillStyle=ink;for(const [x,y,rx,ry,r] of [[-.16,-.2,.2,.14,.5],[.2,-.05,.22,.17,-.4],[-.12,.17,.16,.1,.2],[.24,.2,.1,.08,0],[-.3,.02,.08,.12,.3]]){c.beginPath();c.ellipse(x*w,y*h,rx*w,ry*h,r,0,TAU);c.fill();}
+  c.fillStyle='#ffffff2e';c.beginPath();c.ellipse(-w*.16,-h*.22,w*.18,h*.05,0,0,TAU);c.fill();c.restore();
+  c.strokeStyle=ink;c.lineWidth=1.6;c.beginPath();c.roundRect(-w*.4,-h*.35,w*.8,h*.64,w*.3);c.stroke();
+  c.strokeStyle='#bdb7a6';c.lineWidth=1.3;c.beginPath();c.moveTo(0,-h*.33);c.lineTo(0,h*.27);c.stroke();   // spine
+  // head, looking at you
+  blob(c,0,h*.37,w*.25,h*.16,'#f3efe2');c.strokeStyle=ink;c.lineWidth=1.4;c.beginPath();c.ellipse(0,h*.37,w*.25,h*.16,0,0,TAU);c.stroke();
+  blob(c,-w*.1,h*.33,w*.1,h*.07,ink);blob(c,0,h*.45,w*.17,h*.08,'#f5b3ae');blob(c,-w*.055,h*.46,1.8,1.5,'#7a3b3b');blob(c,w*.055,h*.46,1.8,1.5,'#7a3b3b');
+  blob(c,-w*.13,h*.34,3,3.2,'#101010');blob(c,w*.13,h*.34,3,3.2,'#101010');blob(c,-w*.12,h*.335,1,1,'#fff');blob(c,w*.14,h*.335,1,1,'#fff');
+  blob(c,-w*.31,h*.32,w*.1,h*.045,'#ebe5d4',-.4);blob(c,w*.31,h*.32,w*.1,h*.045,'#ebe5d4',.4);   // ears
+  c.strokeStyle='#efe0ab';c.lineWidth=3;c.beginPath();c.moveTo(-w*.17,h*.27);c.lineTo(-w*.22,h*.22);c.moveTo(w*.17,h*.27);c.lineTo(w*.22,h*.22);c.stroke();   // horns
  },
  tractor(c,w,h,t){
-  shadow(c,w*1.05,h*.95);
-  // rear wheels, front wheels
-  for(const s of[-1,1]){c.fillStyle='#1d1f1d';rr(c,s*w*.5-w*.13+(s>0?0:0),h*.04,w*.26,h*.34,5);c.fill();c.fillStyle='#e8c53a';rr(c,s*w*.5-w*.04,h*.14,w*.08,h*.14,2);c.fill();
-   c.fillStyle='#1d1f1d';rr(c,s*w*.38-w*.07,-h*.34,w*.14,h*.17,3);c.fill();}
-  // chassis + bonnet + cab
-  c.fillStyle='#37403c';rr(c,-w*.11,-h*.4,w*.22,h*.8,3);c.fill();
-  c.fillStyle=grad(c,-w*.3,0,w*.3,0,'#d6402f','#9f2a20');rr(c,-w*.26,-h*.45,w*.52,h*.42,9);c.fill();
-  c.fillStyle='#ffffff30';rr(c,-w*.2,-h*.43,w*.1,h*.34,4);c.fill();
-  c.fillStyle='#2b2f2d';c.beginPath();c.arc(w*.12,-h*.38,3,0,TAU);c.fill();c.fillRect(w*.115,-h*.5,1.8,h*.14);
-  c.fillStyle=grad(c,-w*.3,0,w*.3,0,'#e5e0cf','#bdb7a4');rr(c,-w*.3,-h*.02,w*.6,h*.4,6);c.fill();
-  c.fillStyle='#51606a';rr(c,-w*.24,h*.0,w*.48,h*.1,3);c.fill();rr(c,-w*.24,h*.27,w*.48,h*.08,3);c.fill();
-  c.fillStyle='#ffffff55';c.fillRect(-w*.22,h*.14,w*.44,2);
-  // amber beacon
-  const on=Math.sin(t*9)>0;c.fillStyle=on?'#ffc23a':'#a8721a';c.beginPath();c.arc(0,h*.3,4,0,TAU);c.fill();if(on){const g=c.createRadialGradient(0,h*.3,1,0,h*.3,16);g.addColorStop(0,'#ffcf5acc');g.addColorStop(1,'#ffcf5a00');c.fillStyle=g;c.fillRect(-18,h*.3-18,36,36);}
+  shadow(c,w*1.08,h*.96);const ink='#14201a',G='#2f9f55',G2='#1f6f3b';
+  // big rear wheels with tread, small front wheels
+  for(const s2 of[-1,1]){const x=s2*w*.47;
+   c.fillStyle='#161a19';rr(c,x-w*.13,h*.0,w*.26,h*.4,6);c.fill();c.strokeStyle='#3a4240';c.lineWidth=1.4;for(let i=0;i<9;i++){const y=h*.02+i*h*.042;c.beginPath();c.moveTo(x-w*.13,y);c.lineTo(x+w*.13,y+3);c.stroke();}
+   c.fillStyle='#f0c21a';rr(c,x-w*.035,h*.1,w*.07,h*.2,2);c.fill();
+   c.fillStyle='#161a19';rr(c,s2*w*.4-w*.075,-h*.36,w*.15,h*.17,4);c.fill();c.fillStyle='#f0c21a';rr(c,s2*w*.4-w*.02,-h*.32,w*.04,h*.09,2);c.fill();}
+  // axle, bonnet, front weight
+  c.fillStyle='#2b3330';rr(c,-w*.4,-h*.28,w*.8,h*.035,2);c.fill();
+  c.fillStyle='#5a625f';rr(c,-w*.15,-h*.53,w*.3,h*.06,3);c.fill();
+  c.fillStyle=grad(c,-w*.25,0,w*.25,0,G,G2);rr(c,-w*.24,-h*.5,w*.48,h*.5,10);c.fill();c.strokeStyle=ink;c.lineWidth=1.6;rr(c,-w*.24,-h*.5,w*.48,h*.5,10);c.stroke();
+  c.fillStyle='#ffffff33';rr(c,-w*.19,-h*.47,w*.1,h*.42,4);c.fill();c.fillStyle='#f0c21a';c.fillRect(-w*.24,-h*.27,w*.48,h*.03);
+  c.fillStyle='#1a2220';for(let i=0;i<4;i++)c.fillRect(-w*.17,-h*.49+i*h*.016,w*.34,h*.008);                // grille
+  blob(c,-w*.17,-h*.505,3.2,2.2,'#fffbe0');blob(c,w*.17,-h*.505,3.2,2.2,'#fffbe0');
+  c.fillStyle='#262c2a';c.beginPath();c.arc(w*.13,-h*.2,3.6,0,TAU);c.fill();c.fillStyle='#9aa4a0';c.beginPath();c.arc(w*.13,-h*.2,2,0,TAU);c.fill();    // exhaust stack
+  // cab
+  c.fillStyle='#e9ece6';rr(c,-w*.3,-h*.03,w*.6,h*.37,9);c.fill();c.strokeStyle=ink;c.lineWidth=1.6;rr(c,-w*.3,-h*.03,w*.6,h*.37,9);c.stroke();
+  c.fillStyle='#2f5b66';rr(c,-w*.25,0,w*.5,h*.07,3);c.fill();rr(c,-w*.25,h*.26,w*.5,h*.06,3);c.fill();rr(c,-w*.27,h*.07,w*.05,h*.19,2);c.fill();rr(c,w*.22,h*.07,w*.05,h*.19,2);c.fill();   // glass round the roof
+  c.fillStyle='#ffffff66';c.fillRect(-w*.2,h*.12,w*.4,2);c.fillStyle='#cfd5cf';rr(c,-w*.18,h*.1,w*.36,h*.14,3);c.fill();
+  blob(c,-w*.34,h*.04,3,4,'#242b29');blob(c,w*.34,h*.04,3,4,'#242b29');                                               // mirrors
+  c.fillStyle=G2;rr(c,-w*.12,h*.34,w*.24,h*.05,2);c.fill();c.fillStyle='#2a2f2d';c.fillRect(-w*.03,h*.39,w*.06,h*.07);                                 // rear hitch
+  const on=Math.sin(t*9)>0;c.fillStyle=on?'#ffb52e':'#9a6a14';c.beginPath();c.arc(0,h*.17,3.8,0,TAU);c.fill();if(on)glowSpot(c,0,h*.17);
+ },
+ icecream(c,w,h,t){
+  shadow(c,w*1.08,h*.96);const ink='#2a2230';
+  // wheels, serving-hatch awning on the right
+  c.fillStyle='#161a1a';for(const y of[-.3,.28])for(const s2 of[-1,1]){rr(c,s2*w*.49-w*.065,h*y-h*.07,w*.13,h*.14,3);c.fill();}
+  c.fillStyle='#fff';c.beginPath();c.moveTo(w*.38,h*.0);c.lineTo(w*.66,h*.05);c.lineTo(w*.66,h*.27);c.lineTo(w*.38,h*.3);c.closePath();c.fill();
+  c.fillStyle='#ff6fa5';for(let i=0;i<5;i++){c.beginPath();const y0=h*(.0+i*.06),y1=y0+h*.03;c.moveTo(w*.38,y0);c.lineTo(w*.66,y0+h*.012);c.lineTo(w*.66,y1+h*.012);c.lineTo(w*.38,y1);c.closePath();c.fill();}
+  c.strokeStyle=ink;c.lineWidth=1.3;c.beginPath();c.moveTo(w*.38,0);c.lineTo(w*.66,h*.05);c.lineTo(w*.66,h*.27);c.lineTo(w*.38,h*.3);c.stroke();
+  // body
+  c.fillStyle=grad(c,-w*.4,0,w*.4,0,'#fffaf0','#e8dcc6');rr(c,-w*.4,-h*.47,w*.8,h*.94,w*.17);c.fill();c.strokeStyle=ink;c.lineWidth=1.8;rr(c,-w*.4,-h*.47,w*.8,h*.94,w*.17);c.stroke();
+  c.fillStyle='#ff6fa5';rr(c,-w*.4,h*.04,w*.12,h*.43,6);c.fill();c.fillStyle='#35c4d2';rr(c,-w*.28,h*.04,w*.05,h*.43,2);c.fill();
+  // cab: windscreen, bonnet, headlamps
+  c.fillStyle='#41555d';rr(c,-w*.3,-h*.42,w*.6,h*.14,6);c.fill();c.fillStyle='#ffffff55';c.fillRect(-w*.24,-h*.405,w*.48,2.5);
+  blob(c,-w*.3,-h*.475,3.4,2.4,'#fff7c8');blob(c,w*.3,-h*.475,3.4,2.4,'#fff7c8');
+  // roof sign board with the lettering, and the giant cone
+  c.fillStyle='#fff';rr(c,-w*.2,-h*.24,w*.4,h*.62,6);c.fill();c.strokeStyle='#ff6fa5';c.lineWidth=2.4;rr(c,-w*.2,-h*.24,w*.4,h*.62,6);c.stroke();
+  c.save();c.translate(0,h*.1);c.rotate(Math.PI/2);c.fillStyle='#e0457f';c.font='900 '+Math.round(w*.17)+'px "Barlow Semi Condensed","Arial Narrow",sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('ICE CREAM',0,0,h*.5);c.restore();
+  c.fillStyle='#e9b25f';c.beginPath();c.moveTo(-w*.1,-h*.18);c.lineTo(w*.1,-h*.18);c.lineTo(0,-h*.02);c.closePath();c.fill();c.strokeStyle='#b57d2e';c.lineWidth=1;for(let i=-2;i<=2;i++){c.beginPath();c.moveTo(i*w*.04,-h*.18);c.lineTo(0,-h*.03);c.stroke();}
+  blob(c,0,-h*.215,w*.12,w*.1,'#ff9fc4');blob(c,-w*.02,-h*.235,w*.075,w*.06,'#ffd1e3');blob(c,0,-h*.255,w*.04,w*.035,'#d8466f');       // swirl and cherry
+  c.fillStyle='#2d3436';rr(c,-w*.12,h*.4,w*.24,h*.055,3);c.fill();                                                                       // chime speaker
+  const on=Math.sin(t*6)>0;c.fillStyle=on?'#ffe14a':'#9c8a2e';c.beginPath();c.arc(-w*.35,-h*.4,2.8,0,TAU);c.arc(w*.35,-h*.4,2.8,0,TAU);c.fill();
+ },
+ caravan(c,w,h,t){
+  shadow(c,w*1.1,h*.96);const ink='#1d2733';
+  const ch=h*.3,cy=-h*.5+ch/2+2;
+  c.fillStyle='#161a1a';for(const y of[-.4,-.2])for(const s2 of[-1,1]){rr(c,s2*w*.36-w*.05,h*y-h*.04,w*.1,h*.08,2);c.fill();}
+  c.fillStyle=grad(c,-w*.35,0,w*.35,0,'#4a86dc','#27529c');rr(c,-w*.34,cy-ch/2,w*.68,ch,10);c.fill();c.strokeStyle=ink;c.lineWidth=1.6;rr(c,-w*.34,cy-ch/2,w*.68,ch,10);c.stroke();
+  c.fillStyle='#22364f';rr(c,-w*.26,cy-ch*.12,w*.52,ch*.34,5);c.fill();rr(c,-w*.26,cy-ch*.44,w*.52,ch*.22,5);c.fill();c.fillStyle='#ffffff40';c.fillRect(-w*.22,cy-ch*.4,w*.44,2);
+  blob(c,-w*.24,cy-ch*.5,2.6,1.8,'#fff7c8');blob(c,w*.24,cy-ch*.5,2.6,1.8,'#fff7c8');
+  c.strokeStyle='#4b5257';c.lineWidth=2.6;c.beginPath();c.moveTo(0,cy+ch/2);c.lineTo(0,cy+ch/2+h*.07);c.stroke();                       // towbar
+  const by=cy+ch/2+h*.07,bh=h-(by+h/2)-2;
+  c.fillStyle='#161a1a';for(const s2 of[-1,1]){rr(c,s2*w*.43-w*.045,by+bh*.55,w*.09,h*.12,2);c.fill();}
+  c.fillStyle=grad(c,-w*.4,0,w*.4,0,'#fffaf0','#ddd1b6');rr(c,-w*.4,by,w*.8,bh,11);c.fill();c.strokeStyle=ink;c.lineWidth=1.8;rr(c,-w*.4,by,w*.8,bh,11);c.stroke();
+  c.fillStyle='#cdd3d7';rr(c,-w*.14,by+bh*.18,w*.28,bh*.14,3);c.fill();rr(c,-w*.2,by+bh*.5,w*.4,bh*.12,3);c.fill();c.strokeStyle='#8a949a';c.lineWidth=1;c.strokeRect(-w*.14,by+bh*.18,w*.28,bh*.14);
+  c.strokeStyle='#e9a73a';c.lineWidth=3.4;c.beginPath();c.moveTo(-w*.4,by+bh*.38);c.lineTo(w*.4,by+bh*.38);c.stroke();c.strokeStyle='#3a7bd0';c.lineWidth=1.6;c.beginPath();c.moveTo(-w*.4,by+bh*.44);c.lineTo(w*.4,by+bh*.44);c.stroke();
+  c.fillStyle='#d33';c.fillRect(-w*.3,by+bh-3,6,3);c.fillRect(w*.3-6,by+bh-3,6,3);
+ },
+ binlorry(c,w,h,t){
+  shadow(c,w*1.08,h*.96);const ink='#12251a';
+  c.fillStyle='#161a1a';for(const y of[.2,.36,-.32])for(const s2 of[-1,1]){rr(c,s2*w*.48-w*.065,h*y-h*.07,w*.13,h*.14,3);c.fill();}
+  // body and hopper
+  c.fillStyle=grad(c,-w*.4,0,w*.4,0,'#34a05d','#1d6b3b');rr(c,-w*.4,-h*.2,w*.8,h*.68,9);c.fill();c.strokeStyle=ink;c.lineWidth=1.8;rr(c,-w*.4,-h*.2,w*.8,h*.68,9);c.stroke();
+  c.fillStyle='#ffffff2e';rr(c,-w*.34,-h*.18,w*.1,h*.5,4);c.fill();
+  c.fillStyle='#0f3a25';rr(c,-w*.3,h*.08,w*.6,h*.34,6);c.fill();c.strokeStyle='#8ed3a6';c.lineWidth=1.3;for(let i=0;i<6;i++){c.beginPath();c.moveTo(-w*.28,h*.12+i*h*.05);c.lineTo(w*.28,h*.12+i*h*.05);c.stroke();}
+  c.fillStyle='#fff';c.font='900 '+Math.round(w*.17)+'px "Barlow Semi Condensed","Arial Narrow",sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('REFUSE',0,-h*.02);
+  // rear lift bar and hi-vis chevrons
+  c.strokeStyle='#9aa7a2';c.lineWidth=3;c.beginPath();c.moveTo(-w*.3,h*.47);c.lineTo(w*.3,h*.47);c.stroke();
+  for(let i=0;i<8;i++){c.fillStyle=i%2?'#f6e21c':'#d6262a';c.beginPath();const x0=-w*.36+i*w*.09;c.moveTo(x0,h*.5);c.lineTo(x0+w*.09,h*.5);c.lineTo(x0+w*.045,h*.455);c.lineTo(x0-w*.045,h*.455);c.closePath();c.fill();}
+  // cab
+  c.fillStyle=grad(c,-w*.3,0,w*.3,0,'#f7f4ea','#cfc9b6');rr(c,-w*.34,-h*.49,w*.68,h*.3,9);c.fill();c.strokeStyle=ink;c.lineWidth=1.6;rr(c,-w*.34,-h*.49,w*.68,h*.3,9);c.stroke();
+  c.fillStyle='#41565c';rr(c,-w*.27,-h*.46,w*.54,h*.11,4);c.fill();c.fillStyle='#ffffff55';c.fillRect(-w*.22,-h*.445,w*.44,2);
+  blob(c,-w*.27,-h*.495,3,2.2,'#fff7c8');blob(c,w*.27,-h*.495,3,2.2,'#fff7c8');
+  const on=Math.sin(t*8)>0;c.fillStyle=on?'#ffb52e':'#8a5d12';c.beginPath();c.arc(-w*.2,-h*.2,3.6,0,TAU);c.arc(w*.2,-h*.2,3.6,0,TAU);c.fill();if(on){glowSpot(c,-w*.2,-h*.2);glowSpot(c,w*.2,-h*.2);}
+  for(const s2 of[-1,1]){c.fillStyle='#2b6dd0';rr(c,s2*w*.6-w*.08,h*.2,w*.16,h*.14,3);c.fill();c.fillStyle='#1d3f78';rr(c,s2*w*.6-w*.08,h*.2,w*.16,h*.045,2);c.fill();c.strokeStyle=ink;c.lineWidth=1;rr(c,s2*w*.6-w*.08,h*.2,w*.16,h*.14,3);c.stroke();}   // wheelie bins
  },
  haybale(c,w,h,t){
   shadow(c,w*.95,h*.95);
@@ -55,18 +117,6 @@ const ART={
   c.strokeStyle='#a97b22';c.lineWidth=1.1;for(let i=-4;i<=4;i++){c.beginPath();c.moveTo(-w*.4,i*h*.085);c.lineTo(w*.4,i*h*.085+Math.sin(i)*2);c.stroke();}
   c.strokeStyle='#d9692a';c.lineWidth=3;for(const x of[-w*.2,w*.2]){c.beginPath();c.moveTo(x,-h*.4);c.lineTo(x,h*.4);c.stroke();}
   c.strokeStyle='#ffe9a0aa';c.lineWidth=1.4;for(let i=0;i<9;i++){const x=((i*37)%80-40)/40*w*.35,y=((i*53)%80-40)/40*h*.32;c.beginPath();c.moveTo(x,y);c.lineTo(x+5,y-4);c.stroke();}
- },
- icecream(c,w,h,t){
-  shadow(c,w*1.05,h*.95);
-  c.fillStyle='#181c1c';for(const y of[-.28,.26])for(const s of[-1,1]){rr(c,s*w*.47-w*.06,h*y-h*.06,w*.12,h*.12,3);c.fill();}
-  c.fillStyle=grad(c,-w*.4,0,w*.4,0,'#fff4e2','#e3d6bd');rr(c,-w*.4,-h*.46,w*.8,h*.92,w*.2);c.fill();
-  c.fillStyle='#f2639b';rr(c,-w*.4,h*.02,w*.8,h*.1,3);c.fill();c.fillStyle='#38c3d1';rr(c,-w*.4,h*.12,w*.8,h*.07,3);c.fill();
-  c.fillStyle='#43565c';rr(c,-w*.32,-h*.4,w*.64,h*.17,5);c.fill();c.fillStyle='#ffffff45';c.fillRect(-w*.28,-h*.38,w*.56,2);
-  // roof: giant cone from above, loudspeaker
-  blob(c,0,-h*.1,w*.27,w*.27,'#f6c06a');c.strokeStyle='#d9983a';c.lineWidth=1.2;for(let i=0;i<8;i++){const a=i/8*TAU;c.beginPath();c.moveTo(0,-h*.1);c.lineTo(Math.cos(a)*w*.27,-h*.1+Math.sin(a)*w*.27);c.stroke();}
-  blob(c,0,-h*.1,w*.2,w*.2,'#ff9fc4');blob(c,-w*.04,-h*.13,w*.1,w*.1,'#ffd1e3');blob(c,0,-h*.1,w*.045,w*.045,'#d8466f');
-  c.fillStyle='#2d3436';rr(c,-w*.2,h*.27,w*.4,h*.1,3);c.fill();
-  const on=Math.sin(t*6)>0;c.fillStyle=on?'#ffe14a':'#9c8a2e';c.beginPath();c.arc(-w*.3,-h*.44,2.6,0,TAU);c.arc(w*.3,-h*.44,2.6,0,TAU);c.fill();
  },
  geese(c,w,h,t){
   shadow(c,w*.9,h*.8,.2);
@@ -98,30 +148,6 @@ const ART={
    c.strokeStyle=col;c.lineWidth=2.6;c.beginPath();c.moveTo(-w*.07,-h*.02);c.lineTo(-w*.03,-h*.14);c.moveTo(w*.07,-h*.02);c.lineTo(w*.03,-h*.14);c.stroke();
    c.restore();});
  },
- caravan(c,w,h,t){
-  shadow(c,w*1.05,h*.95);
-  // little blue hatchback up front, cream caravan behind it
-  const ch=h*.3,cy=-h*.5+ch/2+2;
-  c.fillStyle=grad(c,-w*.35,0,w*.35,0,'#4a7fd0','#2c56a0');rr(c,-w*.34,cy-ch/2,w*.68,ch,9);c.fill();
-  c.fillStyle='#2a3a52';rr(c,-w*.26,cy-ch*.1,w*.52,ch*.32,4);c.fill();rr(c,-w*.26,cy-ch*.42,w*.52,ch*.22,4);c.fill();
-  c.strokeStyle='#4b5257';c.lineWidth=2.4;c.beginPath();c.moveTo(0,cy+ch/2);c.lineTo(0,cy+ch/2+h*.07);c.stroke();                             // tow bar
-  const by=cy+ch/2+h*.07,bh=h-(by+h/2)-2;
-  c.fillStyle=grad(c,-w*.4,0,w*.4,0,'#fbf4e2','#ddd2b8');rr(c,-w*.4,by,w*.8,bh,10);c.fill();
-  c.fillStyle='#c9ced2';rr(c,-w*.13,by+bh*.28,w*.26,bh*.18,3);c.fill();rr(c,-w*.2,by+bh*.62,w*.4,bh*.12,3);c.fill();                            // roof vents
-  c.strokeStyle='#e9a73a';c.lineWidth=3;c.beginPath();c.moveTo(-w*.4,by+bh*.45);c.lineTo(w*.4,by+bh*.45);c.stroke();                           // stripe
-  c.fillStyle='#d33';c.fillRect(-w*.3,by+bh-3,5,3);c.fillRect(w*.3-5,by+bh-3,5,3);
- },
- binlorry(c,w,h,t){
-  shadow(c,w*1.05,h*.95);
-  c.fillStyle='#161a1a';for(const y of[.22,.38])for(const s2 of[-1,1]){rr(c,s2*w*.47-w*.06,h*y-h*.07,w*.12,h*.14,3);c.fill();}
-  c.fillStyle=grad(c,-w*.4,0,w*.4,0,'#2f8f55','#1d6038');rr(c,-w*.4,-h*.2,w*.8,h*.68,9);c.fill();                                              // body
-  c.fillStyle='#173f2a';rr(c,-w*.3,h*.05,w*.6,h*.36,6);c.fill();c.strokeStyle='#8fd0a5';c.lineWidth=1.4;for(let i=0;i<5;i++){c.beginPath();c.moveTo(-w*.28,h*.1+i*h*.06);c.lineTo(w*.28,h*.1+i*h*.06);c.stroke();}   // hopper
-  c.fillStyle=grad(c,-w*.3,0,w*.3,0,'#f4f1e6','#cfc9b6');rr(c,-w*.34,-h*.49,w*.68,h*.3,8);c.fill();c.fillStyle='#43565c';rr(c,-w*.26,-h*.46,w*.52,h*.12,4);c.fill();   // cab
-  const on=Math.sin(t*8)>0;c.fillStyle=on?'#ffb52e':'#8a5d12';c.beginPath();c.arc(-w*.2,-h*.2,3.4,0,TAU);c.arc(w*.2,-h*.2,3.4,0,TAU);c.fill();
-  if(on){glowSpot(c,-w*.2,-h*.2);glowSpot(c,w*.2,-h*.2);}
-  c.fillStyle='#fff';c.font='900 '+Math.round(w*.13)+'px sans-serif';c.textAlign='center';c.fillText('BIN',0,h*.3);
-  for(const s2 of[-1,1]){c.fillStyle='#2b6dd0';rr(c,s2*w*.58-w*.07,h*.28,w*.14,h*.12,2);c.fill();c.fillStyle='#1d3f78';rr(c,s2*w*.58-w*.07,h*.28,w*.14,h*.04,1);c.fill();}   // wheelie bins
- },
  horseshoe(c,w,h,t){
   const pulse=1+Math.sin(t*5)*.06;c.save();c.scale(pulse,pulse);
   const g=c.createRadialGradient(0,0,2,0,0,w*.75);g.addColorStop(0,'#fff0a8cc');g.addColorStop(1,'#ffe06b00');c.fillStyle=g;c.fillRect(-w*.8,-w*.8,w*1.6,w*1.6);
@@ -135,40 +161,13 @@ const ART={
 const HAS_ART=Object.keys(ART);
 function drawProp(c,kind,w,h,t=0){const f=ART[kind];if(!f)return false;c.save();f(c,w,h,t);c.restore();return true;}
 
-module.exports={HAS_ART,drawProp};
+/* Optional painted vehicle art: if assets/route-v2/vehicles.webp exists (a 4 x 4 grid, see docs/VEHICLE-ART-PROMPT.md) the game uses it instead of the drawn versions. */
+const VEHICLE_CELLS={cow:0,tractor:1,icecream:2,binlorry:3,caravan:4,haybale:5,geese:6,morris:7,cyclists:8};
+function drawVehicle(c,img,kind,w,h,t){const cell=VEHICLE_CELLS[kind];
+ if(img&&cell!==undefined){const cw=img.width/4,ch=img.height/4,sx=(cell%4)*cw,sy=Math.floor(cell/4)*ch,k=Math.min(w/cw,h/ch);c.drawImage(img,sx,sy,cw,ch,-cw*k/2,-ch*k/2,cw*k,ch*k);return true;}
+ return drawProp(c,kind,w,h,t);}
 
-},
-"./uksigns.js":function(module,exports,require){
-/* UK-style road signs drawn in code (no image files): red-bordered warning triangles, red-ring prohibition circles, the red No Entry disc,
-   blue mandatory circles, blue bus-lane rectangles and white local direction signs. Each is drawn face-on at (x,y), size s, on a short post. */
-const TAU=Math.PI*2,RED='#d4141f',BLUE='#0f5fb5',INK='#15171a',WHITE='#fbfbf6';
-function post(c,x,y,s){c.fillStyle='#0a1416aa';c.fillRect(x-1,y+s*.42,2,s*.45);}
-function tri(c,x,y,s){c.save();c.translate(x,y);c.lineJoin='round';const h=s*.9;c.beginPath();c.moveTo(0,-h*.58);c.lineTo(s*.52,h*.42);c.lineTo(-s*.52,h*.42);c.closePath();c.fillStyle=WHITE;c.fill();c.lineWidth=s*.13;c.strokeStyle=RED;c.stroke();return h;}
-const ICONS={
- low(c,s){c.strokeStyle=INK;c.lineWidth=s*.07;c.beginPath();c.moveTo(-s*.2,s*.28);c.lineTo(-s*.2,-s*.02);c.arc(0,-s*.02,s*.2,Math.PI,0);c.lineTo(s*.2,s*.28);c.stroke();c.beginPath();c.moveTo(0,s*.3);c.lineTo(0,s*.02);c.moveTo(-s*.06,s*.08);c.lineTo(0,s*.01);c.lineTo(s*.06,s*.08);c.stroke();},
- works(c,s){c.fillStyle=INK;c.beginPath();c.arc(-s*.1,-s*.14,s*.06,0,TAU);c.fill();c.strokeStyle=INK;c.lineWidth=s*.07;c.lineCap='round';c.beginPath();c.moveTo(-s*.1,-s*.07);c.lineTo(-s*.14,s*.12);c.lineTo(-s*.2,s*.3);c.moveTo(-s*.14,s*.12);c.lineTo(-s*.02,s*.3);c.moveTo(-s*.1,0);c.lineTo(s*.06,s*.08);c.moveTo(s*.06,s*.0);c.lineTo(s*.12,s*.26);c.stroke();c.beginPath();c.moveTo(s*.2,s*.3);c.lineTo(s*.3,s*.12);c.lineTo(s*.4,s*.3);c.closePath();c.fill();},
- slippery(c,s){c.fillStyle=INK;c.beginPath();c.roundRect(-s*.14,-s*.2,s*.28,s*.3,s*.06);c.fill();c.strokeStyle=INK;c.lineWidth=s*.06;c.lineCap='round';for(const dy of[.18,.3]){c.beginPath();c.moveTo(-s*.22,s*dy);c.bezierCurveTo(-s*.1,s*(dy-.07),s*.1,s*(dy+.07),s*.22,s*dy);c.stroke();}},
- peds(c,s){c.strokeStyle=INK;c.fillStyle=INK;c.lineWidth=s*.06;c.lineCap='round';for(const [x,k] of[[-s*.14,1],[s*.14,.8]]){c.beginPath();c.arc(x,-s*.17*k,s*.05*k,0,TAU);c.fill();c.beginPath();c.moveTo(x,-s*.1*k);c.lineTo(x,s*.12);c.lineTo(x-s*.07,s*.3);c.moveTo(x,s*.12);c.lineTo(x+s*.07,s*.3);c.moveTo(x-s*.08,-s*.02);c.lineTo(x+s*.08,-s*.02);c.stroke();}},
- cattle(c,s){c.fillStyle=INK;c.beginPath();c.ellipse(-s*.02,s*.02,s*.2,s*.11,0,0,TAU);c.fill();c.beginPath();c.ellipse(s*.22,-s*.04,s*.07,s*.06,0,0,TAU);c.fill();c.strokeStyle=INK;c.lineWidth=s*.05;c.lineCap='round';for(const x of[-s*.14,-s*.06,s*.08,s*.15]){c.beginPath();c.moveTo(x,s*.08);c.lineTo(x,s*.27);c.stroke();}c.beginPath();c.moveTo(s*.24,-s*.1);c.lineTo(s*.27,-s*.16);c.moveTo(-s*.2,-s*.01);c.lineTo(-s*.28,s*.08);c.stroke();},
- narrow(c,s){c.strokeStyle=INK;c.lineWidth=s*.08;c.lineCap='round';c.beginPath();c.moveTo(-s*.22,s*.3);c.bezierCurveTo(-s*.22,s*.05,-s*.09,s*.05,-s*.09,-s*.18);c.moveTo(s*.22,s*.3);c.bezierCurveTo(s*.22,s*.05,s*.09,s*.05,s*.09,-s*.18);c.stroke();}
-};
-function drawSign(c,type,x,y,s=26,o={}){
- c.save();
- if(ICONS[type]){post(c,x,y,s);const h=tri(c,x,y,s);ICONS[type](c,s);c.restore();
-  if(o.plate){c.save();c.fillStyle=WHITE;c.strokeStyle=INK;c.lineWidth=1;const w=s*.78,hh=s*.3;c.beginPath();c.roundRect(x-w/2,y+h*.46,w,hh,2);c.fill();c.stroke();c.fillStyle=INK;c.font='800 '+(s*.22)+'px -apple-system,Arial,sans-serif';c.textAlign='center';c.fillText(o.plate,x,y+h*.46+hh*.75);c.restore();}
-  return;}
- post(c,x,y,s);c.translate(x,y);
- if(type==='limit'){c.beginPath();c.arc(0,0,s*.5,0,TAU);c.fillStyle=WHITE;c.fill();c.lineWidth=s*.14;c.strokeStyle=RED;c.stroke();c.fillStyle=INK;c.textAlign='center';c.font='900 '+(s*.34)+'px -apple-system,Arial,sans-serif';c.fillText(o.text||'7.5t',0,s*.12);}
- else if(type==='noentry'){c.beginPath();c.arc(0,0,s*.5,0,TAU);c.fillStyle=RED;c.fill();c.fillStyle=WHITE;c.fillRect(-s*.34,-s*.07,s*.68,s*.14);}
- else if(type==='arrow'){c.beginPath();c.arc(0,0,s*.5,0,TAU);c.fillStyle=BLUE;c.fill();c.strokeStyle=WHITE;c.lineWidth=s*.04;c.stroke();c.rotate(o.dir<0?-.6:o.dir>0?.6:0);c.fillStyle=WHITE;c.beginPath();c.moveTo(0,-s*.34);c.lineTo(s*.24,-s*.04);c.lineTo(s*.09,-s*.04);c.lineTo(s*.09,s*.3);c.lineTo(-s*.09,s*.3);c.lineTo(-s*.09,-s*.04);c.lineTo(-s*.24,-s*.04);c.closePath();c.fill();}
- else if(type==='bus'){const w=s*1.05,h=s*.8;c.fillStyle=BLUE;c.beginPath();c.roundRect(-w/2,-h/2,w,h,3);c.fill();c.strokeStyle=WHITE;c.lineWidth=1.2;c.stroke();c.fillStyle=WHITE;c.beginPath();c.roundRect(-s*.26,-s*.2,s*.52,s*.3,3);c.fill();c.fillStyle=BLUE;c.fillRect(-s*.2,-s*.15,s*.4,s*.09);c.fillStyle=WHITE;c.font='800 '+(s*.15)+'px -apple-system,Arial,sans-serif';c.textAlign='center';c.fillText('BUS LANE',0,s*.3);}
- else{ // direction / information sign: white, black text, thin black border (UK non-primary style)
-  const lines=o.lines||[o.text||''],w=Math.max(s*1.2,Math.max(...lines.map(t=>t.length))*s*.17+s*.5),h=s*.28*lines.length+s*.3;c.fillStyle=WHITE;c.strokeStyle=INK;c.lineWidth=1.4;c.beginPath();c.roundRect(-w/2,-h/2,w,h,3);c.fill();c.stroke();
-  c.fillStyle=INK;c.textAlign='center';c.font='800 '+(s*.23)+'px -apple-system,Arial,sans-serif';lines.forEach((t,i)=>c.fillText(t,0,-h/2+s*.35+i*s*.28));}
- c.restore();
-}
-
-module.exports={drawSign};
+module.exports={HAS_ART,drawProp,VEHICLE_CELLS,drawVehicle};
 
 },
 "./route-world.js":function(module,exports,require){
@@ -325,15 +324,15 @@ const HAZARD_SPECS={
  noentry:{width:72,height:160,hitWidth:58,hitHeight:120,effect:'fine',sprite:3,sheet:'terrain'},
  grass:{width:72,height:145,hitWidth:60,hitHeight:100,effect:'grip-fine',sprite:8,sheet:'routeProps'},
  // Hand-drawn (see propart.js). Cow and ice-cream van end the shift; honking shoos cows and geese away in time.
- cow:{width:60,height:96,hitWidth:46,hitHeight:70,effect:'crash',draw:'cow',sheet:'draw'},
- tractor:{width:62,height:108,hitWidth:50,hitHeight:88,effect:'fine',draw:'tractor',sheet:'draw'},
+ cow:{width:66,height:104,hitWidth:50,hitHeight:76,effect:'crash',draw:'cow',sheet:'draw'},
+ tractor:{width:74,height:124,hitWidth:56,hitHeight:100,effect:'fine',draw:'tractor',sheet:'draw'},
  haybale:{width:64,height:58,hitWidth:52,hitHeight:46,effect:'fine',draw:'haybale',sheet:'draw'},
- icecream:{width:60,height:112,hitWidth:48,hitHeight:94,effect:'crash',draw:'icecream',sheet:'draw'},
+ icecream:{width:68,height:128,hitWidth:52,hitHeight:106,effect:'crash',draw:'icecream',sheet:'draw'},
  geese:{width:68,height:64,hitWidth:54,hitHeight:48,effect:'fine',draw:'geese',sheet:'draw'},
  morris:{width:70,height:62,hitWidth:56,hitHeight:50,effect:'fine',draw:'morris',sheet:'draw'},
  cyclists:{width:66,height:76,hitWidth:52,hitHeight:60,effect:'fine',draw:'cyclists',sheet:'draw'},
- caravan:{width:60,height:156,hitWidth:50,hitHeight:132,effect:'fine',draw:'caravan',sheet:'draw'},
- binlorry:{width:64,height:132,hitWidth:52,hitHeight:112,effect:'crash',draw:'binlorry',sheet:'draw'}
+ caravan:{width:64,height:166,hitWidth:52,hitHeight:140,effect:'fine',draw:'caravan',sheet:'draw'},
+ binlorry:{width:70,height:144,hitWidth:56,hitHeight:122,effect:'crash',draw:'binlorry',sheet:'draw'}
 };
 const PICKUP_SPECS={hitch:{sprite:13,sheet:'routeProps',width:45,height:45},prize:{sprite:12,sheet:'routeProps',width:40,height:40},shield:{draw:'horseshoe',width:46,height:46}};
 function sweptOverlap(a0,a1,half,e0,e1){return Math.max(a0,a1)+half>=e0&&Math.min(a0,a1)-half<=e1;}
@@ -342,12 +341,11 @@ module.exports={HAZARD_SPECS,PICKUP_SPECS,sweptOverlap};
 
 },
 "./route-render.js":function(module,exports,require){
-const {roadAt,hash,steeringX,CHUNK_LENGTH,surfaceAt,sceneryProps,sideProps,roadEdge}=require("./route-world.js");
+const {roadAt,hash,steeringX,CHUNK_LENGTH,surfaceAt,sceneryProps,sideProps}=require("./route-world.js");
 const {roadTheme}=require("./geometry.js");
 const {ROUTE_ATLAS}=require("./route-atlas.js");
 const {HAZARD_SPECS,PICKUP_SPECS}=require("./route-hazards.js");
-const {drawProp}=require("./propart.js");
-const {drawSign}=require("./uksigns.js");
+const {drawProp,drawVehicle}=require("./propart.js");
 const mod=(n,m)=>((n%m)+m)%m;
 class RoutePainter{
  constructor(renderer){this.r=renderer;this.patterns=[];this.makePatterns();}
@@ -422,17 +420,7 @@ class RoutePainter{
  post(x,y,lines,tone){const c=this.r.ctx,w=42,h=lines.length>1?30:22;c.save();c.fillStyle='#0b1c1fcc';c.fillRect(x-1.2,y+h/2,2.4,16);c.fillStyle=tone;c.strokeStyle='#f3f6e6';c.lineWidth=1.6;c.beginPath();c.roundRect(x-w/2,y-h/2,w,h,3);c.fill();c.stroke();
   c.fillStyle='#fbfcef';c.font='800 6.6px -apple-system,sans-serif';c.textAlign='center';lines.forEach((t,i)=>c.fillText(t,x,y+(lines.length>1?-2.5+i*9:2.5)));c.restore();}
  signs(g){const r=this.r,c=r.ctx,start=Math.max(0,Math.floor(g.distance/CHUNK_LENGTH)-1),end=start+2;
-  // UK-style signs, on the verge only, and only where they mean something: forks, roadworks and warnings ahead of hazards.
-  const edge=(z,side)=>{const e=roadEdge(z,side,g.seed,20)+side*16;return Math.max(-r.pad+14,Math.min(420+r.pad-14,e));},sy=z=>r.playerY-(z-g.distance)*r.worldScale;
-  for(let i=start;i<=end;i++){const a=roadAt(i*CHUNK_LENGTH+900,g.seed),y=sy(a.signZ);if(y<-50||y>r.H+50)continue;
-   if(a.sign&&a.sign.left){const rs=a.restricted==='left'?-1:1,ls=-rs,kind=a.motif==='contraflow'?'noentry':a.motif==='estate-fork'?'dir':'slippery';
-    if(kind==='dir')drawSign(c,'dir',edge(a.signZ,rs),y,26,{lines:['ACCESS','ONLY']});else drawSign(c,kind,edge(a.signZ,rs),y,26);
-    drawSign(c,'dir',edge(a.signZ,ls),y,26,{lines:['MAIN','ROAD']});}
-   else if(a.motif==='roadworks'){const side=a.side<0?-1:1;drawSign(c,'works',edge(a.signZ,side),y,26);drawSign(c,'arrow',edge(a.signZ+70,side),sy(a.signZ+70),24,{dir:a.side});}
-  }
-  const PLATES=["12'6\"","13'3\"","14'0\"","14'6\""],MAP={lowbridge:'low',weakbridge:'limit',bus:'bus',noentry:'noentry',footpath:'peds',narrow:'narrow',works:'works',barrier:'works',mud:'slippery',oil:'slippery',cow:'cattle'};
-  for(const e of g.items){const t=MAP[e.type];if(!t||e.done)continue;const z=e.z-300,y=sy(z);if(y<-40||y>r.H+40||z<g.distance-120)continue;const side=e.lane<2?-1:1;
-   drawSign(c,t,edge(z,side),y,26,t==='low'?{plate:PLATES[e.id%4]}:t==='limit'?{text:'7.5t'}:{});}
+  // No signs at all. The road is just the road; forks are announced by a short toast and marked by painted arrows.
   // Arrows belong to the road. No-entry branch points toward the driver.
   for(let z=Math.floor((g.distance-300)/340)*340;z<g.distance+r.playerY/r.worldScale;z+=340){const a=roadAt(z,g.seed);if(a.gate<.97||a.bands.length<2)continue;
    for(const b of a.bands){const x=(b.left+b.right)/2,y=r.playerY-(z-g.distance)*r.worldScale;c.save();c.translate(x,y);if(b.rule==='oneway')c.rotate(Math.PI);c.fillStyle=b.rule?'#ffdfc3a0':'#e9eddca0';c.beginPath();c.moveTo(0,-17);c.lineTo(10,-4);c.lineTo(4,-4);c.lineTo(4,13);c.lineTo(-4,13);c.lineTo(-4,-4);c.lineTo(-10,-4);c.closePath();c.fill();c.restore();}
@@ -440,7 +428,7 @@ class RoutePainter{
  }
  hazards(g){const r=this.r,c=r.ctx;this.leaving(g);for(const e of g.items){if(e.done)continue;const spec=HAZARD_SPECS[e.type];if(!spec)continue;const x=steeringX(e.lane),y=r.playerY-(e.z-g.distance)*r.worldScale;if(y< -160||y>r.H+160)continue;
    const h=spec.height*r.worldScale+(e.length||0)*r.worldScale;
-   if(spec.draw){c.save();c.translate(x,y);c.scale(1,r.worldScale);drawProp(c,spec.draw,spec.width,spec.height,r.time+e.id);c.restore();}
+   if(spec.draw){c.save();c.translate(x,y);c.scale(1,r.worldScale);drawVehicle(c,r.images.vehicles,spec.draw,spec.width,spec.height,r.time+e.id);c.restore();}
    else if(spec.sheet.startsWith('route'))this.atlas(spec.sheet,spec.sprite,x,y-(e.length||0)*r.worldScale/2,spec.width,h,e.oncoming?Math.PI:0);
    else r.sprite(spec.sprite,x,y-(e.length||0)*r.worldScale/2,spec.width,h,e.oncoming?Math.PI:0,1,spec.sheet);
    if(e.honkable&&e.z-g.distance>60&&e.z-g.distance<620)r.label('HONK!',x,y-h/2-6,'#fff0a8',9);
@@ -451,7 +439,7 @@ class RoutePainter{
  }
  pickup(e,x,y){const spec=PICKUP_SPECS[e.type];if(!spec)return false;const c=this.r.ctx;if(spec.draw){c.save();c.translate(x,y);drawProp(c,spec.draw,spec.width,spec.height,this.r.time+e.id);c.restore();}else this.atlas(spec.sheet,spec.sprite,x,y,spec.width,spec.height);const L={hitch:['HITCH UP','#a3ffd0'],prize:['£85 BONUS','#ffe7a2'],shield:['LUCKY SHOE','#fff0a8']}[e.type];this.r.label(L[0],x,y-29,L[1],8);return true;}
  /* Cows and geese you've honked away trot off to the side and fade. */
- leaving(g){const r=this.r,c=r.ctx;for(const d of g.leaving||[]){const spec=HAZARD_SPECS[d.type];if(!spec)continue;const y=r.playerY-(d.z-g.distance)*r.worldScale,x=steeringX(d.lane)+d.dir*d.age*130;c.save();c.globalAlpha=Math.max(0,1-d.age/1.4);c.translate(x,y);c.scale(1,r.worldScale);c.rotate(d.dir*.5*Math.min(1,d.age*3));drawProp(c,spec.draw,spec.width,spec.height,r.time*3);c.restore();}}
+ leaving(g){const r=this.r,c=r.ctx;for(const d of g.leaving||[]){const spec=HAZARD_SPECS[d.type];if(!spec)continue;const y=r.playerY-(d.z-g.distance)*r.worldScale,x=steeringX(d.lane)+d.dir*d.age*130;c.save();c.globalAlpha=Math.max(0,1-d.age/1.4);c.translate(x,y);c.scale(1,r.worldScale);c.rotate(d.dir*.5*Math.min(1,d.age*3));drawVehicle(c,r.images.vehicles,d.type,spec.width,spec.height,r.time*3);c.restore();}}
 }
 
 module.exports={RoutePainter};
@@ -777,7 +765,7 @@ class Drive {
   this.truck=this.mode==='daily'?0:(options.truck||0);this.decal=this.mode==='daily'?0:(options.decal||0);this.trailerPaint=this.mode==='daily'?1:(options.trailerPaint??1);this.trailerDecal=this.mode==='daily'?0:(options.trailerDecal||0);this.hornAt=-10;
   this.events=[];this.items=[];this.distance=0;this.time=0;this.money=500;this.earned=0;this.fines=0;this.jobs=0;this.crumbs=0;this.horns=0;this.near=0;
   this.lane=2;this.x=2;this.trailer=2;this.rear=2;this.sway=0;this.angle=0;this.rapid=0;this.lastMove=-10;this.invulnerable=0;this.speed=180;
-  this.lastScenario='';this.cruise=240;this.row=900;this.nextJob=600;this.nextSheep=6500;this.nextNight=5600;this.nextBoost=1700;this.nextFunny=1500;this.funnyBag=[];this.nextShield=3600;this.shield=0;this.leaving=[];this.night=null;this.nights=0;this.boost=0;this.rested=this.upgrades.bunk?20+8*this.upgrades.bunk:0;
+  this.lastScenario='';this.cruise=240;this.row=900;this.nextJob=600;this.nextSheep=7200;this.nextNight=5600;this.nextBoost=1700;this.nextFunny=1500;this.funnyBag=[];this.nextShield=3600;this.shield=0;this.leaving=[];this.night=null;this.nights=0;this.boost=0;this.rested=this.upgrades.bunk?20+8*this.upgrades.bunk:0;
   this.job=null;this.sheep=null;this.finished=false;this.endReason='';this.stage=0;this.slow=0;this.multiplier=1;this.id=0;this.sheepFail=0;this.combo=0;this.crashKind='';this.lives=this.upgrades.insurance>=3?1:0;
  }
  snapshot(){const d={...this,rngState:this.rng.state};delete d.rng;d.events=[];return d;}
@@ -802,7 +790,7 @@ class Drive {
   // Sheep: any honk from the baa until they are almost on you clears them (it used to be a 0.75 s window that expired well before impact).
   // A honk up to a quarter-second before the baa (more with a better horn) also counts, so quick fingers are rewarded, not punished.
   const s=this.sheep,ahead=s.z-this.distance,trigger=Math.max(375,this.speed*1.5),lead=.25+this.upgrades.horn*.16;
-  if(s.baa?ahead>35:ahead<trigger+this.speed*lead){s.cleared=true;this.horns++;this.award(75,'WOOL DONE!');this.emit('sheepClear');}else this.emit('hint',{text:'Wait for the BAA…'});}
+  if(s.baa?ahead>35:ahead<trigger+this.speed*lead){s.cleared=true;this.horns++;this.award(75,s.kind==='cows'?'MOO-VE ALONG!':'WOOL DONE!');this.emit('sheepClear',{kind:s.kind});}else this.emit('hint',{text:'Wait for the BAA…'});}
  award(value,label){this.money+=value;this.earned+=value;this.emit('cash',{value,label});}
  fine(value,label){if(this.invulnerable>0)return;value=Math.round(value*(1-.12*this.upgrades.insurance));this.money-=value;this.fines+=value;this.combo=0;this.invulnerable=1.3;this.slow=.8;this.emit('loss',{value,label});if(this.money<=0)this.end('The float has floated away.');}
  jobValue(value){return Math.round(value*this.multiplier*(1+deliveryBonus(this.upgrades,this.truck,this.decal)));}
@@ -888,7 +876,7 @@ class Drive {
  freeLane(z,pref=2){const lanes=routeLanes(z,this.seed,{legal:true}).sort((a,b)=>Math.abs(a-pref)-Math.abs(b-pref));return lanes.find(l=>!this.laneBusy(l,z-170,z+170,100))??null;}
  /* One funny encounter, taken from the shuffled bag. Honkable ones can be shooed; cow, ice-cream van and bin lorry end the shift if you hit them. */
  spawnFunny(z){
-  if(!this.funnyBag.length){const a=FUNNY.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(this.rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}this.funnyBag=a;}
+  if(!this.funnyBag.length){const a=FUNNY.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(this.rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}if(!this.funnyStarted){a.splice(a.indexOf('cow'),1);a.unshift('cow');this.funnyStarted=true;}this.funnyBag=a;}
   const kind=this.funnyBag[0],spec=HAZARD_SPECS[kind],reserve=kind==='tractor'||kind==='caravan'?650:0;
   const corridor=laneCorridor(z-100,z+260,this.seed,true);if(corridor.length<3)return false;
   const order=corridor.slice();for(let i=order.length-1;i>0;i--){const j=Math.floor(this.rng()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
@@ -912,7 +900,7 @@ class Drive {
    if(this.sheep||nearJob){this.row+=this.cruise*(gapSec+this.rng()*.4);continue;}
    if(this.spawnEncounter(this.row)){this.row+=600+this.cruise*(.9+this.rng()*.5);continue;}
    this.row+=this.makeRow(this.row,gapSec)+this.cruise*(gapSec+this.rng()*.4);}
-  if(this.distance>this.nextSheep-850&&!busy&&!this.items.some(e=>e.type==='night'&&!e.done)){this.sheep={z:this.distance+850,baa:false,baaAt:Infinity,cleared:false};this.emit('sheepWarning');for(const e of this.items)if(e.type==='job'&&!e.done&&e.z>this.distance)e.z=this.sheep.z+900;this.items=this.items.filter(e=>e.type==='job'||e.z+(e.length||0)<this.sheep.z-450||e.z>this.sheep.z+400);this.nextSheep=this.distance+5200;}
+  if(this.distance>this.nextSheep-850&&!busy&&!this.items.some(e=>e.type==='night'&&!e.done)){const kind=((this.herdN=(this.herdN||0)+1)%2===1)!==(this.rng()<.25)?'sheep':'cows';this.sheep={z:this.distance+850,baa:false,baaAt:Infinity,cleared:false,kind};this.emit('sheepWarning',{kind});for(const e of this.items)if(e.type==='job'&&!e.done&&e.z>this.distance)e.z=this.sheep.z+900;this.items=this.items.filter(e=>e.type==='job'||e.z+(e.length||0)<this.sheep.z-450||e.z>this.sheep.z+400);this.nextSheep=this.distance+7600+this.rng()*1800;}
  }
  /* 0 at the depot gate -> 1 after ~7 miles: hazards bunch up and the rig gets quicker so long shifts end on skill, not boredom */
  ramp(){return clamp(this.distance/48000,0,1);}
@@ -927,7 +915,7 @@ class Drive {
   this.sway=this.hasTrailer?clamp(Math.abs(this.x-this.trailer)*.3+this.rapid*(this.job?.double?.72:.32)+(this.grip>0?.12:0),0,1):0;
   if(this.sway>.98&&this.job?.double){this.fine(260,'JACKKNIFE! Double trouble.');this.emit('jackknife');this.items=this.items.filter(e=>!['crumb','finish'].includes(e.type));this.job=null;this.multiplier=1;this.rapid=0;}
   if(this.night&&this.distance>this.night.end){this.night=null;this.emit('dawn');}this.spawn();
-  if(this.sheep){const s=this.sheep,ahead=s.z-this.distance;if(ahead<Math.max(375,this.speed*1.5)&&!s.baa){s.baa=true;s.baaAt=this.time;this.emit('baa');}if(ahead<65&&!s.cleared){this.sheepFail=1;this.crashKind='sheep';this.emit('sheepFail');this.end(CRASHES.sheep);}if(ahead< -200&&s.cleared)this.sheep=null;}
+  if(this.sheep){const s=this.sheep,ahead=s.z-this.distance;if(ahead<Math.max(375,this.speed*1.5)&&!s.baa){s.baa=true;s.baaAt=this.time;this.emit('baa',{kind:s.kind});}if(ahead<65&&!s.cleared){this.sheepFail=1;this.crashKind=s.kind==='cows'?'cow':'sheep';this.emit('sheepFail',{kind:s.kind});this.end(CRASHES[this.crashKind]);}if(ahead< -200&&s.cleared)this.sheep=null;}
   // Contraflow traffic approaches against the scrolling road; same collision rules as cars.
   for(const e of this.items)if(!e.done&&e.drift)e.z+=e.drift*dt;
   for(const e of this.items)if(!e.done&&e.oncoming){e.previousZ=e.z;e.z-=(e.speed||this.speed*.55)*dt;if(e.stopZ&&e.z<e.stopZ)e.done=true;}
@@ -1016,6 +1004,7 @@ module.exports={Sound};
 "./render.js":function(module,exports,require){
 const {RoutePainter}=require("./route-render.js");
 const {drawRig,drawTrailerOnly}=require("./rigart.js");
+const {drawVehicle}=require("./propart.js");
 const {HAZARD_SPECS}=require("./route-hazards.js");
 const {clamp,ROAD_TYPES,PICKUPS}=require("./model.js");
 const {rigPose,roadShape,roadCurve,laneX,roadTheme,RIG}=require("./geometry.js");
@@ -1064,7 +1053,7 @@ class Renderer {
  else if(HAZ[e.type]!==undefined){w=e.type.includes('bridge')?64:55;this.sprite(HAZ[e.type],x,y,w,w,0,1,'restrictions');if(LABELS[e.type])this.label(LABELS[e.type],x,y-34,'#fff2d2',7);}
  else this.sprite(SPR[e.type]??6,x,y,w,h,e.oncoming?Math.PI:0);
  }
- if(g.sheep){const s=g.sheep,y=this.playerY-(s.z-g.distance)*this.worldScale;for(let i=0;i<5;i++){let x=this.x(i,s.z),rot=Math.sin(this.time*5+i)*.12;let sy=y+Math.sin(i*3)*17;if(s.cleared){const move=Math.max(0,(g.time-s.baaAt-.3))*120;x+=(i<2?-1:1)*move;rot=i<2?-1.5:1.5;sy+=Math.sin(this.time*20+i)*5;}this.sprite(12,x,sy,50,52,rot);}}
+ if(g.sheep){const s=g.sheep,y=this.playerY-(s.z-g.distance)*this.worldScale;for(let i=0;i<5;i++){let x=this.x(i,s.z),rot=Math.sin(this.time*5+i)*.12;let sy=y+Math.sin(i*3)*17;if(s.cleared){const move=Math.max(0,(g.time-s.baaAt-.3))*120;x+=(i<2?-1:1)*move;rot=i<2?-1.5:1.5;sy+=Math.sin(this.time*20+i)*5;}if(s.kind==='cows'){const c=this.ctx;c.save();c.translate(x,sy);c.rotate(rot);c.scale(1,this.worldScale);drawVehicle(c,this.images.vehicles,'cow',62,98,this.time+i);c.restore();}else this.sprite(12,x,sy,50,52,rot);}}
  for(const d of g.detached||[])drawTrailerOnly(this,g.trailerPaint??1,g.trailerDecal??0,d.x,this.playerY-(d.z-g.distance)*this.worldScale,RIG.trailerW,RIG.trailerL*this.worldScale,d.angle,Math.max(0,1-d.age/3));
  const px=this.x(g.x,g.distance);let alpha=g.invulnerable>0&&Math.floor(this.time*13)%2===0?.55:1;this.nightLight(g);this.rig(g,truckIndex,px,this.playerY,alpha);
  for(const f of this.fx){f.age+=dt;f.x+=f.vx*dt;f.y+=f.vy*dt;if(f.kind!=='text')f.vy+=190*dt;let a=clamp(1-f.age/f.life,0,1);if(f.kind==='text'){c.save();c.globalAlpha=a;this.label(f.text,f.x,f.y,'#fff0ad',17);c.restore();}else this.sprite(f.kind==='loss'?11:11,f.x,f.y,13,13,f.rot+f.age*7,a);}
@@ -1075,7 +1064,8 @@ class Renderer {
   c.font='900 15px -apple-system,sans-serif';c.textAlign='center';const w=c.measureText(h.label).width+26,ly=Math.max(30,y-h.ry-30);c.fillStyle='#1c0b0b';c.strokeStyle='#ff4b3a';c.lineWidth=2.5;c.beginPath();c.roundRect(Math.min(420-w/2-8,Math.max(w/2+8,x))-w/2,ly-17,w,28,9);c.fill();c.stroke();c.fillStyle='#fff3e0';c.fillText(h.label,Math.min(420-w/2-8,Math.max(w/2+8,x)),ly+3);c.restore();}
  c.restore();}
 }
-async function loadImages(){const names=['sprites','roads','restrictions','cover','terrain','extras'];const extra={routeSurfaces:'surfaces',routeProps:'props',routeTrucks:'trucks',routeShowroom:'showroom',routeScenery:'scenery'};let result={};await Promise.all([...names,...Object.keys(extra)].map(n=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>{result[n]=i;res();};i.onerror=()=>rej(new Error(n));i.src=(window.TRUCKIN_IMAGE_DATA&&window.TRUCKIN_IMAGE_DATA[n])||('./assets/'+(extra[n]?'route-v2/'+extra[n]:n)+'.webp');})));return result;}
+async function loadImages(){const names=['sprites','roads','restrictions','cover','terrain','extras'];const extra={routeSurfaces:'surfaces',routeProps:'props',routeTrucks:'trucks',routeShowroom:'showroom',routeScenery:'scenery'};let result={};await new Promise(res=>{const i=new Image();i.onload=()=>{result.vehicles=i;res();};i.onerror=()=>res();i.src=(window.TRUCKIN_IMAGE_DATA&&window.TRUCKIN_IMAGE_DATA.vehicles)||'./assets/route-v2/vehicles.webp';});
+ await Promise.all([...names,...Object.keys(extra)].map(n=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>{result[n]=i;res();};i.onerror=()=>rej(new Error(n));i.src=(window.TRUCKIN_IMAGE_DATA&&window.TRUCKIN_IMAGE_DATA[n])||('./assets/'+(extra[n]?'route-v2/'+extra[n]:n)+'.webp');})));return result;}
 
 module.exports={SPR,Renderer,loadImages};
 
@@ -1363,7 +1353,7 @@ const COMICS={
  icecream:{art:"<div class='stage'><span class='emo b'>🍦</span><span class='emo a'>🚛</span><i class='burst'>SPLAT!</i></div>",title:'99 PROBLEMS!',sub:'ONE FLAKE-ING DISASTER.<br>NO SPRINKLES. NO REFUNDS.',sfx:['brake','splat','chime']},
  house:{art:"<div class='stage'><span class='part home'>"+IMG('house')+"</span><span class='part cab'>"+IMG('cab')+"</span><i class='burst'>DING-DONG!</i></div>",title:'KNOCK, KNOCK!',sub:'WHO’S THERE? A LORRY.<br>IN THE LOUNGE.',sfx:['horn','brake','flush']}
 };
-let comicAt=0,comicDelayed=false,crashComicTimer=0;
+let comicAt=0,comicDelayed=false,crashComicTimer=0,forkToastId=-1;
 function showComic(kind){const c=COMICS[kind]||COMICS.sheep,el=$('comic');el.className='comic-'+kind;el.innerHTML=c.art+'<strong>'+c.title+'</strong><small>'+c.sub+'</small><em>TAP TO CONTINUE</em>';comicAt=performance.now();c.sfx.forEach((n,i)=>setTimeout(()=>sound.play(n),i*260));if(kind!=='sheep'){renderer.shake=profile.settings.motion?16:0;haptic('heavy');}}
 window.truckinPreviewComic=showComic;/* QA hook: truckinPreviewComic('car'|'lowbridge'|'weakbridge'|'oil'|'sheep') */
 function handleEvents(){if(!game)return;for(const e of game.events.splice(0)){const px=renderer.x(game.x,game.distance),py=renderer.playerY;
@@ -1384,11 +1374,11 @@ function handleEvents(){if(!game)return;for(const e of game.events.splice(0)){co
  case'delivery':sound.play('delivery');profile.stats.jobs++;if(e.double)profile.stats.doubles++;toast(e.perfect?'PERFECT DROP!':'DELIVERY BANKED',money(e.pay)+' · '+['Lovely jubbly.','Pallets in. Payday out.','Proof of delivery: smug grin.'][game.jobs%3],2.5);haptic();save();break;
  case'taco':sound.play('bonus');profile.stats.tacos++;save();break;
  case'sheepWarning':break;
- case'baa':sound.flock(3);sound.duck();haptic();break;
+ case'baa':if(e.kind==='cows'){sound.play('moo',.9,{rate:.92,pan:-.5});sound.play('moo',.8,{rate:1.12,pan:.5,delay:.22});sound.play('moo',.7,{rate:1,pan:0,delay:.5});}else sound.flock(3);sound.duck();haptic();break;
  case'night':sound.play('bonus');toast('NIGHT SHIFT · DOUBLE BUBBLE','Coins are worth twice as much.',1.5);break;
  case'dawn':toast('HERE COMES THE SUN','Night rate clocked off.',1.4);break;
  case'boost':sound.play('pickup');toast('THERMOS TURBO!','A little extra go.',1.2);break;
- case'sheepClear':sound.play('scatter');sound.flock(2,.7);profile.stats.horns++;save();break;
+ case'sheepClear':sound.play('scatter');if(e.kind==='cows')sound.play('moo',.8,{rate:1.15});else sound.flock(2,.7);profile.stats.horns++;save();break;
  case'hint':toast(e.text,'',1.2);break;
  case'crash':{
   // Freeze on the impact with a red ring and a plain-English label, so you can see exactly what you hit; then the comic.
@@ -1400,13 +1390,13 @@ function handleEvents(){if(!game)return;for(const e of game.events.splice(0)){co
  case'bailout':sound.play('flush');renderer.shake=profile.settings.motion?12:0;haptic('heavy');toast('MATES’ RATES TO THE RESCUE','−£400 excess · '+({car:'Car park shuffle.',lowbridge:'Roof: mostly intact.',weakbridge:'Bridge: mostly intact.',oil:'Slick recovery.'}[e.kind]||'Phew.'),2.6);break;
  case'jackknife':sound.play('brake');renderer.shake=12;break;
  case'missedJob':toast('MISSED YOUR DROP','The pallet’s going back to the depot.',2);break;
- case'sheepFail':showComic('sheep');break;
+ case'sheepFail':showComic(e.kind==='cows'?'cow':'sheep');break;
  case'end':finish(e.reason,game.crashKind||'');break;
  }
  }}
 function updateHud(){if(!game)return;$('money').textContent=money(game.money);$('distance').textContent=game.mode==='daily'?Math.max(0,120-Math.floor(game.time))+'s':(game.distance/9000).toFixed(2);$('distanceLabel').textContent=game.mode==='daily'?'SHIFT TIME LEFT':'MILES ON THE CLOCK';$('zone').textContent=themes[game.stage];$('jobs').textContent=game.night?'☾ NIGHT ×2':game.boost>0?'TURBO '+Math.ceil(game.boost)+'s':game.rested>0?'RESTED':' '+game.jobs+' DROPS';$('swayFill').style.width=game.sway*100+'%';$('swayFill').style.background=game.sway>.75?'#ff886f':'#60dfd4';$('swayLabel').textContent=game.grip>0?'TYRE GRIP RECOVERING':!game.hasTrailer?'CAB ONLY · +16% SPEED':game.job?.double?'DOUBLE TRAILER SWAY':'TRAILER SWAY';if(game.grip>0){$('swayFill').style.width=(1-game.grip/4.8)*100+'%';$('swayFill').style.background='#dcb976';}$('drivingHint').textContent=game.grip>0?'Gentle steering until the tyres clear.':!game.hasTrailer?'Green hitch or a new job attaches a trailer.':game.sway>.7?'Steady! Let it settle.':game.job?.double?'Double pay. Easy on the wheel.':'Easy does it, driver.';$('jobBox').classList.toggle('hidden',!game.job);if(game.job){$('jobTitle').textContent=game.job.label;$('jobMoney').textContent=money(game.job.pay);$('jobCount').textContent=game.job.count+' / 10 crumbs';$('jobProgress').style.width=game.job.count*10+'%';}
- $('sheepWarning').classList.toggle('hidden',!game.sheep);const honkNear=game.items.some(e=>e.honkable&&!e.done&&e.z-game.distance>70&&e.z-game.distance<520);$('hornButton').classList.toggle('alert',(!!game.sheep&&game.sheep.baa&&!game.sheep.cleared)||honkNear);if(game.sheep){let s=game.sheep;$('sheepWarning').classList.toggle('now',s.baa&&!s.cleared);$('sheepWarning').classList.toggle('cleared',s.cleared);$('sheepText').textContent=s.cleared?'WOOL DONE!':s.baa?'BEEP THE SHEEP!':'BEEP THE SHEEP!';$('sheepHint').textContent=s.cleared?'Cheers, driver!':s.baa?'BAA! DOUBLE TAP!':'Wait for the baa…';}
- const w=routeWarning(game.distance,game.seed),warning=$('routeDecision');warning.classList.toggle('hidden',!(w&&w.left));if(w){$('routeDecisionMain').textContent=w.left?'← '+w.left+'     '+w.right+' →':w.text;$('routeDecisionDistance').textContent=w.distance>0?w.distance+' m · CHOOSE YOUR ROUTE':'FOLLOW YOUR CHOSEN ROAD';}
+ $('sheepWarning').classList.toggle('hidden',!game.sheep);const honkNear=game.items.some(e=>e.honkable&&!e.done&&e.z-game.distance>70&&e.z-game.distance<520);$('hornButton').classList.toggle('alert',(!!game.sheep&&game.sheep.baa&&!game.sheep.cleared)||honkNear);if(game.sheep){let s=game.sheep;$('sheepWarning').classList.toggle('now',s.baa&&!s.cleared);$('sheepWarning').classList.toggle('cleared',s.cleared);const cows=s.kind==='cows';$('sheepText').textContent=s.cleared?(cows?'MOO-VE ALONG!':'WOOL DONE!'):cows?'BEEP THE COWS!':'BEEP THE SHEEP!';$('sheepHint').textContent=s.cleared?'Cheers, driver!':s.baa?(cows?'MOO! HONK NOW!':'BAA! HONK NOW!'):(cows?'Wait for the moo…':'Wait for the baa…');}
+ const w=routeWarning(game.distance,game.seed),warning=$('routeDecision');warning.classList.add('hidden');if(w&&w.left&&w.distance<70&&forkToastId!==w.id){forkToastId=w.id;toast('FORK AHEAD','Left: '+w.left.replace(' • ',' · ')+'   |   Right: '+w.right.replace(' • ',' · '),2.6);}if(w){$('routeDecisionMain').textContent=w.left?'← '+w.left+'     '+w.right+' →':w.text;$('routeDecisionDistance').textContent=w.distance>0?w.distance+' m · CHOOSE YOUR ROUTE':'FOLLOW YOUR CHOSEN ROAD';}
  const drop=$('trailerButton');drop.disabled=!game.hasTrailer||game.dropCooldown>0;drop.querySelector('b').textContent=game.hasTrailer?'DROP TRAILER':'CAB ONLY';drop.querySelector('small').textContent=game.hasTrailer?(game.job?'LOSE '+money(game.job.pay)+' LOAD':'GAIN SPEED'):'FIND GREEN HITCH';
  if(game.time>8){$('tutorialHint').classList.add('hidden');if(!profile.tutorial){profile.tutorial=true;save();}}if(performance.now()>toastUntil)$('floatingToast').classList.add('hidden');}
 async function finish(reason,kind=''){if(ending)return;ending=true;state='ended';sound.musicOff();const result={score:Math.max(0,Math.round(game.earned-game.fines)),earned:game.earned,fines:game.fines,distance:Math.floor(game.distance/10),jobs:game.jobs,horns:game.horns,time:Math.floor(game.time),mode:game.mode,date:new Date().toISOString(),name:profile.name};

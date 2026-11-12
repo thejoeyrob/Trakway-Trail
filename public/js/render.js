@@ -1,5 +1,6 @@
 import {RoutePainter} from './route-render.js';
 import {drawRig,drawTrailerOnly} from './rigart.js';
+import {drawVehicle} from './propart.js';
 import {HAZARD_SPECS} from './route-hazards.js';
 import {clamp,ROAD_TYPES,PICKUPS} from './model.js';
 import {rigPose,roadShape,roadCurve,laneX,roadTheme,RIG} from './geometry.js';
@@ -48,7 +49,7 @@ export class Renderer {
  else if(HAZ[e.type]!==undefined){w=e.type.includes('bridge')?64:55;this.sprite(HAZ[e.type],x,y,w,w,0,1,'restrictions');if(LABELS[e.type])this.label(LABELS[e.type],x,y-34,'#fff2d2',7);}
  else this.sprite(SPR[e.type]??6,x,y,w,h,e.oncoming?Math.PI:0);
  }
- if(g.sheep){const s=g.sheep,y=this.playerY-(s.z-g.distance)*this.worldScale;for(let i=0;i<5;i++){let x=this.x(i,s.z),rot=Math.sin(this.time*5+i)*.12;let sy=y+Math.sin(i*3)*17;if(s.cleared){const move=Math.max(0,(g.time-s.baaAt-.3))*120;x+=(i<2?-1:1)*move;rot=i<2?-1.5:1.5;sy+=Math.sin(this.time*20+i)*5;}this.sprite(12,x,sy,50,52,rot);}}
+ if(g.sheep){const s=g.sheep,y=this.playerY-(s.z-g.distance)*this.worldScale;for(let i=0;i<5;i++){let x=this.x(i,s.z),rot=Math.sin(this.time*5+i)*.12;let sy=y+Math.sin(i*3)*17;if(s.cleared){const move=Math.max(0,(g.time-s.baaAt-.3))*120;x+=(i<2?-1:1)*move;rot=i<2?-1.5:1.5;sy+=Math.sin(this.time*20+i)*5;}if(s.kind==='cows'){const c=this.ctx;c.save();c.translate(x,sy);c.rotate(rot);c.scale(1,this.worldScale);drawVehicle(c,this.images.vehicles,'cow',62,98,this.time+i);c.restore();}else this.sprite(12,x,sy,50,52,rot);}}
  for(const d of g.detached||[])drawTrailerOnly(this,g.trailerPaint??1,g.trailerDecal??0,d.x,this.playerY-(d.z-g.distance)*this.worldScale,RIG.trailerW,RIG.trailerL*this.worldScale,d.angle,Math.max(0,1-d.age/3));
  const px=this.x(g.x,g.distance);let alpha=g.invulnerable>0&&Math.floor(this.time*13)%2===0?.55:1;this.nightLight(g);this.rig(g,truckIndex,px,this.playerY,alpha);
  for(const f of this.fx){f.age+=dt;f.x+=f.vx*dt;f.y+=f.vy*dt;if(f.kind!=='text')f.vy+=190*dt;let a=clamp(1-f.age/f.life,0,1);if(f.kind==='text'){c.save();c.globalAlpha=a;this.label(f.text,f.x,f.y,'#fff0ad',17);c.restore();}else this.sprite(f.kind==='loss'?11:11,f.x,f.y,13,13,f.rot+f.age*7,a);}
@@ -59,4 +60,5 @@ export class Renderer {
   c.font='900 15px -apple-system,sans-serif';c.textAlign='center';const w=c.measureText(h.label).width+26,ly=Math.max(30,y-h.ry-30);c.fillStyle='#1c0b0b';c.strokeStyle='#ff4b3a';c.lineWidth=2.5;c.beginPath();c.roundRect(Math.min(420-w/2-8,Math.max(w/2+8,x))-w/2,ly-17,w,28,9);c.fill();c.stroke();c.fillStyle='#fff3e0';c.fillText(h.label,Math.min(420-w/2-8,Math.max(w/2+8,x)),ly+3);c.restore();}
  c.restore();}
 }
-export async function loadImages(){const names=['sprites','roads','restrictions','cover','terrain','extras'];const extra={routeSurfaces:'surfaces',routeProps:'props',routeTrucks:'trucks',routeShowroom:'showroom',routeScenery:'scenery'};let result={};await Promise.all([...names,...Object.keys(extra)].map(n=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>{result[n]=i;res();};i.onerror=()=>rej(new Error(n));i.src=(window.TRUCKIN_IMAGE_DATA&&window.TRUCKIN_IMAGE_DATA[n])||('./assets/'+(extra[n]?'route-v2/'+extra[n]:n)+'.webp');})));return result;}
+export async function loadImages(){const names=['sprites','roads','restrictions','cover','terrain','extras'];const extra={routeSurfaces:'surfaces',routeProps:'props',routeTrucks:'trucks',routeShowroom:'showroom',routeScenery:'scenery'};let result={};await new Promise(res=>{const i=new Image();i.onload=()=>{result.vehicles=i;res();};i.onerror=()=>res();i.src=(window.TRUCKIN_IMAGE_DATA&&window.TRUCKIN_IMAGE_DATA.vehicles)||'./assets/route-v2/vehicles.webp';});
+ await Promise.all([...names,...Object.keys(extra)].map(n=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>{result[n]=i;res();};i.onerror=()=>rej(new Error(n));i.src=(window.TRUCKIN_IMAGE_DATA&&window.TRUCKIN_IMAGE_DATA[n])||('./assets/'+(extra[n]?'route-v2/'+extra[n]:n)+'.webp');})));return result;}

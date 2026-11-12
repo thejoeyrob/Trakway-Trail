@@ -49,7 +49,7 @@ const COMICS={
  icecream:{art:"<div class='stage'><span class='emo b'>🍦</span><span class='emo a'>🚛</span><i class='burst'>SPLAT!</i></div>",title:'99 PROBLEMS!',sub:'ONE FLAKE-ING DISASTER.<br>NO SPRINKLES. NO REFUNDS.',sfx:['brake','splat','chime']},
  house:{art:"<div class='stage'><span class='part home'>"+IMG('house')+"</span><span class='part cab'>"+IMG('cab')+"</span><i class='burst'>DING-DONG!</i></div>",title:'KNOCK, KNOCK!',sub:'WHO’S THERE? A LORRY.<br>IN THE LOUNGE.',sfx:['horn','brake','flush']}
 };
-let comicAt=0,comicDelayed=false,crashComicTimer=0;
+let comicAt=0,comicDelayed=false,crashComicTimer=0,forkToastId=-1;
 function showComic(kind){const c=COMICS[kind]||COMICS.sheep,el=$('comic');el.className='comic-'+kind;el.innerHTML=c.art+'<strong>'+c.title+'</strong><small>'+c.sub+'</small><em>TAP TO CONTINUE</em>';comicAt=performance.now();c.sfx.forEach((n,i)=>setTimeout(()=>sound.play(n),i*260));if(kind!=='sheep'){renderer.shake=profile.settings.motion?16:0;haptic('heavy');}}
 window.truckinPreviewComic=showComic;/* QA hook: truckinPreviewComic('car'|'lowbridge'|'weakbridge'|'oil'|'sheep') */
 function handleEvents(){if(!game)return;for(const e of game.events.splice(0)){const px=renderer.x(game.x,game.distance),py=renderer.playerY;
@@ -70,11 +70,11 @@ function handleEvents(){if(!game)return;for(const e of game.events.splice(0)){co
  case'delivery':sound.play('delivery');profile.stats.jobs++;if(e.double)profile.stats.doubles++;toast(e.perfect?'PERFECT DROP!':'DELIVERY BANKED',money(e.pay)+' · '+['Lovely jubbly.','Pallets in. Payday out.','Proof of delivery: smug grin.'][game.jobs%3],2.5);haptic();save();break;
  case'taco':sound.play('bonus');profile.stats.tacos++;save();break;
  case'sheepWarning':break;
- case'baa':sound.flock(3);sound.duck();haptic();break;
+ case'baa':if(e.kind==='cows'){sound.play('moo',.9,{rate:.92,pan:-.5});sound.play('moo',.8,{rate:1.12,pan:.5,delay:.22});sound.play('moo',.7,{rate:1,pan:0,delay:.5});}else sound.flock(3);sound.duck();haptic();break;
  case'night':sound.play('bonus');toast('NIGHT SHIFT · DOUBLE BUBBLE','Coins are worth twice as much.',1.5);break;
  case'dawn':toast('HERE COMES THE SUN','Night rate clocked off.',1.4);break;
  case'boost':sound.play('pickup');toast('THERMOS TURBO!','A little extra go.',1.2);break;
- case'sheepClear':sound.play('scatter');sound.flock(2,.7);profile.stats.horns++;save();break;
+ case'sheepClear':sound.play('scatter');if(e.kind==='cows')sound.play('moo',.8,{rate:1.15});else sound.flock(2,.7);profile.stats.horns++;save();break;
  case'hint':toast(e.text,'',1.2);break;
  case'crash':{
   // Freeze on the impact with a red ring and a plain-English label, so you can see exactly what you hit; then the comic.
@@ -86,13 +86,13 @@ function handleEvents(){if(!game)return;for(const e of game.events.splice(0)){co
  case'bailout':sound.play('flush');renderer.shake=profile.settings.motion?12:0;haptic('heavy');toast('MATES’ RATES TO THE RESCUE','−£400 excess · '+({car:'Car park shuffle.',lowbridge:'Roof: mostly intact.',weakbridge:'Bridge: mostly intact.',oil:'Slick recovery.'}[e.kind]||'Phew.'),2.6);break;
  case'jackknife':sound.play('brake');renderer.shake=12;break;
  case'missedJob':toast('MISSED YOUR DROP','The pallet’s going back to the depot.',2);break;
- case'sheepFail':showComic('sheep');break;
+ case'sheepFail':showComic(e.kind==='cows'?'cow':'sheep');break;
  case'end':finish(e.reason,game.crashKind||'');break;
  }
  }}
 function updateHud(){if(!game)return;$('money').textContent=money(game.money);$('distance').textContent=game.mode==='daily'?Math.max(0,120-Math.floor(game.time))+'s':(game.distance/9000).toFixed(2);$('distanceLabel').textContent=game.mode==='daily'?'SHIFT TIME LEFT':'MILES ON THE CLOCK';$('zone').textContent=themes[game.stage];$('jobs').textContent=game.night?'☾ NIGHT ×2':game.boost>0?'TURBO '+Math.ceil(game.boost)+'s':game.rested>0?'RESTED':' '+game.jobs+' DROPS';$('swayFill').style.width=game.sway*100+'%';$('swayFill').style.background=game.sway>.75?'#ff886f':'#60dfd4';$('swayLabel').textContent=game.grip>0?'TYRE GRIP RECOVERING':!game.hasTrailer?'CAB ONLY · +16% SPEED':game.job?.double?'DOUBLE TRAILER SWAY':'TRAILER SWAY';if(game.grip>0){$('swayFill').style.width=(1-game.grip/4.8)*100+'%';$('swayFill').style.background='#dcb976';}$('drivingHint').textContent=game.grip>0?'Gentle steering until the tyres clear.':!game.hasTrailer?'Green hitch or a new job attaches a trailer.':game.sway>.7?'Steady! Let it settle.':game.job?.double?'Double pay. Easy on the wheel.':'Easy does it, driver.';$('jobBox').classList.toggle('hidden',!game.job);if(game.job){$('jobTitle').textContent=game.job.label;$('jobMoney').textContent=money(game.job.pay);$('jobCount').textContent=game.job.count+' / 10 crumbs';$('jobProgress').style.width=game.job.count*10+'%';}
- $('sheepWarning').classList.toggle('hidden',!game.sheep);const honkNear=game.items.some(e=>e.honkable&&!e.done&&e.z-game.distance>70&&e.z-game.distance<520);$('hornButton').classList.toggle('alert',(!!game.sheep&&game.sheep.baa&&!game.sheep.cleared)||honkNear);if(game.sheep){let s=game.sheep;$('sheepWarning').classList.toggle('now',s.baa&&!s.cleared);$('sheepWarning').classList.toggle('cleared',s.cleared);$('sheepText').textContent=s.cleared?'WOOL DONE!':s.baa?'BEEP THE SHEEP!':'BEEP THE SHEEP!';$('sheepHint').textContent=s.cleared?'Cheers, driver!':s.baa?'BAA! DOUBLE TAP!':'Wait for the baa…';}
- const w=routeWarning(game.distance,game.seed),warning=$('routeDecision');warning.classList.toggle('hidden',!(w&&w.left));if(w){$('routeDecisionMain').textContent=w.left?'← '+w.left+'     '+w.right+' →':w.text;$('routeDecisionDistance').textContent=w.distance>0?w.distance+' m · CHOOSE YOUR ROUTE':'FOLLOW YOUR CHOSEN ROAD';}
+ $('sheepWarning').classList.toggle('hidden',!game.sheep);const honkNear=game.items.some(e=>e.honkable&&!e.done&&e.z-game.distance>70&&e.z-game.distance<520);$('hornButton').classList.toggle('alert',(!!game.sheep&&game.sheep.baa&&!game.sheep.cleared)||honkNear);if(game.sheep){let s=game.sheep;$('sheepWarning').classList.toggle('now',s.baa&&!s.cleared);$('sheepWarning').classList.toggle('cleared',s.cleared);const cows=s.kind==='cows';$('sheepText').textContent=s.cleared?(cows?'MOO-VE ALONG!':'WOOL DONE!'):cows?'BEEP THE COWS!':'BEEP THE SHEEP!';$('sheepHint').textContent=s.cleared?'Cheers, driver!':s.baa?(cows?'MOO! HONK NOW!':'BAA! HONK NOW!'):(cows?'Wait for the moo…':'Wait for the baa…');}
+ const w=routeWarning(game.distance,game.seed),warning=$('routeDecision');warning.classList.add('hidden');if(w&&w.left&&w.distance<70&&forkToastId!==w.id){forkToastId=w.id;toast('FORK AHEAD','Left: '+w.left.replace(' • ',' · ')+'   |   Right: '+w.right.replace(' • ',' · '),2.6);}if(w){$('routeDecisionMain').textContent=w.left?'← '+w.left+'     '+w.right+' →':w.text;$('routeDecisionDistance').textContent=w.distance>0?w.distance+' m · CHOOSE YOUR ROUTE':'FOLLOW YOUR CHOSEN ROAD';}
  const drop=$('trailerButton');drop.disabled=!game.hasTrailer||game.dropCooldown>0;drop.querySelector('b').textContent=game.hasTrailer?'DROP TRAILER':'CAB ONLY';drop.querySelector('small').textContent=game.hasTrailer?(game.job?'LOSE '+money(game.job.pay)+' LOAD':'GAIN SPEED'):'FIND GREEN HITCH';
  if(game.time>8){$('tutorialHint').classList.add('hidden');if(!profile.tutorial){profile.tutorial=true;save();}}if(performance.now()>toastUntil)$('floatingToast').classList.add('hidden');}
 async function finish(reason,kind=''){if(ending)return;ending=true;state='ended';sound.musicOff();const result={score:Math.max(0,Math.round(game.earned-game.fines)),earned:game.earned,fines:game.fines,distance:Math.floor(game.distance/10),jobs:game.jobs,horns:game.horns,time:Math.floor(game.time),mode:game.mode,date:new Date().toISOString(),name:profile.name};

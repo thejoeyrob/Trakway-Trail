@@ -8,4 +8,4 @@ All game music and sound effects (except the new sheep sample used in the cloud 
 ## v2.1 additions
 * **Sound effects v3** (`tools/render-sfx-v3.py`): horn, engine rev, ignition, idle, click, coin, cash, pickup, fanfare, sparkle, fine, brakes, scatter and the new funny-hazard sounds (moo, ice-cream chime on the traditional tune Greensleeves, Morris bells, bicycle bell, bin-lorry clang, splat, horseshoe, goose) are fully synthesised for this game. No samples.
 * **Sheep**: the release builds install the CC0 sheep recording (Joseph Sardin / BigSoundBank #2350) over the synthesised fallback and play it as a small flock at several pitches.
-* **Fonts**: Bungee (SIL OFL 1.1, The Bungee Project Authors) and Nunito (SIL OFL 1.1, The Nunito Project Authors), bundled in `public/assets/fonts` with their licences.
+* **Fonts**: Anton (SIL OFL 1.1, Vernon Adams) and Barlow Semi Condensed (SIL OFL 1.1, Jeremy Tribby), bundled in `public/assets/fonts` with their licences.
