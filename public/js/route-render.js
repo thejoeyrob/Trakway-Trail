@@ -1,8 +1,9 @@
-import {roadAt,hash,steeringX,CHUNK_LENGTH,surfaceAt,sceneryProps,sideProps} from './route-world.js';
+import {roadAt,hash,steeringX,CHUNK_LENGTH,surfaceAt,sceneryProps,sideProps,roadEdge} from './route-world.js';
 import {roadTheme} from './geometry.js';
 import {ROUTE_ATLAS} from './route-atlas.js';
 import {HAZARD_SPECS,PICKUP_SPECS} from './route-hazards.js';
 import {drawProp} from './propart.js';
+import {drawSign} from './uksigns.js';
 const mod=(n,m)=>((n%m)+m)%m;
 export class RoutePainter{
  constructor(renderer){this.r=renderer;this.patterns=[];this.makePatterns();}
@@ -77,7 +78,17 @@ export class RoutePainter{
  post(x,y,lines,tone){const c=this.r.ctx,w=42,h=lines.length>1?30:22;c.save();c.fillStyle='#0b1c1fcc';c.fillRect(x-1.2,y+h/2,2.4,16);c.fillStyle=tone;c.strokeStyle='#f3f6e6';c.lineWidth=1.6;c.beginPath();c.roundRect(x-w/2,y-h/2,w,h,3);c.fill();c.stroke();
   c.fillStyle='#fbfcef';c.font='800 6.6px -apple-system,sans-serif';c.textAlign='center';lines.forEach((t,i)=>c.fillText(t,x,y+(lines.length>1?-2.5+i*9:2.5)));c.restore();}
  signs(g){const r=this.r,c=r.ctx,start=Math.max(0,Math.floor(g.distance/CHUNK_LENGTH)-1),end=start+2;
-  // No signposts or boards at all: the road is just the road. (Fork guidance lives in the HUD banner.)
+  // UK-style signs, on the verge only, and only where they mean something: forks, roadworks and warnings ahead of hazards.
+  const edge=(z,side)=>{const e=roadEdge(z,side,g.seed,20)+side*16;return Math.max(-r.pad+14,Math.min(420+r.pad-14,e));},sy=z=>r.playerY-(z-g.distance)*r.worldScale;
+  for(let i=start;i<=end;i++){const a=roadAt(i*CHUNK_LENGTH+900,g.seed),y=sy(a.signZ);if(y<-50||y>r.H+50)continue;
+   if(a.sign&&a.sign.left){const rs=a.restricted==='left'?-1:1,ls=-rs,kind=a.motif==='contraflow'?'noentry':a.motif==='estate-fork'?'dir':'slippery';
+    if(kind==='dir')drawSign(c,'dir',edge(a.signZ,rs),y,26,{lines:['ACCESS','ONLY']});else drawSign(c,kind,edge(a.signZ,rs),y,26);
+    drawSign(c,'dir',edge(a.signZ,ls),y,26,{lines:['MAIN','ROAD']});}
+   else if(a.motif==='roadworks'){const side=a.side<0?-1:1;drawSign(c,'works',edge(a.signZ,side),y,26);drawSign(c,'arrow',edge(a.signZ+70,side),sy(a.signZ+70),24,{dir:a.side});}
+  }
+  const PLATES=["12'6\"","13'3\"","14'0\"","14'6\""],MAP={lowbridge:'low',weakbridge:'limit',bus:'bus',noentry:'noentry',footpath:'peds',narrow:'narrow',works:'works',barrier:'works',mud:'slippery',oil:'slippery',cow:'cattle'};
+  for(const e of g.items){const t=MAP[e.type];if(!t||e.done)continue;const z=e.z-300,y=sy(z);if(y<-40||y>r.H+40||z<g.distance-120)continue;const side=e.lane<2?-1:1;
+   drawSign(c,t,edge(z,side),y,26,t==='low'?{plate:PLATES[e.id%4]}:t==='limit'?{text:'7.5t'}:{});}
   // Arrows belong to the road. No-entry branch points toward the driver.
   for(let z=Math.floor((g.distance-300)/340)*340;z<g.distance+r.playerY/r.worldScale;z+=340){const a=roadAt(z,g.seed);if(a.gate<.97||a.bands.length<2)continue;
    for(const b of a.bands){const x=(b.left+b.right)/2,y=r.playerY-(z-g.distance)*r.worldScale;c.save();c.translate(x,y);if(b.rule==='oneway')c.rotate(Math.PI);c.fillStyle=b.rule?'#ffdfc3a0':'#e9eddca0';c.beginPath();c.moveTo(0,-17);c.lineTo(10,-4);c.lineTo(4,-4);c.lineTo(4,13);c.lineTo(-4,13);c.lineTo(-4,-4);c.lineTo(-10,-4);c.closePath();c.fill();c.restore();}
@@ -90,7 +101,7 @@ export class RoutePainter{
    else r.sprite(spec.sprite,x,y-(e.length||0)*r.worldScale/2,spec.width,h,e.oncoming?Math.PI:0,1,spec.sheet);
    if(e.honkable&&e.z-g.distance>60&&e.z-g.distance<620)r.label('HONK!',x,y-h/2-6,'#fff0a8',9);
    if(e.oncoming){r.label('ONCOMING',x,y-43,'#ffd1aa',7);}
-   if(['lowbridge','weakbridge','bus','footpath'].includes(e.type)){const labels={lowbridge:'LOW BRIDGE',weakbridge:'WEIGHT LIMIT',bus:'BUS ONLY',footpath:'PUBLIC PATH'};r.label(labels[e.type],x,y-h/2-8,'#ffebb5',7);}
+   // (the old floating text labels are gone: warning signs stand on the verge ahead, see signs())
    if(r.settings.hitboxes){c.save();c.strokeStyle='#ff4bcc';c.lineWidth=1;c.strokeRect(x-spec.hitWidth/2,y-(e.length||0)*r.worldScale-spec.hitHeight*r.worldScale/2,spec.hitWidth,(spec.hitHeight+(e.length||0))*r.worldScale);c.restore();}
   }
  }

@@ -264,3 +264,7 @@
 /* Fork guidance only, and not green: a small dark amber-edged strip rather than a road-sign board. */
 .route-decision{background:#161c1de8;border:1px solid #f3b94a88;border-radius:14px;color:#fff3d6;box-shadow:0 3px 12px #0006}
 .route-decision b{color:#ffe29a}.route-decision small{color:#cdbb92}
+
+/* Route banner as a plain white UK direction sign (not green). */
+.route-decision{background:#f7f7f1f2!important;border:2px solid #16191c!important;border-radius:6px!important;color:#16191c!important;box-shadow:0 3px 10px #0005!important}
+.route-decision b{color:#16191c!important}.route-decision small{color:#4b5156!important}

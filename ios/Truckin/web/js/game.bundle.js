@@ -138,6 +138,39 @@ function drawProp(c,kind,w,h,t=0){const f=ART[kind];if(!f)return false;c.save();
 module.exports={HAS_ART,drawProp};
 
 },
+"./uksigns.js":function(module,exports,require){
+/* UK-style road signs drawn in code (no image files): red-bordered warning triangles, red-ring prohibition circles, the red No Entry disc,
+   blue mandatory circles, blue bus-lane rectangles and white local direction signs. Each is drawn face-on at (x,y), size s, on a short post. */
+const TAU=Math.PI*2,RED='#d4141f',BLUE='#0f5fb5',INK='#15171a',WHITE='#fbfbf6';
+function post(c,x,y,s){c.fillStyle='#0a1416aa';c.fillRect(x-1,y+s*.42,2,s*.45);}
+function tri(c,x,y,s){c.save();c.translate(x,y);c.lineJoin='round';const h=s*.9;c.beginPath();c.moveTo(0,-h*.58);c.lineTo(s*.52,h*.42);c.lineTo(-s*.52,h*.42);c.closePath();c.fillStyle=WHITE;c.fill();c.lineWidth=s*.13;c.strokeStyle=RED;c.stroke();return h;}
+const ICONS={
+ low(c,s){c.strokeStyle=INK;c.lineWidth=s*.07;c.beginPath();c.moveTo(-s*.2,s*.28);c.lineTo(-s*.2,-s*.02);c.arc(0,-s*.02,s*.2,Math.PI,0);c.lineTo(s*.2,s*.28);c.stroke();c.beginPath();c.moveTo(0,s*.3);c.lineTo(0,s*.02);c.moveTo(-s*.06,s*.08);c.lineTo(0,s*.01);c.lineTo(s*.06,s*.08);c.stroke();},
+ works(c,s){c.fillStyle=INK;c.beginPath();c.arc(-s*.1,-s*.14,s*.06,0,TAU);c.fill();c.strokeStyle=INK;c.lineWidth=s*.07;c.lineCap='round';c.beginPath();c.moveTo(-s*.1,-s*.07);c.lineTo(-s*.14,s*.12);c.lineTo(-s*.2,s*.3);c.moveTo(-s*.14,s*.12);c.lineTo(-s*.02,s*.3);c.moveTo(-s*.1,0);c.lineTo(s*.06,s*.08);c.moveTo(s*.06,s*.0);c.lineTo(s*.12,s*.26);c.stroke();c.beginPath();c.moveTo(s*.2,s*.3);c.lineTo(s*.3,s*.12);c.lineTo(s*.4,s*.3);c.closePath();c.fill();},
+ slippery(c,s){c.fillStyle=INK;c.beginPath();c.roundRect(-s*.14,-s*.2,s*.28,s*.3,s*.06);c.fill();c.strokeStyle=INK;c.lineWidth=s*.06;c.lineCap='round';for(const dy of[.18,.3]){c.beginPath();c.moveTo(-s*.22,s*dy);c.bezierCurveTo(-s*.1,s*(dy-.07),s*.1,s*(dy+.07),s*.22,s*dy);c.stroke();}},
+ peds(c,s){c.strokeStyle=INK;c.fillStyle=INK;c.lineWidth=s*.06;c.lineCap='round';for(const [x,k] of[[-s*.14,1],[s*.14,.8]]){c.beginPath();c.arc(x,-s*.17*k,s*.05*k,0,TAU);c.fill();c.beginPath();c.moveTo(x,-s*.1*k);c.lineTo(x,s*.12);c.lineTo(x-s*.07,s*.3);c.moveTo(x,s*.12);c.lineTo(x+s*.07,s*.3);c.moveTo(x-s*.08,-s*.02);c.lineTo(x+s*.08,-s*.02);c.stroke();}},
+ cattle(c,s){c.fillStyle=INK;c.beginPath();c.ellipse(-s*.02,s*.02,s*.2,s*.11,0,0,TAU);c.fill();c.beginPath();c.ellipse(s*.22,-s*.04,s*.07,s*.06,0,0,TAU);c.fill();c.strokeStyle=INK;c.lineWidth=s*.05;c.lineCap='round';for(const x of[-s*.14,-s*.06,s*.08,s*.15]){c.beginPath();c.moveTo(x,s*.08);c.lineTo(x,s*.27);c.stroke();}c.beginPath();c.moveTo(s*.24,-s*.1);c.lineTo(s*.27,-s*.16);c.moveTo(-s*.2,-s*.01);c.lineTo(-s*.28,s*.08);c.stroke();},
+ narrow(c,s){c.strokeStyle=INK;c.lineWidth=s*.08;c.lineCap='round';c.beginPath();c.moveTo(-s*.22,s*.3);c.bezierCurveTo(-s*.22,s*.05,-s*.09,s*.05,-s*.09,-s*.18);c.moveTo(s*.22,s*.3);c.bezierCurveTo(s*.22,s*.05,s*.09,s*.05,s*.09,-s*.18);c.stroke();}
+};
+function drawSign(c,type,x,y,s=26,o={}){
+ c.save();
+ if(ICONS[type]){post(c,x,y,s);const h=tri(c,x,y,s);ICONS[type](c,s);c.restore();
+  if(o.plate){c.save();c.fillStyle=WHITE;c.strokeStyle=INK;c.lineWidth=1;const w=s*.78,hh=s*.3;c.beginPath();c.roundRect(x-w/2,y+h*.46,w,hh,2);c.fill();c.stroke();c.fillStyle=INK;c.font='800 '+(s*.22)+'px -apple-system,Arial,sans-serif';c.textAlign='center';c.fillText(o.plate,x,y+h*.46+hh*.75);c.restore();}
+  return;}
+ post(c,x,y,s);c.translate(x,y);
+ if(type==='limit'){c.beginPath();c.arc(0,0,s*.5,0,TAU);c.fillStyle=WHITE;c.fill();c.lineWidth=s*.14;c.strokeStyle=RED;c.stroke();c.fillStyle=INK;c.textAlign='center';c.font='900 '+(s*.34)+'px -apple-system,Arial,sans-serif';c.fillText(o.text||'7.5t',0,s*.12);}
+ else if(type==='noentry'){c.beginPath();c.arc(0,0,s*.5,0,TAU);c.fillStyle=RED;c.fill();c.fillStyle=WHITE;c.fillRect(-s*.34,-s*.07,s*.68,s*.14);}
+ else if(type==='arrow'){c.beginPath();c.arc(0,0,s*.5,0,TAU);c.fillStyle=BLUE;c.fill();c.strokeStyle=WHITE;c.lineWidth=s*.04;c.stroke();c.rotate(o.dir<0?-.6:o.dir>0?.6:0);c.fillStyle=WHITE;c.beginPath();c.moveTo(0,-s*.34);c.lineTo(s*.24,-s*.04);c.lineTo(s*.09,-s*.04);c.lineTo(s*.09,s*.3);c.lineTo(-s*.09,s*.3);c.lineTo(-s*.09,-s*.04);c.lineTo(-s*.24,-s*.04);c.closePath();c.fill();}
+ else if(type==='bus'){const w=s*1.05,h=s*.8;c.fillStyle=BLUE;c.beginPath();c.roundRect(-w/2,-h/2,w,h,3);c.fill();c.strokeStyle=WHITE;c.lineWidth=1.2;c.stroke();c.fillStyle=WHITE;c.beginPath();c.roundRect(-s*.26,-s*.2,s*.52,s*.3,3);c.fill();c.fillStyle=BLUE;c.fillRect(-s*.2,-s*.15,s*.4,s*.09);c.fillStyle=WHITE;c.font='800 '+(s*.15)+'px -apple-system,Arial,sans-serif';c.textAlign='center';c.fillText('BUS LANE',0,s*.3);}
+ else{ // direction / information sign: white, black text, thin black border (UK non-primary style)
+  const lines=o.lines||[o.text||''],w=Math.max(s*1.2,Math.max(...lines.map(t=>t.length))*s*.17+s*.5),h=s*.28*lines.length+s*.3;c.fillStyle=WHITE;c.strokeStyle=INK;c.lineWidth=1.4;c.beginPath();c.roundRect(-w/2,-h/2,w,h,3);c.fill();c.stroke();
+  c.fillStyle=INK;c.textAlign='center';c.font='800 '+(s*.23)+'px -apple-system,Arial,sans-serif';lines.forEach((t,i)=>c.fillText(t,0,-h/2+s*.35+i*s*.28));}
+ c.restore();
+}
+
+module.exports={drawSign};
+
+},
 "./route-world.js":function(module,exports,require){
 /* Route World 2.0. Distances and polygons are the shared source of truth for
  * artwork, signs, spawning and wheel contact. Five INPUT positions are retained;
@@ -309,11 +342,12 @@ module.exports={HAZARD_SPECS,PICKUP_SPECS,sweptOverlap};
 
 },
 "./route-render.js":function(module,exports,require){
-const {roadAt,hash,steeringX,CHUNK_LENGTH,surfaceAt,sceneryProps,sideProps}=require("./route-world.js");
+const {roadAt,hash,steeringX,CHUNK_LENGTH,surfaceAt,sceneryProps,sideProps,roadEdge}=require("./route-world.js");
 const {roadTheme}=require("./geometry.js");
 const {ROUTE_ATLAS}=require("./route-atlas.js");
 const {HAZARD_SPECS,PICKUP_SPECS}=require("./route-hazards.js");
 const {drawProp}=require("./propart.js");
+const {drawSign}=require("./uksigns.js");
 const mod=(n,m)=>((n%m)+m)%m;
 class RoutePainter{
  constructor(renderer){this.r=renderer;this.patterns=[];this.makePatterns();}
@@ -388,7 +422,17 @@ class RoutePainter{
  post(x,y,lines,tone){const c=this.r.ctx,w=42,h=lines.length>1?30:22;c.save();c.fillStyle='#0b1c1fcc';c.fillRect(x-1.2,y+h/2,2.4,16);c.fillStyle=tone;c.strokeStyle='#f3f6e6';c.lineWidth=1.6;c.beginPath();c.roundRect(x-w/2,y-h/2,w,h,3);c.fill();c.stroke();
   c.fillStyle='#fbfcef';c.font='800 6.6px -apple-system,sans-serif';c.textAlign='center';lines.forEach((t,i)=>c.fillText(t,x,y+(lines.length>1?-2.5+i*9:2.5)));c.restore();}
  signs(g){const r=this.r,c=r.ctx,start=Math.max(0,Math.floor(g.distance/CHUNK_LENGTH)-1),end=start+2;
-  // No signposts or boards at all: the road is just the road. (Fork guidance lives in the HUD banner.)
+  // UK-style signs, on the verge only, and only where they mean something: forks, roadworks and warnings ahead of hazards.
+  const edge=(z,side)=>{const e=roadEdge(z,side,g.seed,20)+side*16;return Math.max(-r.pad+14,Math.min(420+r.pad-14,e));},sy=z=>r.playerY-(z-g.distance)*r.worldScale;
+  for(let i=start;i<=end;i++){const a=roadAt(i*CHUNK_LENGTH+900,g.seed),y=sy(a.signZ);if(y<-50||y>r.H+50)continue;
+   if(a.sign&&a.sign.left){const rs=a.restricted==='left'?-1:1,ls=-rs,kind=a.motif==='contraflow'?'noentry':a.motif==='estate-fork'?'dir':'slippery';
+    if(kind==='dir')drawSign(c,'dir',edge(a.signZ,rs),y,26,{lines:['ACCESS','ONLY']});else drawSign(c,kind,edge(a.signZ,rs),y,26);
+    drawSign(c,'dir',edge(a.signZ,ls),y,26,{lines:['MAIN','ROAD']});}
+   else if(a.motif==='roadworks'){const side=a.side<0?-1:1;drawSign(c,'works',edge(a.signZ,side),y,26);drawSign(c,'arrow',edge(a.signZ+70,side),sy(a.signZ+70),24,{dir:a.side});}
+  }
+  const PLATES=["12'6\"","13'3\"","14'0\"","14'6\""],MAP={lowbridge:'low',weakbridge:'limit',bus:'bus',noentry:'noentry',footpath:'peds',narrow:'narrow',works:'works',barrier:'works',mud:'slippery',oil:'slippery',cow:'cattle'};
+  for(const e of g.items){const t=MAP[e.type];if(!t||e.done)continue;const z=e.z-300,y=sy(z);if(y<-40||y>r.H+40||z<g.distance-120)continue;const side=e.lane<2?-1:1;
+   drawSign(c,t,edge(z,side),y,26,t==='low'?{plate:PLATES[e.id%4]}:t==='limit'?{text:'7.5t'}:{});}
   // Arrows belong to the road. No-entry branch points toward the driver.
   for(let z=Math.floor((g.distance-300)/340)*340;z<g.distance+r.playerY/r.worldScale;z+=340){const a=roadAt(z,g.seed);if(a.gate<.97||a.bands.length<2)continue;
    for(const b of a.bands){const x=(b.left+b.right)/2,y=r.playerY-(z-g.distance)*r.worldScale;c.save();c.translate(x,y);if(b.rule==='oneway')c.rotate(Math.PI);c.fillStyle=b.rule?'#ffdfc3a0':'#e9eddca0';c.beginPath();c.moveTo(0,-17);c.lineTo(10,-4);c.lineTo(4,-4);c.lineTo(4,13);c.lineTo(-4,13);c.lineTo(-4,-4);c.lineTo(-10,-4);c.closePath();c.fill();c.restore();}
@@ -401,7 +445,7 @@ class RoutePainter{
    else r.sprite(spec.sprite,x,y-(e.length||0)*r.worldScale/2,spec.width,h,e.oncoming?Math.PI:0,1,spec.sheet);
    if(e.honkable&&e.z-g.distance>60&&e.z-g.distance<620)r.label('HONK!',x,y-h/2-6,'#fff0a8',9);
    if(e.oncoming){r.label('ONCOMING',x,y-43,'#ffd1aa',7);}
-   if(['lowbridge','weakbridge','bus','footpath'].includes(e.type)){const labels={lowbridge:'LOW BRIDGE',weakbridge:'WEIGHT LIMIT',bus:'BUS ONLY',footpath:'PUBLIC PATH'};r.label(labels[e.type],x,y-h/2-8,'#ffebb5',7);}
+   // (the old floating text labels are gone: warning signs stand on the verge ahead, see signs())
    if(r.settings.hitboxes){c.save();c.strokeStyle='#ff4bcc';c.lineWidth=1;c.strokeRect(x-spec.hitWidth/2,y-(e.length||0)*r.worldScale-spec.hitHeight*r.worldScale/2,spec.hitWidth,(spec.hitHeight+(e.length||0))*r.worldScale);c.restore();}
   }
  }
