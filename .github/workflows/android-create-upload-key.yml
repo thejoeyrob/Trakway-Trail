@@ -4,6 +4,9 @@ name: Create the Android upload key (one-off)
 # Needs ONE temporary secret, GH_SECRETS_TOKEN: a fine-grained personal access token limited to this repo with
 # "Secrets: Read and write". Delete the token and that secret afterwards.
 on:
+  push:
+    branches: ['store/**']
+    paths: ['.github/workflows/android-create-upload-key.yml']   # only so GitHub registers the workflow; the job below skips push runs
   workflow_dispatch:
     inputs:
       replace_existing:
@@ -14,6 +17,7 @@ permissions:
   contents: read
 jobs:
   create:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-java@v4
