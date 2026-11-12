@@ -37,7 +37,7 @@ You need: Apple Developer Program membership (£79/yr).
 ## Google Play
 You need: Play Console developer account (one-off fee). **New personal accounts must usually run a closed test with a minimum number of testers for about two weeks before production — check the current rule in Play Console.**
 1. Play Console → Create app → package `com.thejoeyrob.truckinanddrivin`. Enrol in **Play App Signing** (default).
-2. Make an upload key **on your own computer** (do not share or commit it):
+2. **Phone-only option:** run the workflow “Create the Android upload key (one-off)” (needs a temporary `GH_SECRETS_TOKEN`, see the top of that workflow file). It makes the key on GitHub and saves the four secrets itself; skip steps 2 and 3 here. **Computer option:** make an upload key on your own computer (do not share or commit it):
    ```
    keytool -genkeypair -v -keystore truckin-upload.keystore -alias truckin -keyalg RSA -keysize 2048 -validity 10000
    base64 -i truckin-upload.keystore | pbcopy     # macOS (Linux: base64 -w0 truckin-upload.keystore)
