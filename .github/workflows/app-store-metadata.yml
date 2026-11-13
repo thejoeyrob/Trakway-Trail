@@ -1,4 +1,4 @@
-name: App Store Connect: upload listing text and screenshots
+name: "App Store Connect - upload listing text and screenshots"
 # Pushes fastlane/metadata (name, subtitle, description, keywords, URLs, what's new) and fastlane/screenshots to the App Store Connect record
 # using the App Store Connect API key already stored as repo secrets. It does NOT submit for review and cannot set privacy answers or pricing.
 on:
