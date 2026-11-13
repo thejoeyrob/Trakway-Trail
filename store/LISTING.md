@@ -34,8 +34,8 @@ No ads. No in-app purchases. Works offline.
 Cows and geese to honk away, tractors, hay bales, ice-cream vans and a lucky horseshoe. Denser, smarter hazards. Redesigned garage with a live in-game preview, separate cab and trailer paint, and visible upgrades. A bigger honk button. Tall-phone view with a lorry-joke ticker, and wider-screen scenery for iPad.
 
 ## Support / privacy URLs
-* Privacy policy: `privacy/index.html` in this repo (publishes at **https://thejoeyrob.github.io/Trakway-Trail/privacy/** once this branch is merged to `main`). **[OWNER]** put your real support email in it first.
-* Support URL: **[OWNER]** — e.g. the GitHub Pages site or a page of yours.
+* Privacy policy: `privacy/index.html` in this repo (publishes at **https://thejoeyrob.github.io/Trakway-Trail/privacy/** once this branch is merged to `main`). Contact is support@zc2.quest (same as Zombie Smash).
+* Support URL: https://thejoeyrob.github.io/Trakway-Trail/support/ (contact support@zc2.quest).
 * Marketing URL (optional): https://thejoeyrob.github.io/Trakway-Trail/
 
 ## Age rating / content rating answers
