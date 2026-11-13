@@ -1,0 +1,154 @@
+/* Truckin' & Drivin' · UI v3
+   Type: ANTON (italic, like the title) for everything you tap or read at a glance; BARLOW SEMI CONDENSED for the small print.
+   Look: dark glass panels with a gold edge, slanted metallic buttons, number-plate name field, chunky switches, tachograph result ticket. Loaded after game.css. */
+@font-face{font-family:'Anton';src:url('./assets/fonts/Anton-400.woff2') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Barlow Semi Condensed';src:url('./assets/fonts/BarlowSemiCondensed-500.woff2') format('woff2');font-weight:500;font-display:swap}
+@font-face{font-family:'Barlow Semi Condensed';src:url('./assets/fonts/BarlowSemiCondensed-600.woff2') format('woff2');font-weight:600;font-display:swap}
+@font-face{font-family:'Barlow Semi Condensed';src:url('./assets/fonts/BarlowSemiCondensed-700.woff2') format('woff2');font-weight:700 950;font-display:swap}
+:root{--display:'Anton',Impact,'Arial Narrow',sans-serif;--body:'Barlow Semi Condensed','Arial Narrow',-apple-system,sans-serif;--gold1:#fff0a0;--gold2:#ffd23f;--gold3:#f5a91c;--gold4:#e08f0c}
+html,body,button,input{font-family:var(--body)}
+.title h1{font-family:var(--display)!important;font-weight:400!important}
+
+/* display type: the same cream-and-teal treatment as the title */
+.menu-label h2,.ginfo h3,.wallet-chip b,.hud-top b,.job-box b,#sheetTitle,.result-score strong,.tap-prompt,.floating-toast{font-family:var(--display)!important;font-weight:400!important;font-style:italic;letter-spacing:.6px;text-transform:uppercase}
+.menu-label h2{font-size:38px;color:#fff3c8;text-shadow:0 3px 0 #10343a,0 0 22px #ffd34f66}
+.menu-label p{font-family:var(--body);font-style:normal;font-weight:500;font-size:15px;letter-spacing:.3px;color:#d8eae4}
+.menu-stats,.home-foot,.home-top{font-family:var(--body);font-weight:600;letter-spacing:1.2px}
+.tap-prompt{font-size:23px}
+.hud-top b{font-size:29px;line-height:1}.hud-top small,.cash-readout small,.miles-readout small{font-family:var(--body);font-weight:700;letter-spacing:1.6px;font-size:9.5px}
+.job-box b{font-size:24px}.job-box small,.job-box span{font-family:var(--body);font-weight:600}
+.route-strip{font-family:var(--body);font-weight:700;letter-spacing:1.4px}
+.floating-toast{font-size:19px;text-shadow:0 2px 0 #0b2428,0 0 14px #0b2428}.floating-toast small{display:block;font-family:var(--body);font-style:normal;font-weight:600;font-size:13.5px;letter-spacing:.4px;text-transform:none;margin-top:3px}
+.gname{font-family:var(--body);font-weight:700;letter-spacing:.8px;text-transform:uppercase}.gmeta{font-family:var(--body);font-weight:700;letter-spacing:.8px}
+.ginfo h3{font-size:30px;color:#fff3c8;text-shadow:0 3px 0 #10343a}.ginfo p{font-family:var(--body);font-weight:500;font-size:15px;color:#d1e2da}
+.statrow span,.statrow b{font-family:var(--body);font-weight:700;letter-spacing:.8px}
+.wallet-chip b{font-size:26px;color:#ffd65a}.wallet-chip small{font-family:var(--body);font-weight:700;letter-spacing:1.6px}
+.gnote{font-family:var(--body);font-weight:600;font-size:13px}
+.sway-wrap span,.sway-wrap small,.tutorial-hint,.tutorial-hint small{font-family:var(--body);font-weight:700;letter-spacing:1px}
+
+/* ---- buttons: slanted metal, like a racing-game HUD ---- */
+.big-button,#sheet .big-button,#garage .big-button{position:relative;overflow:hidden;transform:skewX(-9deg);border-radius:9px;font-family:var(--display)!important;font-weight:400!important;font-style:normal;font-size:21px;letter-spacing:1.4px;text-transform:uppercase;color:#3a2400;text-shadow:0 1px 0 #fff8;min-height:58px;
+ background:linear-gradient(180deg,var(--gold1) 0%,var(--gold2) 38%,var(--gold3) 62%,var(--gold4) 100%);
+ box-shadow:0 0 0 2px #7a4f08,0 6px 0 #8a5a0a,0 14px 22px #000a,inset 0 2px 0 #fffbe0,inset 0 -3px 0 #c97d08}
+.big-button>*,#sheet .big-button>*{transform:none}
+.big-button::after{content:'';position:absolute;top:-20%;bottom:-20%;left:-60%;width:34%;background:linear-gradient(90deg,#fff0,#fffc,#fff0);transform:skewX(-12deg);animation:btnShine 4.2s ease-in-out infinite;pointer-events:none}
+@keyframes btnShine{0%,55%{left:-60%}100%{left:130%}}
+.big-button b{font-family:var(--display);font-weight:400;font-size:24px;line-height:1;width:auto;height:auto;background:none!important;box-shadow:none!important;color:#3a2400;letter-spacing:-2px}
+.big-button:active{transform:skewX(-9deg) translateY(5px);box-shadow:0 0 0 2px #7a4f08,0 1px 0 #8a5a0a,0 6px 10px #000a,inset 0 2px 0 #fffbe0,inset 0 -3px 0 #c97d08}
+.big-button.done{background:linear-gradient(180deg,#3e8d92,#256a70 50%,#195359);color:#d4fff0;text-shadow:0 1px 0 #0006;box-shadow:0 0 0 2px #0b2a2e,0 6px 0 #0c2f33,0 14px 22px #000a,inset 0 2px 0 #ffffff40}
+.big-button.locked{background:linear-gradient(180deg,#5b6f76,#3d4f56 55%,#2e3e44);color:#e3eef2;text-shadow:0 1px 0 #0007;box-shadow:0 0 0 2px #1b2a2f,0 6px 0 #1b2a2f,0 12px 18px #000a,inset 0 2px 0 #ffffff30}
+.big-button.locked::after,.big-button.done::after{display:none}
+#sheet .secondary,#garage .secondary{transform:skewX(-9deg);border-radius:8px;font-family:var(--display);font-weight:400;font-size:16px;letter-spacing:1.2px;text-transform:uppercase;color:#ffe9b0;
+ background:linear-gradient(180deg,#2a5c63,#173f45 55%,#112f34);box-shadow:0 0 0 2px #0a2024,inset 0 0 0 1.5px #e8c98399,inset 0 2px 0 #ffffff26,0 5px 0 #0a1d20,0 10px 16px #0008;border:0;padding:13px}
+#sheet .secondary:active{transform:skewX(-9deg) translateY(4px);box-shadow:0 0 0 2px #0a2024,inset 0 0 0 1.5px #e8c98399,0 1px 0 #0a1d20}
+#sheet .quiet{font-family:var(--body);font-weight:600;font-size:14px;letter-spacing:.4px;color:#c3dcd3}
+#closeSheet{flex:none;width:46px;height:38px;border-radius:7px!important;transform:skewX(-9deg);background:linear-gradient(180deg,#ffe98f,#f0a91d)!important;color:#3a2400;border:0!important;font-family:var(--display);font-size:20px;box-shadow:0 0 0 2px #7a4f08,0 4px 0 #8a5a0a,0 8px 12px #0008!important}
+#closeSheet:active{transform:skewX(-9deg) translateY(3px);box-shadow:0 0 0 2px #7a4f08,0 1px 0 #8a5a0a!important}
+#closeSheet:focus{outline:none}#closeSheet:focus-visible{outline:3px solid #fff;outline-offset:3px}
+
+/* ---- tabs ---- */
+.gtabs,.score-tabs{background:none!important;box-shadow:none!important;gap:6px;padding:0!important}
+.gtabs button,.score-tabs button{transform:skewX(-9deg);border-radius:7px;font-family:var(--display)!important;font-weight:400!important;font-size:15px!important;letter-spacing:1.2px!important;text-transform:uppercase;color:#a9c4bf!important;background:linear-gradient(180deg,#143439,#0c2327)!important;box-shadow:0 0 0 1.5px #2b5156,inset 0 2px 0 #ffffff12!important;padding:10px 0!important}
+.gtabs button.active,.score-tabs button.active,.score-tabs .active{color:#3a2400!important;background:linear-gradient(180deg,var(--gold1),var(--gold2) 40%,var(--gold3))!important;box-shadow:0 0 0 2px #7a4f08,0 3px 0 #8a5a0a,inset 0 2px 0 #fffbe0!important}
+.gtarget button{transform:skewX(-9deg);font-family:var(--display);font-weight:400;font-size:13px;letter-spacing:1px}
+.gtarget span{font-family:var(--body);font-weight:700}
+#gBoth{font-family:var(--display)!important;font-size:15px!important;letter-spacing:1.2px;text-transform:uppercase;transform:skewX(-9deg)}
+
+/* ---- the sheet (every inner page) ---- */
+#sheet{background:#05181dd0;backdrop-filter:blur(8px)}
+#sheet .sheet-card{position:relative;background:linear-gradient(165deg,#194248 0%,#112f34 55%,#0b2226 100%);border:0;border-radius:20px;padding:26px 20px 20px;color:#eef5ea;
+ box-shadow:0 0 0 1px #e8c98366,0 0 0 5px #0a1f23,0 0 0 6px #e8c98333,0 30px 80px #000c,inset 0 2px 0 #ffffff1f;background-image:repeating-linear-gradient(135deg,#ffffff06 0 2px,#0000 2px 9px),linear-gradient(165deg,#194248 0%,#112f34 55%,#0b2226 100%)}
+#sheet .sheet-card::before{content:'';position:absolute;left:0;top:0;width:55%;height:5px;border-radius:20px 0 0 0;background:linear-gradient(90deg,#ffcf55,#f0a91d 65%,#f0a91d00);box-shadow:none}
+#sheet .sheet-head{display:flex;align-items:center;gap:14px;margin:2px 0 18px;justify-content:flex-start}
+#sheet .sheet-head::before{content:'';flex:none;width:62px;height:62px;border-radius:50%;background:#0b2428 center/82% no-repeat;box-shadow:inset 0 0 0 3px #e8c983,0 4px 12px #000a;background-image:url('./assets/menu/keys.webp')}
+#sheet[data-kind=settings] .sheet-head::before{background-image:url('./assets/menu/settings.webp')}
+#sheet[data-kind=guide] .sheet-head::before,#sheet[data-kind=privacy] .sheet-head::before{background-image:url('./assets/menu/guide.webp')}
+#sheet[data-kind=leaderboard] .sheet-head::before,#sheet[data-kind=nativeboard] .sheet-head::before,#sheet[data-kind=result] .sheet-head::before{background-image:url('./assets/menu/trophy.webp')}
+#sheet[data-kind=pause] .sheet-head::before{background-image:url('./assets/menu/daily.webp')}
+#sheet .sheet-head>div{flex:1;min-width:0}
+#sheet .eyebrow{font-family:var(--body);font-weight:700;font-size:11px;letter-spacing:2.6px;color:#ffcf55;text-transform:uppercase}
+#sheetTitle{font-size:32px;line-height:1;color:#fff3c8;text-shadow:0 3px 0 #0a2428;margin:3px 0 0}
+#sheet .sheet-copy{font-family:var(--body);font-size:16px;line-height:1.4;color:#d3e3db;font-weight:500;margin:0 0 14px}
+#sheet .field-label{font-family:var(--body);font-weight:700;font-size:12px;letter-spacing:2.2px;color:#ffd65a;margin:16px 0 8px}
+#sheet .status-note{font-family:var(--body);font-size:13px;font-weight:500;color:#a9c8c0;line-height:1.35;margin:12px 2px 0}
+
+/* number-plate name field */
+.plate{display:flex;align-items:stretch;background:linear-gradient(#ffe24a,#f4c90f);border:3px solid #15171a;border-radius:10px;overflow:hidden;box-shadow:0 5px 0 #8a6a00,0 10px 18px #0008,inset 0 2px 0 #fff9;margin:4px 0}
+.plate .gb{flex:none;width:46px;background:linear-gradient(#1a54c2,#123c8c);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:700 13px var(--body);letter-spacing:1px}
+.plate .gb::before{content:'';width:22px;height:22px;border-radius:50%;border:3px dotted #ffd84a}
+.plate input[type=text]{flex:1;min-width:0;background:transparent!important;border:0!important;border-radius:0;color:#15171a;font-family:var(--display);font-size:28px;letter-spacing:3px;text-transform:uppercase;text-align:center;padding:11px 8px;box-shadow:none}
+.plate input::placeholder{color:#15171a55}.plate input:focus{background:#fff8!important}
+
+/* settings: chunky switches and dials */
+#sheet .setting{background:#0a2529aa;border-radius:12px;padding:11px 14px;margin:8px 0;border:0;box-shadow:inset 0 0 0 1px #ffffff12}
+#sheet .setting label{font-family:var(--body);font-weight:600;font-size:16px;letter-spacing:.2px;color:#f0f6ec}
+#sheet input[type=checkbox]{-webkit-appearance:none;appearance:none;width:54px;height:30px;border-radius:15px;background:#091f23;box-shadow:inset 0 2px 5px #000b,0 0 0 2px #3d6c6c;position:relative;flex:none;transition:background .2s,box-shadow .2s;accent-color:unset}
+#sheet input[type=checkbox]::after{content:'';position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:linear-gradient(#fbfbf4,#b7c2c0);box-shadow:0 2px 4px #000a;transition:left .2s}
+#sheet input[type=checkbox]:checked{background:linear-gradient(#38dcaa,#12977c);box-shadow:inset 0 2px 5px #0007,0 0 0 2px #84f2d2}
+#sheet input[type=checkbox]:checked::after{left:27px}
+#sheet input[type=range]{-webkit-appearance:none;appearance:none;width:150px;height:11px;border-radius:7px;background:linear-gradient(90deg,#ffd23a var(--v,50%),#091f23 var(--v,50%));box-shadow:inset 0 2px 4px #000b,0 0 0 2px #3d6c6c;accent-color:unset}
+#sheet input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff6bf,#f0a91d);box-shadow:0 3px 6px #000a,inset 0 0 0 2px #fff7}
+#sheet input[type=range]::-moz-range-thumb{width:28px;height:28px;border:0;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff6bf,#f0a91d);box-shadow:0 3px 6px #000a}
+
+/* guide */
+#sheet .guide-row{display:flex;gap:13px;align-items:flex-start;background:#0a2529aa;border-radius:14px;padding:12px;margin:9px 0;box-shadow:inset 0 0 0 1px #ffffff12}
+#sheet .guide-row b{display:block;font-family:var(--display);font-weight:400;font-style:italic;font-size:17px;letter-spacing:.8px;text-transform:uppercase;color:#ffd65a;margin-bottom:3px}
+#sheet .guide-row p{margin:0;font-family:var(--body);font-size:14.5px;line-height:1.35;font-weight:500;color:#d3e3db}
+#sheet .guide-row .sprite,#sheet .guide-row .extra,#sheet .guide-symbol{flex:none}
+#sheet .guide-symbol{width:44px;height:44px;border-radius:12px;background:#0b2024;display:grid;place-items:center;color:#ffd65a;font-weight:700;box-shadow:inset 0 0 0 2px #e8c98366}
+#sheet .taco-fact{background:#0a2529aa;border-radius:12px;padding:12px;margin:12px 0;font-weight:500;font-size:14.5px}
+
+/* leaderboard */
+#sheet .score-row{background:#0a2529aa;border:0;border-radius:12px;padding:10px 12px;margin:8px 0;font-size:17px;font-weight:600;box-shadow:inset 0 0 0 1px #ffffff12}
+#sheet .rank{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#07191c;color:#cfe8e0;font-family:var(--display);font-size:17px;font-weight:400;box-shadow:inset 0 0 0 2px #3d6c6c}
+#sheet .score-row:nth-child(1) .rank{background:linear-gradient(#ffeb99,#f0a91d);color:#3a2400;box-shadow:inset 0 0 0 2px #fff7,0 2px 6px #0006}
+#sheet .score-row:nth-child(2) .rank{background:linear-gradient(#f4f6f6,#aebabb);color:#26373a;box-shadow:inset 0 0 0 2px #fff7}
+#sheet .score-row:nth-child(3) .rank{background:linear-gradient(#f0b27a,#a8642a);color:#2d1608;box-shadow:inset 0 0 0 2px #fff6}
+#sheet .score-row .name{flex:1}#sheet .score-row b{font-family:var(--display);font-weight:400;font-size:21px;letter-spacing:.5px;color:#ffd65a}
+#sheet .empty{font-weight:500;font-size:16px;color:#b6d2ca;text-align:center;padding:24px 8px;line-height:1.4}
+
+/* the shift result as a tachograph printout */
+#sheet[data-kind=result] .sheet-card{background:#f4ecd5;background-image:repeating-linear-gradient(0deg,#0000 0 27px,#0000000a 27px 28px);color:#2a2519;box-shadow:0 0 0 3px #0a2226,0 0 0 5px #c9b98f,0 30px 80px #000c}
+#sheet[data-kind=result] .sheet-card::before{background:repeating-linear-gradient(90deg,#2a2519 0 8px,#0000 8px 14px);height:6px;left:20px;right:20px;width:auto;border-radius:0 0 4px 4px;opacity:.55}
+#sheet[data-kind=result] #sheetTitle{color:#241f13;text-shadow:none}
+#sheet[data-kind=result] .eyebrow{color:#9a6208}
+#sheet[data-kind=result] .sheet-head::before{box-shadow:inset 0 0 0 3px #8a6a25,0 4px 10px #0005;background-color:#2a2519}
+#sheet[data-kind=result] .result-score strong{color:#1d1a12;font-size:60px;letter-spacing:0;text-shadow:none}
+#sheet[data-kind=result] .result-score .eyebrow{color:#6e6240}
+#sheet[data-kind=result] .badge{font-family:var(--display);background:none;color:#c42a22;border:3px solid #c42a22;border-radius:8px;transform:rotate(-6deg);padding:4px 12px;font-size:16px;letter-spacing:1.2px;font-weight:400}
+#sheet[data-kind=result] .result-grid{background:#0000;border:2px dashed #a8976a;border-radius:12px}
+#sheet[data-kind=result] .result-grid strong{font-family:var(--display);font-weight:400;font-size:24px;color:#1d1a12}
+#sheet[data-kind=result] .result-grid small{color:#6e6240;font-weight:700;font-size:10px;letter-spacing:1px}
+#sheet[data-kind=result] .receipt{color:#3b3626;font-weight:600;font-size:15px;border-bottom:2px dotted #a8976a;padding-bottom:5px;margin:10px 2px}
+#sheet[data-kind=result] .receipt b{font-family:var(--body);font-weight:700;color:#1d1a12}
+#sheet[data-kind=result] .receipt b.negative{color:#b1261e}
+#sheet[data-kind=result] .status-note{color:#6e6240}
+#sheet[data-kind=result] .taco-fact{background:#0000;border:2px dashed #a8976a;color:#3b3626}
+#sheet[data-kind=result] .quiet{color:#6e5f35}
+#sheet[data-kind=result] .secondary{color:#ffe9b0}
+
+/* honk */
+.hud-bottom #hornButton b{font-family:var(--display)!important;font-weight:400;font-size:19px;letter-spacing:1.4px;font-style:normal}
+#hornButton span{font-family:var(--body);font-weight:700;letter-spacing:1.2px;font-size:9.5px}
+#hornButton svg{width:58px;height:40px;margin-top:0}
+#trailerButton b{font-family:var(--display);font-weight:400;font-size:16px;letter-spacing:1px}#trailerButton small{font-family:var(--body);font-weight:700;letter-spacing:.8px}
+/* close button: an X drawn in CSS (the display font has no multiplication-sign glyph) */
+#closeSheet{font-size:0!important;position:relative}
+#closeSheet::before,#closeSheet::after{content:'';position:absolute;left:50%;top:50%;width:18px;height:3.5px;border-radius:2px;background:#3a2400;transform:translate(-50%,-50%) rotate(45deg)}
+#closeSheet::after{transform:translate(-50%,-50%) rotate(-45deg)}
+#garage .big-button.done,#sheet .big-button.done,.big-button.done{background:linear-gradient(180deg,#3e8d92,#256a70 50%,#195359)!important;color:#d4fff0!important;text-shadow:0 1px 0 #0006;box-shadow:0 0 0 2px #0b2a2e,0 6px 0 #0c2f33,0 14px 22px #000a,inset 0 2px 0 #ffffff40!important}
+#garage .big-button.locked,#sheet .big-button.locked,.big-button.locked{background:linear-gradient(180deg,#5b6f76,#3d4f56 55%,#2e3e44)!important;color:#e3eef2!important;text-shadow:0 1px 0 #0007;box-shadow:0 0 0 2px #1b2a2f,0 6px 0 #1b2a2f,0 12px 18px #000a,inset 0 2px 0 #ffffff30!important}
+.hud-top small,.cash-readout small,.miles-readout small{white-space:nowrap;letter-spacing:1.1px!important;font-size:9px!important}
+
+/* compact garage for short screens (iPhone SE 1st gen, 320x568) */
+@media(max-height:620px){
+ #garage .ginfo h3{font-size:22px}#garage .ginfo p{font-size:13px;margin:1px 0;min-height:0}#garage .ginfo{min-height:0}
+ #garage .statrow{padding:5px 10px}
+ .gwheel{height:92px!important}.gwheel .wheel-item{width:70px!important;height:84px!important}.paint-thumb{height:36px!important}.paint-thumb.trailer{height:40px!important}
+ .gtabs button,.score-tabs button{padding:6px 0!important;font-size:13px!important}
+ .gtarget{margin:2px 0 0}.gtarget button{padding:2px 9px;font-size:12px}
+ #garage .big-button{min-height:46px;font-size:17px;margin-top:6px}
+ #gBoth{padding:5px!important;font-size:13px!important;margin-top:5px}
+ .gnote{display:none}
+ #garage .garage-panel{padding-top:8px}
+}
