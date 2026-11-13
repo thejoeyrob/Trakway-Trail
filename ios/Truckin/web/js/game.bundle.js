@@ -734,14 +734,14 @@ module.exports={CATALOG,defaults,normalize,TRUCKS,DECALS,DECAL_TAGS,PAINT_IDS,DE
 "./model.js":function(module,exports,require){
 const {laneX,rigPose,roadTheme,RIG}=require("./geometry.js");
 const {chooseRoadScenario}=require("./road-events.js");
-const {ROUTE_VERSION,CHUNK_LENGTH,roadAt,surfaceAt,routeLanes,laneCorridor,nearestLane,reachableCorridor,steeringX,sceneryProps,rewardPath}=require("./route-world.js");
+const {ROUTE_VERSION,CHUNK_LENGTH,roadAt,surfaceAt,routeLanes,laneCorridor,nearestLane,reachableCorridor,steeringX,sceneryProps,rewardPath,waterSide}=require("./route-world.js");
 const {HAZARD_SPECS,sweptOverlap}=require("./route-hazards.js");
 const {normalize,deliveryBonus}=require("./upgrades.js");
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const themes=['THE TOWN RUN','COUNTRY MILES','SUBURBAN SHORTCUT','HARD HAT HAUL'];
 const ROAD_TYPES=['lowbridge','weakbridge','bus','noentry','narrow','grass','house','works'];
 /* Hazards that end the shift outright, each with its own comic vignette (see COMICS in game.js) and result-sheet line. */
-const CRASHES={car:'Not a bumper car.',lowbridge:'Height restriction. Not a suggestion.',weakbridge:'Weight limit: less than you.',oil:'Slick move, driver.',house:'Planning permission denied.',sheep:'Ewe had one job.',cow:'Holy cow. Literally.',icecream:'Chocolate flake-ing disaster.',binlorry:'Bin there, done that.'};
+const CRASHES={car:'Not a bumper car.',lowbridge:'Height restriction. Not a suggestion.',weakbridge:'Weight limit: less than you.',oil:'Slick move, driver.',house:'Planning permission denied.',sheep:'Ewe had one job.',cow:'Holy cow. Literally.',icecream:'Chocolate flake-ing disaster.',binlorry:'Bin there, done that.',water:'Silly dipping.'};
 const PICKUPS=['job','crumb','finish','taco','coin','night','boost','hitch','prize','shield'];
 /* Weighted hazard mix per scenery stage. Every hazard type in route-hazards.js appears somewhere, so the road never feels empty or samey. */
 const MIX=[
@@ -760,7 +760,7 @@ function biomeAt(z){return roadTheme(z);}
 function hazardKinds(z){return [['car','cone','bus','noentry','lowbridge'],['grass','weakbridge','oil','lowbridge','narrow'],['house','car','noentry','narrow'],['barrier','cone','oil','works']][biomeAt(z)];}
 class Drive {
  constructor(options={}){
-  this.seed=options.seed??Date.now();this.routeVersion=ROUTE_VERSION;this.hasTrailer=true;this.grip=0;this.offroad=0;this.surface='asphalt';this.dropCooldown=0;this.detached=[];this.routeFines={};this.routeChoice={};this.nextHitch=0;this.nearIds=[];this.sceneryHits={};this.rng=seeded(this.seed);
+  this.seed=options.seed??Date.now();this.routeVersion=ROUTE_VERSION;this.hasTrailer=true;this.grip=0;this.offroad=0;this.waterWarned=-1;this.surface='asphalt';this.dropCooldown=0;this.detached=[];this.routeFines={};this.routeChoice={};this.nextHitch=0;this.nearIds=[];this.sceneryHits={};this.rng=seeded(this.seed);
   this.mode=options.mode||'endless';this.upgrades=normalize(this.mode==='daily'?{}:options.upgrades);
   this.truck=this.mode==='daily'?0:(options.truck||0);this.decal=this.mode==='daily'?0:(options.decal||0);this.trailerPaint=this.mode==='daily'?1:(options.trailerPaint??1);this.trailerDecal=this.mode==='daily'?0:(options.trailerDecal||0);this.hornAt=-10;
   this.events=[];this.items=[];this.distance=0;this.time=0;this.money=500;this.earned=0;this.fines=0;this.jobs=0;this.crumbs=0;this.horns=0;this.near=0;
@@ -926,6 +926,12 @@ class Drive {
   const trailerContact=this.hasTrailer?surfaceAt(pose.trailer.x,this.distance-pose.trailer.y,this.seed,15):contact;
   if(contact.surface==='mud'||trailerContact.surface==='mud'){if(this.grip<.1)this.emit('mud');this.grip=4.8;}
   if(!contact.onRoad||!trailerContact.onRoad){this.offroad+=dt;if(this.offroad>.55){this.fine(35,'Keep it on the road.');if([1,3].includes(this.stage))this.grip=Math.max(this.grip,2.5);this.offroad=-1.7;}}else this.offroad=Math.max(0,this.offroad-dt*2);
+  // Water: the river bend has no road under it. Nothing steers you away; drive in and it's a dip.
+  {const wa=roadAt(this.distance,this.seed),ws=waterSide(wa);
+   if(ws&&this.invulnerable<=0){const edge=ws>0?Math.max(...wa.bands.map(b=>b.right)):Math.min(...wa.bands.map(b=>b.left)),lx=laneX(this.x,this.distance);
+    if((lx-edge)*ws>20){this.lastHit={type:'water',lane:this.x,z:this.distance,x:lx};this.crash('water');if(!this.finished)this.lane=nearestLane(this.distance,this.lane,this.seed,false);}}
+   const ah=roadAt(this.distance+850,this.seed),aw=waterSide(ah);
+   if(aw&&this.waterWarned!==ah.id){const edge=aw>0?Math.max(...ah.bands.map(b=>b.right)):Math.min(...ah.bands.map(b=>b.left));this.waterWarned=ah.id;if((laneX(this.lane,this.distance)-edge)*aw>6)this.emit('hint',{text:'WATER AHEAD · MOVE OVER'});}}
   if(contact.rule&&!this.routeFines[contact.route.id]){this.routeFines[contact.route.id]=true;this.fine(contact.rule==='oneway'?120:90,contact.rule==='oneway'?'One way. The other way.':'Residents and public access only.');}
   if(contact.route.gate>.97&&!this.routeChoice[contact.route.id]){this.routeChoice[contact.route.id]=contact.branch;this.emit('routeChoice',{branch:contact.branch,motif:contact.route.motif});}
   for(const key of Object.keys(this.routeFines))if(+key<contact.route.id-2)delete this.routeFines[key];
@@ -1124,6 +1130,32 @@ const ART={
  prize(c,w,h){ell(c,0,-h*.5,w*.5,h*.5,lg(c,0,-h,0,0,'#ffe066','#d89b1a'));c.fillStyle='#b57b10';c.font='900 '+Math.round(h*.4)+'px Anton,Impact,sans-serif';c.textAlign='center';c.fillText('★',0,-h*.35)}
 };
 ART.crumb=ART.coin;
+/* The tractor unit on its own (trailer dropped), seen from behind and above. Painted in code in the cab colour. */
+ART.cabRear=function(c,w,h,t,o){
+ const col=o.col||'#d6dde2';shadow(c,w*1.3);
+ // chassis rails, fifth-wheel plate and two sets of twin rear wheels
+ for(const s of[-1,1]){for(const dy of[0,-h*.2]){wheel(c,s*w*.42,-h*.16+dy*.6,h*.16);wheel(c,s*w*.3,-h*.16+dy*.6,h*.16)}}
+ c.fillStyle='#1a1d20';rr(c,-w*.36,-h*.46,w*.72,h*.34,4);c.fill();
+ c.fillStyle=lg(c,0,-h*.42,0,-h*.26,'#5b6368','#33393d');rr(c,-w*.3,-h*.44,w*.6,h*.2,6);c.fill();   // fifth wheel plate
+ c.fillStyle='#e8c24a';c.fillRect(-w*.05,-h*.4,w*.1,h*.1);c.fillStyle='#0d0f10';c.fillRect(-w*.015,-h*.4,w*.03,h*.12);   // king-pin slot
+ c.strokeStyle='#d2342a';c.lineWidth=2;c.beginPath();c.moveTo(-w*.2,-h*.42);c.quadraticCurveTo(-w*.28,-h*.52,-w*.18,-h*.6);c.stroke();   // coiled air lines
+ c.strokeStyle='#e8c24a';c.beginPath();c.moveTo(w*.2,-h*.42);c.quadraticCurveTo(w*.28,-h*.52,w*.18,-h*.6);c.stroke();
+ // mudflaps and number plate
+ c.fillStyle='#16191b';for(const s of[-1,1])rr(c,s*w*.36-w*.07,-h*.14,w*.14,h*.12,2),c.fill();
+ c.fillStyle='#ffd23f';rr(c,-w*.1,-h*.1,w*.2,h*.07,1.5);c.fill();
+ // cab: rear wall, roof fairing, window, mirrors and stacks
+ for(const s of[-1,1]){c.fillStyle=lg(c,s*w*.5,0,s*w*.5,-h,'#e8ecef','#8d969b');rr(c,s*w*.5-3,-h*.97,6,h*.62,3);c.fill();   // exhaust stacks
+  c.fillStyle='rgba(180,190,196,'+(.35+.2*Math.sin(t*6+s))+')';c.beginPath();c.arc(s*w*.5+Math.sin(t*3+s)*2,-h*1.02-(t*20%10),3.5,0,TAU);c.fill();
+  c.fillStyle='#1c2023';rr(c,s*w*.5-(s>0?0:7),-h*.72,7,h*.2,2);c.fill();}   // mirrors
+ c.fillStyle=lg(c,-w*.4,0,w*.4,0,col,shade(col));rr(c,-w*.4,-h*.86,w*.8,h*.5,w*.1);c.fill();
+ c.fillStyle='rgba(255,255,255,.22)';rr(c,-w*.36,-h*.84,w*.72,h*.1,w*.08);c.fill();
+ c.fillStyle=lg(c,0,-h*.72,0,-h*.5,'#27353f','#101820');rr(c,-w*.26,-h*.72,w*.52,h*.2,4);c.fill();
+ c.fillStyle='rgba(255,255,255,.14)';c.beginPath();c.moveTo(-w*.22,-h*.72);c.lineTo(-w*.04,-h*.72);c.lineTo(-w*.14,-h*.52);c.lineTo(-w*.26,-h*.52);c.fill();
+ c.fillStyle=lg(c,-w*.38,0,w*.38,0,shade(col),col);rr(c,-w*.43,-h*.99,w*.86,h*.14,w*.06);c.fill();   // roof deflector
+ for(const s of[-1,1]){c.fillStyle='#ff2a22';c.shadowColor='#ff2a22';c.shadowBlur=6;rr(c,s*w*.38-w*.05,-h*.52,w*.1,h*.07,2);c.fill();c.shadowBlur=0}   // tail lights
+ if(o.boost){c.fillStyle='rgba(255,180,60,.85)';for(const s of[-1,1]){c.beginPath();c.moveTo(s*w*.3-4,-h*.05);c.lineTo(s*w*.3,18+Math.random()*22);c.lineTo(s*w*.3+4,-h*.05);c.fill()}}
+};
+function shade(hex){const n=parseInt(hex.slice(1),16),f=v=>Math.round(v*.62);return 'rgb('+f(n>>16)+','+f(n>>8&255)+','+f(n&255)+')'}
 
 module.exports={SIZE,ART};
 
@@ -1138,7 +1170,10 @@ const {ROUTE_ATLAS}=require("./route-atlas.js");
 const {PAINTS,hueShift,tintBody,DECAL_PAINT}=require("./rigart.js");
 const {HAZARD_SPECS}=require("./route-hazards.js");
 const {ART,SIZE}=require("./chaseart.js");
-const CAMBACK=260,FAR=2400,TAU=Math.PI*2,CURVE=1.9;
+const CAMBACK=260,FAR=2400,TAU=Math.PI*2;
+const GROUND_PAT=[7,3,12,11],ASPHALT=0,MUD=5,WATER=14,LANE=78,L0=15;   // surface-atlas cells used for the ground, road, mud and river
+const CAB_COL=['#d6dde2','#f2f2ee','#e0601c','#6a2fb8','#b02a24','#2a8a44'];
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const mix=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
 const rgb=c=>'rgb('+c[0]+','+c[1]+','+c[2]+')';
 const THEME_GROUND=[[124,128,134],[82,158,58],[92,170,66],[201,166,107]];   // town paving, country grass, suburban lawn, building-site sand
@@ -1148,10 +1183,7 @@ class ChaseRenderer extends Renderer{
  resize(){super.resize();this.yT=this.H*.80;this.playerY=this.yT-120;this.worldScale=.72;this.camX=this.camX||210;}
  /* screen x of a lane at the truck's depth (used for cash pop-ups and night lights) */
  x(lane){return 210+(54+78*lane-(this.camX||210));}
- /* project a world point (lane or raw x, z) to the screen: {x,y,s} */
- /* Roads bend only a little in the model; the camera exaggerates the bend (applied to the road, the scenery and the items alike, so they stay lined up). */
- shiftAt(z){const a=roadAt(z,this.g.seed),bs=a.bands,l=Math.min(...bs.map(b=>b.left)),r=Math.max(...bs.map(b=>b.right));return ((l+r)/2-210)*(CURVE-1);}
- project(lane,z,rawX){const g=this.g,zr=z-(g.distance-CAMBACK),sc=CAMBACK/zr,wx=(rawX??(54+78*lane))+this.shiftAt(z);return {x:210+(wx-this.camX)*sc,y:this.y0+this.A/zr,s:sc};}
+ project(lane,z,rawX){const g=this.g,zr=z-(g.distance-CAMBACK),sc=CAMBACK/zr,wx=rawX??(54+78*lane);return {x:210+(wx-this.camX)*sc,y:this.y0+this.A/zr,s:sc};}
  truckSprite(g){
   const key=[g.truck,g.trailerPaint,g.decal,g.trailerDecal].join(':');if(this._ts&&this._ts.key===key)return this._ts.c;
   const img=this.images.routeShowroom,rect=ROUTE_ATLAS.showroom.rects[4];if(!img)return null;
@@ -1164,7 +1196,7 @@ class ChaseRenderer extends Renderer{
  }
  draw(g,dt,truckIndex){
   this.g=g;const c=this.ctx,pad=this.pad,W=420+2*pad,H=this.H;this.time+=dt;
-  const y0=this.y0=H*.31,A=this.A=(this.yT-y0)*CAMBACK,camZ=g.distance-CAMBACK,tx=laneX(g.x,g.distance)+this.shiftAt(g.distance);
+  const y0=this.y0=H*.31,A=this.A=(this.yT-y0)*CAMBACK,camZ=g.distance-CAMBACK,tx=laneX(g.x,g.distance);
   const camX=this.camX=210+(tx-210)*.55,cx=210,seed=g.seed;
   c.save();if(this.shake>0&&this.settings.motion){c.translate((Math.random()-.5)*this.shake,(Math.random()-.5)*this.shake);this.shake*=Math.exp(-dt*12);}
   // ---- sky, sun, clouds, distant hills ----
@@ -1174,25 +1206,41 @@ class ChaseRenderer extends Renderer{
   for(const [k,col,amp,y] of [[.25,mix(THEME_GROUND[themeFar],HAZE,.55),26,y0-2],[.5,mix(THEME_GROUND[themeFar],[60,90,70],.45),18,y0+1]]){
    c.fillStyle=rgb(col);c.beginPath();c.moveTo(-pad,y0+2);for(let x=-pad;x<=420+pad+8;x+=8)c.lineTo(x,y-amp*(.5+.5*Math.sin((x+camX*k*.4+camZ*.01*k)*.012*k*4+k*7))*(.6+.4*Math.sin(x*.031+k)));c.lineTo(420+pad,y0+2);c.closePath();c.fill();}
   c.fillStyle='#ffffffcc';for(let i=0;i<5;i++){const x=((i*173+this.time*3+camZ*.004*(1+i%2)*.5)%(W+160))-80-pad,y=y0*(.18+.12*((i*37)%5)/5);for(const [dx,dy,r] of[[0,0,22],[24,-6,26],[50,2,20],[26,6,22]]){c.beginPath();c.ellipse(x+dx,y+dy,r*1.4,r*.55,0,0,TAU);c.fill();}}
-  // ---- the ground and the road, row by row ----
-  const step=2;let prev=null;
+  // ---- the ground and the road, row by row. The road never bends or sways: five fixed lanes. A lane is tarmac where the map has a
+  //      drivable surface under it, and grass or river where it doesn't (that is the hazard: you have to move over). ----
+  const step=2,pats=this.world&&this.world.patterns&&this.world.patterns.length?this.world.patterns:null,kinds=[0,0,0,0,0];
+  const fillSpan=(pi,col,x1,x2,y,sn,zw,zr,wob)=>{
+   if(x2<=x1)return;const p=pats&&pats[pi];
+   if(p){const d=-A/(zr*zr),v=(zw%256)+(wob||0);p.setTransform({a:sn,b:0,c:0,d,e:cx-camX*sn,f:y-v*d});c.fillStyle=p;}else c.fillStyle=col;
+   c.fillRect(x1,y-step,x2-x1,step+.6);};
   for(let y=H;y>y0+3;y-=step){
-   const zn=A/(y-y0),zf=A/(y-step-y0);if(zf>FAR*1.2)break;const zm=(zn+zf)/2,zw=camZ+zm,sn=CAMBACK/zn,sf=CAMBACK/zf,fog=Math.min(1,Math.pow(zm/FAR,1.4));
-   const stripe=Math.floor(zw/70)%2?1:0,gcol=mix(THEME_GROUND[roadTheme(zw)],HAZE,fog*.75).map(v=>v+(stripe?-5:3)*(1-fog));
-   c.fillStyle=rgb(gcol);c.fillRect(-pad,y-step,W,step+.6);
-   const a=roadAt(zw,seed),wsd=waterSide(a),sh0=((Math.min(...a.bands.map(b=>b.left))+Math.max(...a.bands.map(b=>b.right)))/2-210)*(CURVE-1);
-   if(a.motif==='river-bend'&&wsd){const edge=(wsd>0?Math.max(...a.bands.map(b=>b.right)):Math.min(...a.bands.map(b=>b.left)))+sh0,xe=cx+(edge+(wsd>0?22:-22)-camX)*sn;c.fillStyle=rgb(mix([40,98,132],HAZE,fog*.7));if(wsd>0)c.fillRect(xe,y-step,420+pad-xe+4,step+.6);else c.fillRect(-pad,y-step,xe+pad,step+.6);}
-   for(const b of a.bands){
-    const L0=b.left+sh0,R0=b.right+sh0,xln=cx+(L0-camX)*sn,xrn=cx+(R0-camX)*sn,xlf=cx+(L0-camX)*sf,xrf=cx+(R0-camX)*sf;
-    const base=b.surface==='mud'?[104,76,48]:[66,68,72],col=mix(base,HAZE,fog*.8);
-    const sh=10;c.fillStyle=rgb(mix(base.map(v=>v+30),HAZE,fog*.8));quad(c,xln-sh*sn,xrn+sh*sn,xlf-sh*sf,xrf+sh*sf,y,step);   // shoulder
-    c.fillStyle=rgb(col);quad(c,xln,xrn,xlf,xrf,y,step);
-    // edge lines and lane dividers
-    c.fillStyle=rgb(mix([236,234,222],HAZE,fog*.8));const el=2.2;
-    quad(c,xln,xln+el*sn,xlf,xlf+el*sf,y,step);quad(c,xrn-el*sn,xrn,xrf-el*sf,xrf,y,step);
-    const w=b.right-b.left,n=w>=340?5:Math.max(1,Math.round(w/74));
-    if(Math.floor(zw/50)%2===0&&b.surface!=='mud')for(let k=1;k<n;k++){const lw=Math.min(78,w/n),xm=(b.left+b.right)/2+sh0+(k-n/2)*lw;quad(c,cx+(xm-1.2-camX)*sn,cx+(xm+1.2-camX)*sn,cx+(xm-1.2-camX)*sf,cx+(xm+1.2-camX)*sf,y,step);}
+   const zn=A/(y-y0),zf=A/(y-step-y0);if(zf>FAR*1.2)break;const zm=(zn+zf)/2,zw=camZ+zm,sn=CAMBACK/zn,fog=Math.min(1,Math.pow(zm/FAR,1.4));
+   const th=roadTheme(zw),a=roadAt(zw,seed),ws=waterSide(a),bs=a.bands,edge=ws?(ws>0?Math.max(...bs.map(b=>b.right)):Math.min(...bs.map(b=>b.left))):0;
+   fillSpan(GROUND_PAT[th],rgb(THEME_GROUND[th]),-pad,420+pad,y,sn,zw,zm);
+   let lo=5,hi=-1;
+   for(let k=0;k<5;k++){const lx=54+LANE*k;let kind=0;
+    for(const b of bs)if(lx-14>=b.left&&lx+14<=b.right){kind=b.surface==='mud'?2:1;break;}
+    if(!kind&&ws&&(lx-edge)*ws>0)kind=3;kinds[k]=kind;if(kind===3){lo=Math.min(lo,k);hi=Math.max(hi,k);}}
+   const X=u=>cx+(u-camX)*sn;
+   if(hi>=0){ // river: every lane on the water side that has no road, and everything beyond it
+    const ripple=Math.sin(this.time*1.3+zw*.02)*7+this.time*14;
+    let x1=ws<0?-pad-60:X(L0+LANE*lo),x2=ws<0?X(L0+LANE*(hi+1)):420+pad+60;if(ws<0)x1=-pad-60;
+    fillSpan(WATER,'#2f7aa6',x1,x2,y,sn,zw,zm,ripple);c.fillStyle='rgba(40,150,215,.38)';c.fillRect(x1,y-step,x2-x1,step+.6);
+    // grassy bank where the river meets the road, a pale ripple line and a glint
+    const bx=ws<0?x2:x1;c.fillStyle=rgb(mix([88,120,70],HAZE,fog*.8));c.fillRect(bx-(ws<0?0:5*sn),y-step,5*sn,step+.6);
+    if(Math.floor((zw+this.time*40)/46)%3===0){c.fillStyle='rgba(255,255,255,'+(.35*(1-fog))+')';const gx=(ws<0?x1:x2)+((hash2(Math.floor(zw/46))%100)/100-(ws<0?1:0))*(Math.abs(x2-x1)*.8);c.fillRect(gx,y-step,Math.max(2,18*sn),1.4);}
    }
+   // tarmac and mud, merged into runs
+   for(let k=0;k<5;){const kind=kinds[k];if(kind!==1&&kind!==2){k++;continue;}let j=k;while(j+1<5&&kinds[j+1]===kind)j++;
+    fillSpan(kind===2?MUD:ASPHALT,kind===2?'#68482c':'#42454a',X(L0+LANE*k),X(L0+LANE*(j+1)),y,sn,zw,zm);
+    // kerb + edge lines at the ends of the run, dashed dividers between lanes
+    const lw=Math.max(1.2,2.4*sn),kb=Math.max(2,6*sn),dash=Math.floor(zw/55)%2===0;
+    for(const [u,s2] of[[L0+LANE*k,-1],[L0+LANE*(j+1),1]]){const x=X(u);c.fillStyle=Math.floor(zw/40)%2?'#d94a3a':'#f4f1e6';c.fillRect(s2<0?x-kb:x,y-step,kb,step+.6);c.fillStyle='#f4f1e6';c.fillRect(s2<0?x+kb*.4:x-kb*.4-lw,y-step,lw,step+.6);}
+    if(dash&&kind===1)for(let m=k+1;m<=j;m++){const x=X(L0+LANE*m);c.fillStyle='rgba(244,241,230,.9)';c.fillRect(x-lw/2,y-step,lw,step+.6);}
+    k=j+1;}
+   // fog and a faint mowing stripe over the whole row
+   c.fillStyle='rgba(196,226,246,'+(fog*.82).toFixed(3)+')';c.fillRect(-pad-60,y-step,W+120,step+.6);
+   if(Math.floor(zw/70)%2){c.fillStyle='rgba(0,0,0,'+(.05*(1-fog)).toFixed(3)+')';c.fillRect(-pad-60,y-step,W+120,step+.6);}
   }
   // haze over the far distance
   const haze=c.createLinearGradient(0,y0-6,0,y0+60);haze.addColorStop(0,rgb(HAZE)+'');haze.addColorStop(1,'rgba(196,226,246,0)');c.fillStyle=haze;c.fillRect(-pad,y0-6,W,66);
@@ -1209,7 +1257,7 @@ class ChaseRenderer extends Renderer{
    const sc=CAMBACK/o.zr,y=y0+A/o.zr,fog=Math.min(1,Math.pow(o.zr/FAR,1.4));
    if(o.k==='truck'){this.drawTruck(g,cx+(tx-camX),y,dt);continue;}
    c.save();c.globalAlpha=1-fog*.85;
-   const sh=this.shiftAt(o.k==='scenery'?o.p.z:o.k==='item'?o.e.z:o.k==='herd'?o.s.z:o.d.z);
+   const sh=0;
    if(o.k==='scenery')this.drawScenery(c,o.p,cx+(o.p.x+sh-camX)*sc,y,sc);
    else if(o.k==='item')this.drawItem(c,o.e,cx+(laneX(o.e.lane,o.e.z)+sh-camX)*sc,y,sc,o.zr);
    else if(o.k==='herd'){const s=o.s;for(let i=0;i<5;i++){let wx=54+78*i+sh,off=0;if(s.cleared)off=(i<2?-1:1)*Math.max(0,(g.time-s.baaAt-.3))*140;const bx=cx+(wx+off-camX)*sc,sz=SIZE[s.kind==='cows'?'cow':'sheep'];c.save();c.translate(bx,y);ART[s.kind==='cows'?'cow':'sheep'](c,sz[0]*sc,sz[1]*sc,this.time+i,{id:i});c.restore();}}
@@ -1229,14 +1277,26 @@ class ChaseRenderer extends Renderer{
   c.restore();
  }
  drawTruck(g,x,y,dt){
-  const c=this.ctx,img=this.truckSprite(g);const roll=((g.lane-g.x)*.05)+Math.sin(this.time*7)*.004;
-  c.save();c.translate(x,y);c.fillStyle='rgba(6,14,10,.35)';c.beginPath();c.ellipse(0,2,64,13,0,0,TAU);c.fill();
+  const c=this.ctx,bare=g.hasTrailer===false,img=bare?null:this.truckSprite(g);
+  // sway: the trailer swings out behind the cab when you change lane (the model's own trailer angle), the whole rig leans into the move,
+  // and the chassis bobs on its springs. Pivot is the rear axle, at the base of the sprite.
+  const vx=dt>0?(x-(this._px??x))/dt:0;this._px=x;this._vx=(this._vx||0)*.82+clamp(vx,-900,900)*.18;
+  const lean=clamp(this._vx/5200,-.1,.1)+clamp((g.lane-g.x)*.03,-.08,.08),swing=clamp((g.angle||0)*.3,-.26,.26)+clamp((g.sway||0)*.2,-.15,.15);
+  const bob=Math.sin(this.time*(g.boost>0?24:13))*(1+Math.min(1,g.speed/700))*.7,shake=g.boost>0?Math.sin(this.time*60)*1.2:0;
+  c.save();c.translate(x,y+bob);c.fillStyle='rgba(6,14,10,.38)';c.beginPath();c.ellipse(0,2,bare?44:64,bare?9:13,0,0,TAU);c.fill();
   c.globalAlpha=g.invulnerable>0&&Math.floor(this.time*13)%2===0?.55:1;
-  if(img){const tw=g.hasTrailer===false?62:86,th=tw*img.height/img.width,body=g.hasTrailer===false?.34:1;c.rotate(roll);
-   if(g.hasTrailer===false){c.drawImage(img,0,0,img.width,img.height*.30,-tw/2,-th*.3,tw,th*.3);}else c.drawImage(img,-tw/2,-th+6,tw,th);
-   if(g.boost>0){c.fillStyle='rgba(255,170,60,.8)';for(const s of[-1,1]){c.beginPath();c.moveTo(s*tw*.32,-th*.04);c.lineTo(s*tw*.32+4,16+Math.random()*24);c.lineTo(s*tw*.32-4,-th*.04);c.fill();}}
-   if(g.shield){c.strokeStyle='rgba(255,230,120,.7)';c.lineWidth=4;c.beginPath();c.ellipse(0,-th*.45,tw*.75,th*.58,0,0,TAU);c.stroke();}}
+  const tw=bare?64:90;
+  if(bare){const th=tw*1.02;c.rotate(lean*.8);c.translate(shake,0);ART.cabRear(c,tw,th,this.time,{col:CAB_COL[g.truck]||CAB_COL[0],boost:g.boost>0});this.truckFx(g,c,tw,th,bare);}
+  else if(img){const th=tw*img.height/img.width;c.rotate(lean);c.translate(shake,0);
+   // shear the body about its base so the top (the trailer) lags the steering, in thin slices to keep the edges clean
+   c.save();c.transform(1,0,-swing,1,0,0);c.drawImage(img,-tw/2,-th+6,tw,th);c.restore();
+   this.truckFx(g,c,tw,th,bare);}
   c.restore();
+ }
+ truckFx(g,c,tw,th,bare){
+  if(g.boost>0){for(const s of[-1,1]){const fx=s*tw*.34,len=18+Math.random()*26;const gr=c.createLinearGradient(0,-th*.05,0,len);gr.addColorStop(0,'rgba(255,240,170,.95)');gr.addColorStop(.4,'rgba(255,150,40,.8)');gr.addColorStop(1,'rgba(255,90,20,0)');c.fillStyle=gr;c.beginPath();c.moveTo(fx-5,-th*.05);c.lineTo(fx,len);c.lineTo(fx+5,-th*.05);c.fill();}}
+  if(g.shield){const t=this.time;c.strokeStyle='rgba(255,230,120,'+(.55+.2*Math.sin(t*8))+')';c.lineWidth=4;c.beginPath();c.ellipse(0,-th*.45,tw*.78,th*.6,0,0,TAU);c.stroke();c.fillStyle='rgba(255,230,120,.12)';c.fill();}
+  if(g.crashKind==='water'){c.strokeStyle='rgba(255,255,255,.9)';c.fillStyle='rgba(220,240,255,.8)';c.lineWidth=3;const t=(this.time*3)%1;for(let i=0;i<9;i++){const a=-Math.PI*(i/8),r=24+t*50;c.beginPath();c.arc(Math.cos(a)*r*.9,-10+Math.sin(a)*r,3+((i*7)%3),0,TAU);c.fill();}}
  }
  drawScenery(c,p,x,y,sc){
   let k;if(p.sheet==='routeProps'){k={0:'house',1:'tree',2:'garage',3:'hedge',4:'digger',5:'cabin'}[p.sprite]||'tree';}else{k={0:'shop',7:'shop',1:'shop',2:'tree',3:'house',4:'cabin',5:'tree'}[p.sprite]||'tree';}
@@ -1257,6 +1317,7 @@ class ChaseRenderer extends Renderer{
   c.restore();
  }
 }
+const hash2=n=>{let x=Math.imul((n|0)^0x9e3779b9,0x85ebca6b);return (x^(x>>>16))>>>0;};
 function quad(c,xl1,xr1,xl2,xr2,y,step){c.beginPath();c.moveTo(xl1,y+.5);c.lineTo(xr1,y+.5);c.lineTo(xr2,y-step-.7);c.lineTo(xl2,y-step-.7);c.closePath();c.fill();}
 
 module.exports={ChaseRenderer};
@@ -1544,6 +1605,7 @@ const COMICS={
  cow:{art:"<div class='stage'><span class='emo b'>🐄</span><span class='emo a'>🚛</span><i class='burst'>MOOOO!</i></div>",title:'MOO-VE OVER!',sub:'HOLY COW. LITERALLY.<br>YOU SHOULD HAVE HONKED.',sfx:['brake','moo','flush']},
  binlorry:{art:"<div class='stage'><span class='emo b'>🗑️</span><span class='emo a'>🚛</span><i class='burst'>CLANG!</i></div>",title:'BIN THERE, DONE THAT!',sub:'REFUSE TO LOOK WHERE YOU’RE GOING.<br>COLLECTION: ONE LORRY.',sfx:['clang','brake','scatter']},
  icecream:{art:"<div class='stage'><span class='emo b'>🍦</span><span class='emo a'>🚛</span><i class='burst'>SPLAT!</i></div>",title:'99 PROBLEMS!',sub:'ONE FLAKE-ING DISASTER.<br>NO SPRINKLES. NO REFUNDS.',sfx:['brake','splat','chime']},
+ water:{art:"<div class='stage'><span class='emo b'>🌊</span><span class='emo a'>🚛</span><i class='burst'>SPLOOSH!</i></div>",title:'SILLY DIPPING!',sub:'THE ROAD WENT LEFT.<br>YOU WENT WET.',sfx:['brake','flush','splat']},
  house:{art:"<div class='stage'><span class='part home'>"+IMG('house')+"</span><span class='part cab'>"+IMG('cab')+"</span><i class='burst'>DING-DONG!</i></div>",title:'KNOCK, KNOCK!',sub:'WHO’S THERE? A LORRY.<br>IN THE LOUNGE.',sfx:['horn','brake','flush']}
 };
 let comicAt=0,comicDelayed=false,crashComicTimer=0,forkToastId=-1;
@@ -1575,8 +1637,9 @@ function handleEvents(){if(!game)return;for(const e of game.events.splice(0)){co
  case'hint':toast(e.text,'',1.2);break;
  case'crash':{
   // Freeze on the impact with a red ring and a plain-English label, so you can see exactly what you hit; then the comic.
-  const h=game.lastHit,NAMES={car:'CAR',lowbridge:'LOW BRIDGE',weakbridge:'WEAK BRIDGE',oil:'OIL SLICK',house:'HOUSE',cow:'COW',icecream:'ICE-CREAM VAN',binlorry:'BIN LORRY'};
-  if(h&&e.kind!=='sheep'){const spec=HAZARD_SPECS[h.type],P=renderer.project&&renderer.g?renderer.project(h.lane,h.z,h.x):null,x=P?P.x:(h.x??renderer.x(h.lane,h.z)),y=P?P.y-24*P.s:renderer.playerY-(h.z-game.distance)*renderer.worldScale;
+  const h=game.lastHit,NAMES={car:'CAR',lowbridge:'LOW BRIDGE',weakbridge:'WEAK BRIDGE',oil:'OIL SLICK',house:'HOUSE',cow:'COW',icecream:'ICE-CREAM VAN',binlorry:'BIN LORRY',water:'THE RIVER'};
+  if(e.kind==='water'){renderer.shake=profile.settings.motion?10:0;haptic('heavy');sound.play('flush');sound.play('splat',.6);clearTimeout(crashComicTimer);crashComicTimer=setTimeout(()=>{if(state==='ended')showComic('water');},1300);comicDelayed=true;}
+  else if(h&&e.kind!=='sheep'){const spec=HAZARD_SPECS[h.type],P=renderer.project&&renderer.g?renderer.project(h.lane,h.z,h.x):null,x=P?P.x:(h.x??renderer.x(h.lane,h.z)),y=P?P.y-24*P.s:renderer.playerY-(h.z-game.distance)*renderer.worldScale;
    renderer.highlight={x,y,rx:P?Math.max(40,(spec?.width||70)*P.s*.7):Math.max(34,(spec?.width||70)*.62),ry:P?Math.max(40,(spec?.width||70)*P.s*.7):Math.max(30,(spec?.height||80)*renderer.worldScale*.62),label:'YOU HIT: '+(NAMES[e.kind]||e.kind.toUpperCase()),t0:renderer.time,item:h.item};renderer.shake=profile.settings.motion?14:0;haptic('heavy');sound.play('brake');renderer.draw(game,0,profile.truck);
    clearTimeout(crashComicTimer);crashComicTimer=setTimeout(()=>{if(state==='ended')showComic(e.kind);},1900);comicDelayed=true;}
   else showComic(e.kind);break;}
