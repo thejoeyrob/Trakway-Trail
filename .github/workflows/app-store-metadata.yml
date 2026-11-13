@@ -1,0 +1,44 @@
+name: App Store Connect: upload listing text and screenshots
+# Pushes fastlane/metadata (name, subtitle, description, keywords, URLs, what's new) and fastlane/screenshots to the App Store Connect record
+# using the App Store Connect API key already stored as repo secrets. It does NOT submit for review and cannot set privacy answers or pricing.
+on:
+  push:
+    branches: ['store/**']
+    paths: ['.github/workflows/app-store-metadata.yml']   # registers the workflow; the job only runs on manual dispatch
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'App version these notes belong to'
+        default: '2.1.0'
+jobs:
+  listing:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install fastlane
+        run: brew install fastlane
+      - name: App Store Connect API key
+        env:
+          KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+        run: |
+          python3 - <<'PY'
+          import json,os
+          json.dump({'key_id':'${{ vars.APPSTORE_API_KEY_ID }}','issuer_id':'${{ vars.APPSTORE_ISSUER_ID }}','key':os.environ['KEY'],'in_house':False},open(os.environ['RUNNER_TEMP']+'/asc.json','w'))
+          PY
+      - name: Upload metadata and screenshots
+        run: |
+          fastlane deliver \
+            --api_key_path "$RUNNER_TEMP/asc.json" \
+            --app_identifier "${{ vars.APPSTORE_BUNDLE_ID }}" \
+            --app_version "${{ inputs.version }}" \
+            --platform ios \
+            --metadata_path fastlane/metadata \
+            --screenshots_path fastlane/screenshots \
+            --skip_binary_upload true \
+            --force true \
+            --overwrite_screenshots true \
+            --submit_for_review false \
+            --automatic_release false \
+            --run_precheck_before_submit false
