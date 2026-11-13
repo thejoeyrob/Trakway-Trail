@@ -641,7 +641,7 @@ function thumb(r,kind,paint,decal){const key=kind+':'+paint+':'+decal;if(thumbs.
  const src=composed(r,kind,paint,decal);if(!src)return '';const c=mk(Math.round(src.width*.55),Math.round(src.height*.55));c.getContext('2d').drawImage(src,0,0,c.width,c.height);
  let url='';try{url=c.toDataURL('image/png');}catch(e){url='';}thumbs.set(key,url);return url;}
 
-module.exports={PAINTS,DECAL_PAINT,drawRig,drawTrailerOnly,thumb};
+module.exports={PAINTS,hueShift,tintBody,DECAL_PAINT,drawRig,drawTrailerOnly,thumb};
 
 },
 "./road-events.js":function(module,exports,require){
@@ -1070,6 +1070,198 @@ async function loadImages(){const names=['sprites','roads','restrictions','cover
 module.exports={SPR,Renderer,loadImages};
 
 },
+"./chaseart.js":function(module,exports,require){
+/* Behind-the-truck (chase cam) billboards, drawn in code. Everything is seen from BEHIND and slightly above, like the road itself.
+   Each function draws centred on x=0 with its BASE on y=0 and extends upwards (negative y). w,h are the on-screen size in px. t = seconds. o = {seed, ...}. */
+const TAU=Math.PI*2;
+const SIZE={cone:[30,38],barrier:[70,34],car:[50,40],bus:[64,70],lowbridge:[92,86],weakbridge:[92,50],narrow:[92,44],noentry:[30,70],works:[74,60],footpath:[64,42],
+ cow:[60,56],tractor:[68,66],haybale:[50,50],icecream:[60,72],geese:[74,40],morris:[78,56],cyclists:[68,54],caravan:[58,66],binlorry:[70,74],sheep:[46,40],
+ tree:[74,100],house:[116,104],hedge:[96,42],garage:[104,70],digger:[84,72],shop:[112,98],cabin:[84,60],
+ coin:[28,28],crumb:[22,22],taco:[44,36],job:[52,46],finish:[56,64],boost:[34,44],night:[44,44],hitch:[40,34],shield:[40,40],prize:[40,40]};
+const hash=n=>{let x=Math.imul((n|0)^0x9e3779b9,0x85ebca6b);x=(x^(x>>>16))>>>0;return x};
+function rr(c,x,y,w,h,r){c.beginPath();c.roundRect(x,y,w,h,r)}
+function ell(c,x,y,rx,ry,f){c.fillStyle=f;c.beginPath();c.ellipse(x,y,rx,ry,0,0,TAU);c.fill()}
+function lg(c,x0,y0,x1,y1,a,b){const g=c.createLinearGradient(x0,y0,x1,y1);g.addColorStop(0,a);g.addColorStop(1,b);return g}
+function wheel(c,x,y,r){ell(c,x,y,r*.8,r,'#14181a');ell(c,x,y-r*.2,r*.55,r*.55,'#2a3033')}
+function shadow(c,w){c.fillStyle='rgba(8,16,12,.30)';c.beginPath();c.ellipse(0,0,w*.52,w*.11,0,0,TAU);c.fill()}
+const CARS=['#c63a35','#2f6fcf','#e9eef2','#2f2f35','#f0b72a','#3c9a5c','#8b4aa8'];
+const ART={
+ cone(c,w,h){shadow(c,w*1.2);c.fillStyle='#1b1d1e';rr(c,-w*.5,-h*.1,w,h*.1,2);c.fill();c.fillStyle=lg(c,-w*.4,0,w*.4,0,'#ff8a2e','#d94d12');c.beginPath();c.moveTo(-w*.38,-h*.1);c.lineTo(-w*.12,-h);c.lineTo(w*.12,-h);c.lineTo(w*.38,-h*.1);c.closePath();c.fill();c.fillStyle='#fff';c.beginPath();c.moveTo(-w*.3,-h*.42);c.lineTo(-w*.22,-h*.62);c.lineTo(w*.22,-h*.62);c.lineTo(w*.3,-h*.42);c.closePath();c.fill()},
+ barrier(c,w,h,t){shadow(c,w);c.fillStyle='#d6d9dc';rr(c,-w*.5,-h*.75,w,h*.45,3);c.fill();for(let i=0;i<7;i++){c.fillStyle=i%2?'#f4f4f0':'#d8262b';c.fillRect(-w*.5+i*w/7,-h*.72,w/7,h*.38)}for(const s of[-1,1]){c.fillStyle='#2a2e30';c.fillRect(s*w*.38-3,-h*.3,6,h*.3)}const on=Math.sin(t*8)>0;for(const x of[-.35,0,.35]){ell(c,x*w,-h*.84,5,5,on?'#ffb52e':'#8a5d12')}},
+ car(c,w,h,t,o){shadow(c,w*1.1);const col=CARS[hash(o.id||0)%CARS.length];wheel(c,-w*.38,-h*.14,h*.14);wheel(c,w*.38,-h*.14,h*.14);c.fillStyle=lg(c,-w*.5,0,w*.5,0,col,'#00000055');rr(c,-w*.5,-h*.62,w,h*.5,h*.14);c.fill();c.fillStyle='#ffffff30';rr(c,-w*.44,-h*.6,w*.88,h*.1,4);c.fill();c.fillStyle='#22323d';c.beginPath();c.moveTo(-w*.36,-h*.58);c.lineTo(-w*.28,-h*.95);c.lineTo(w*.28,-h*.95);c.lineTo(w*.36,-h*.58);c.closePath();c.fill();c.fillStyle='#ffffff33';c.fillRect(-w*.2,-h*.88,w*.14,h*.06);c.fillStyle=col;c.beginPath();c.moveTo(-w*.42,-h*.58);c.lineTo(-w*.34,-h*.62);c.lineTo(w*.34,-h*.62);c.lineTo(w*.42,-h*.58);c.closePath();c.fill();c.fillStyle='#e9322b';rr(c,-w*.46,-h*.5,w*.2,h*.1,2);c.fill();rr(c,w*.26,-h*.5,w*.2,h*.1,2);c.fill();c.fillStyle='#f4f0d8';rr(c,-w*.14,-h*.36,w*.28,h*.1,2);c.fill()},
+ bus(c,w,h,t){shadow(c,w*1.1);wheel(c,-w*.38,-h*.08,h*.09);wheel(c,w*.38,-h*.08,h*.09);c.fillStyle=lg(c,-w*.5,0,w*.5,0,'#d8302b','#a41f1b');rr(c,-w*.5,-h*.96,w,h*.88,6);c.fill();c.fillStyle='#22323d';rr(c,-w*.4,-h*.9,w*.8,h*.26,3);c.fill();c.fillStyle='#22323d';rr(c,-w*.4,-h*.58,w*.8,h*.2,3);c.fill();c.fillStyle='#f4f0d8';c.fillRect(-w*.3,-h*.98,w*.6,h*.06);c.fillStyle='#ffe14a';c.font='900 '+Math.round(h*.09)+'px Anton,Impact,sans-serif';c.textAlign='center';c.fillText('BUS',0,-h*.92+h*.1);c.fillStyle='#ff4b3a';rr(c,-w*.46,-h*.3,w*.12,h*.12,2);c.fill();rr(c,w*.34,-h*.3,w*.12,h*.12,2);c.fill();c.fillStyle='#f4f0d8';rr(c,-w*.14,-h*.22,w*.28,h*.07,2);c.fill()},
+ lowbridge(c,w,h){c.fillStyle='rgba(8,16,12,.28)';c.beginPath();c.ellipse(0,0,w*.55,w*.08,0,0,TAU);c.fill();for(const s of[-1,1]){c.fillStyle=lg(c,s*w*.5,0,s*w*.3,0,'#8c8a82','#6c6a62');rr(c,s>0?w*.3:-w*.5,-h*.9,w*.2,h*.9,2);c.fill()}c.fillStyle='#7d7b73';rr(c,-w*.5,-h*.9,w,h*.3,3);c.fill();c.strokeStyle='#5b5a55';c.lineWidth=1;for(let i=0;i<5;i++){c.beginPath();c.moveTo(-w*.5,-h*.9+i*h*.075);c.lineTo(w*.5,-h*.9+i*h*.075);c.stroke()}for(let i=0;i<9;i++){c.fillStyle=i%2?'#f6e21c':'#17181a';c.beginPath();const x=-w*.5+i*w/9;c.moveTo(x,-h*.6);c.lineTo(x+w/9,-h*.6);c.lineTo(x+w/18,-h*.5);c.closePath();c.fill()}ell(c,0,-h*.78,h*.13,h*.13,'#fff');c.strokeStyle='#d4141f';c.lineWidth=h*.035;c.beginPath();c.arc(0,-h*.78,h*.13,0,TAU);c.stroke();c.fillStyle='#15171a';c.font='800 '+Math.round(h*.1)+'px sans-serif';c.textAlign='center';c.fillText('3.9m',0,-h*.75)},
+ weakbridge(c,w,h){shadow(c,w*1.1);c.fillStyle='#6b4a2b';rr(c,-w*.5,-h*.3,w,h*.3,2);c.fill();c.strokeStyle='#4a3119';c.lineWidth=1;for(let i=0;i<10;i++){c.beginPath();c.moveTo(-w*.5+i*w/10,-h*.3);c.lineTo(-w*.5+i*w/10,0);c.stroke()}for(const s of[-1,1]){c.fillStyle='#8a6a40';rr(c,s*w*.5-4,-h*.9,8,h*.6,2);c.fill();c.fillStyle='#9a7a4c';c.fillRect(s>0?w*.1:-w*.5,-h*.7,w*.4,5)}ell(c,0,-h*.7,h*.17,h*.17,'#fff');c.strokeStyle='#d4141f';c.lineWidth=h*.05;c.beginPath();c.arc(0,-h*.7,h*.17,0,TAU);c.stroke();c.fillStyle='#15171a';c.font='900 '+Math.round(h*.14)+'px sans-serif';c.textAlign='center';c.fillText('7.5t',0,-h*.66)},
+ narrow(c,w,h){shadow(c,w);for(const s of[-1,1]){c.fillStyle=lg(c,0,-h,0,0,'#3f8a39','#2a6a2a');rr(c,s>0?w*.1:-w*.5,-h*.85,w*.4,h*.85,8);c.fill();c.fillStyle='#ffffff22';c.fillRect(s>0?w*.14:-w*.46,-h*.8,w*.3,3)}},
+ noentry(c,w,h){c.fillStyle='#2a2e30';c.fillRect(-2,-h*.7,4,h*.7);ell(c,0,-h*.78,w*.5,w*.5,'#d4141f');c.fillStyle='#fff';c.fillRect(-w*.34,-h*.78-w*.07,w*.68,w*.14)},
+ works(c,w,h,t){shadow(c,w*1.1);c.fillStyle='#2a2e30';rr(c,-w*.4,-h*.16,w*.8,h*.16,3);c.fill();c.fillStyle=lg(c,0,-h,0,0,'#f08a1a','#c96a0c');rr(c,-w*.34,-h*.62,w*.68,h*.48,5);c.fill();c.fillStyle='#22323d';rr(c,-w*.22,-h*.6,w*.44,h*.22,3);c.fill();c.strokeStyle='#e58a14';c.lineWidth=h*.1;c.lineCap='round';c.beginPath();c.moveTo(w*.2,-h*.5);c.lineTo(w*.46,-h*.95);c.lineTo(w*.2,-h*.9);c.stroke();const on=Math.sin(t*7)>0;ell(c,0,-h*.7,5,5,on?'#ffb52e':'#8a5d12')},
+ footpath(c,w,h){for(const s of[-1,1]){c.fillStyle='#fff';rr(c,s*w*.32-4,-h*.9,8,h*.9,3);c.fill();c.fillStyle='#d8262b';c.fillRect(s*w*.32-4,-h*.6,8,h*.12);c.fillRect(s*w*.32-4,-h*.3,8,h*.12)}},
+ cow(c,w,h,t){shadow(c,w*1.1);const sw=Math.sin(t*3)*2;for(const s of[-1,1]){c.fillStyle='#2a2622';c.fillRect(s*w*.22-4,-h*.28,8,h*.28)}c.fillStyle=lg(c,-w*.5,0,w*.5,0,'#fffdf6','#dedacb');rr(c,-w*.44,-h*.9,w*.88,h*.66,w*.22);c.fill();c.fillStyle='#1d1f20';for(const [x,y,rx,ry] of[[-.2,-.7,.16,.12],[.18,-.55,.18,.14],[-.08,-.38,.1,.08]]){c.beginPath();c.ellipse(x*w,y*h,rx*w,ry*h,.3,0,TAU);c.fill()}ell(c,0,-h*.3,w*.12,h*.07,'#f4b3ae');c.strokeStyle='#d9d3c3';c.lineWidth=3;c.lineCap='round';c.beginPath();c.moveTo(0,-h*.82);c.quadraticCurveTo(sw*2,-h*.65,sw*3,-h*.4);c.stroke();ell(c,sw*3,-h*.38,3,5,'#1d1f20');ell(c,-w*.34,-h*.9,w*.1,h*.05,'#ebe5d4');ell(c,w*.34,-h*.9,w*.1,h*.05,'#ebe5d4')},
+ tractor(c,w,h,t){shadow(c,w*1.1);for(const s of[-1,1]){c.fillStyle='#14181a';rr(c,s>0?w*.2:-w*.5,-h*.7,w*.3,h*.7,6);c.fill();c.fillStyle='#f0c21a';ell(c,s*w*.35,-h*.35,w*.06,h*.12,'#f0c21a')}c.fillStyle=lg(c,-w*.3,0,w*.3,0,'#35a85a','#1f6f3b');rr(c,-w*.26,-h*.6,w*.52,h*.5,6);c.fill();c.fillStyle='#e9ece6';rr(c,-w*.22,-h*.98,w*.44,h*.42,6);c.fill();c.fillStyle='#2f5b66';rr(c,-w*.17,-h*.9,w*.34,h*.22,3);c.fill();c.fillStyle='#262c2a';c.fillRect(w*.14,-h*1.12,5,h*.3);const on=Math.sin(t*9)>0;ell(c,0,-h*1.0,4,4,on?'#ffb52e':'#8a5d12');c.fillStyle='#d8262b';rr(c,-w*.2,-h*.3,w*.1,h*.07,2);c.fill();rr(c,w*.1,-h*.3,w*.1,h*.07,2);c.fill()},
+ haybale(c,w,h){shadow(c,w*1.1);ell(c,0,-h*.5,w*.5,h*.5,lg(c,-w*.5,0,w*.5,0,'#f0cf6e','#c79a35'));c.strokeStyle='#a97b22';c.lineWidth=1.2;for(let r=.1;r<.5;r+=.1){c.beginPath();c.ellipse(0,-h*.5,w*r,h*r,0,0,TAU);c.stroke()}c.strokeStyle='#d9692a';c.lineWidth=3;c.beginPath();c.moveTo(-w*.5,-h*.5);c.lineTo(w*.5,-h*.5);c.stroke()},
+ icecream(c,w,h,t){shadow(c,w*1.1);wheel(c,-w*.38,-h*.08,h*.09);wheel(c,w*.38,-h*.08,h*.09);c.fillStyle=lg(c,-w*.5,0,w*.5,0,'#fffaf0','#e0d3bb');rr(c,-w*.5,-h*.78,w,h*.7,8);c.fill();c.fillStyle='#ff6fa5';c.fillRect(-w*.5,-h*.34,w,h*.08);c.fillStyle='#35c4d2';c.fillRect(-w*.5,-h*.26,w,h*.05);c.fillStyle='#41555d';rr(c,-w*.4,-h*.74,w*.8,h*.26,4);c.fill();c.fillStyle='#fff';c.fillRect(-w*.34,-h*.7,w*.68,h*.08);c.fillStyle='#e0457f';c.font='900 '+Math.round(h*.09)+'px Anton,Impact,sans-serif';c.textAlign='center';c.fillText('ICE CREAM',0,-h*.64);c.fillStyle='#e9b25f';c.beginPath();c.moveTo(-w*.14,-h*.78);c.lineTo(w*.14,-h*.78);c.lineTo(0,-h*.93);c.closePath();c.fill();ell(c,0,-h*.97,w*.15,h*.09,'#ff9fc4');ell(c,0,-h*1.05,w*.09,h*.06,'#ffd1e3');ell(c,0,-h*1.1,w*.03,h*.03,'#d8466f');c.fillStyle='#ff4b3a';rr(c,-w*.46,-h*.22,w*.1,h*.09,2);c.fill();rr(c,w*.36,-h*.22,w*.1,h*.09,2);c.fill();c.fillStyle='#f4f0d8';rr(c,-w*.12,-h*.14,w*.24,h*.06,2);c.fill()},
+ geese(c,w,h,t){shadow(c,w);for(let i=0;i<5;i++){const x=(i-2)*w*.2,b=Math.sin(t*5+i)*1.5;ell(c,x,-h*.35+b,w*.07,h*.28,'#fbfaf5');ell(c,x,-h*.7+b,w*.035,w*.035,'#fbfaf5');c.fillStyle='#f08a24';c.fillRect(x-1.5,-h*.7+b,3,3);c.fillStyle='#2f2f2f';c.fillRect(x-w*.04,-h*.2+b,w*.08,h*.08)}},
+ morris(c,w,h,t){shadow(c,w);for(let i=0;i<5;i++){const x=(i-2)*w*.2,sw=Math.sin(t*6+i*1.3);c.fillStyle='#f6f4ec';rr(c,x-w*.06,-h*.62,w*.12,h*.46,4);c.fill();c.strokeStyle=i%2?'#c63a3a':'#2e8a4b';c.lineWidth=3;c.beginPath();c.moveTo(x-w*.06,-h*.6);c.lineTo(x+w*.06,-h*.3);c.stroke();c.fillStyle='#3a3a44';c.fillRect(x-w*.05,-h*.16,w*.04,h*.16);c.fillRect(x+w*.01,-h*.16,w*.04,h*.16);ell(c,x,-h*.7,w*.05,w*.05,'#e7b48f');ell(c,x,-h*.76,w*.065,w*.03,'#2b2b33');ell(c,x+w*.04,-h*.8,2.5,2.5,'#ff6fa5');c.strokeStyle='#f6f4ec';c.lineWidth=3;c.beginPath();c.moveTo(x-w*.06,-h*.6);c.lineTo(x-w*.12,-h*.88+sw*4);c.moveTo(x+w*.06,-h*.6);c.lineTo(x+w*.12,-h*.88-sw*4);c.stroke();ell(c,x-w*.12,-h*.9+sw*4,3,3,'#fff');ell(c,x+w*.12,-h*.9-sw*4,3,3,'#d94a4a')}},
+ cyclists(c,w,h,t){shadow(c,w);const cols=['#e8402f','#2f7be8','#f2c21a','#31b36b'];for(let i=0;i<4;i++){const x=(i-1.5)*w*.24,col=cols[i],sw=Math.sin(t*9+i)*1.5;ell(c,x,-h*.14,w*.045,h*.14,'#14181a');c.strokeStyle='#1d2124';c.lineWidth=2;c.beginPath();c.moveTo(x,-h*.14);c.lineTo(x,-h*.5);c.stroke();c.fillStyle=col;rr(c,x-w*.07,-h*.78,w*.14,h*.34,6);c.fill();ell(c,x+sw,-h*.86,w*.05,w*.05,'#f2f2f2');c.strokeStyle=col;c.lineWidth=3;c.beginPath();c.moveTo(x-w*.06,-h*.72);c.lineTo(x-w*.1,-h*.5);c.moveTo(x+w*.06,-h*.72);c.lineTo(x+w*.1,-h*.5);c.stroke()}},
+ caravan(c,w,h){shadow(c,w*1.1);wheel(c,-w*.4,-h*.08,h*.08);wheel(c,w*.4,-h*.08,h*.08);c.fillStyle=lg(c,-w*.5,0,w*.5,0,'#fffaf0','#d9ccb0');rr(c,-w*.5,-h*.95,w,h*.86,10);c.fill();c.fillStyle='#22364f';rr(c,-w*.3,-h*.78,w*.6,h*.3,5);c.fill();c.fillStyle='#e9a73a';c.fillRect(-w*.5,-h*.4,w,h*.05);c.fillStyle='#3a7bd0';c.fillRect(-w*.5,-h*.34,w,h*.025);c.fillStyle='#d8262b';rr(c,-w*.46,-h*.26,w*.1,h*.1,2);c.fill();rr(c,w*.36,-h*.26,w*.1,h*.1,2);c.fill();c.fillStyle='#f4f0d8';rr(c,-w*.12,-h*.18,w*.24,h*.06,2);c.fill()},
+ binlorry(c,w,h,t){shadow(c,w*1.1);wheel(c,-w*.4,-h*.08,h*.09);wheel(c,w*.4,-h*.08,h*.09);c.fillStyle=lg(c,-w*.5,0,w*.5,0,'#34a05d','#1d6b3b');rr(c,-w*.5,-h*.92,w,h*.84,6);c.fill();c.fillStyle='#0f3a25';rr(c,-w*.4,-h*.72,w*.8,h*.42,4);c.fill();c.strokeStyle='#8ed3a6';c.lineWidth=1;for(let i=0;i<5;i++){c.beginPath();c.moveTo(-w*.38,-h*.68+i*h*.07);c.lineTo(w*.38,-h*.68+i*h*.07);c.stroke()}c.fillStyle='#fff';c.font='900 '+Math.round(h*.1)+'px Anton,Impact,sans-serif';c.textAlign='center';c.fillText('REFUSE',0,-h*.78);for(let i=0;i<8;i++){c.fillStyle=i%2?'#f6e21c':'#d6262a';c.beginPath();const x=-w*.5+i*w/8;c.moveTo(x,-h*.08);c.lineTo(x+w/8,-h*.08);c.lineTo(x+w/16,-h*.22);c.lineTo(x-w/16,-h*.22);c.closePath();c.fill()}const on=Math.sin(t*8)>0;ell(c,-w*.4,-h*.95,5,5,on?'#ffb52e':'#8a5d12');ell(c,w*.4,-h*.95,5,5,on?'#ffb52e':'#8a5d12')},
+ sheep(c,w,h,t){shadow(c,w);const b=Math.sin(t*5)*1.5;ell(c,0,-h*.45+b,w*.46,h*.4,'#f3eee0');for(const [x,y] of[[-.25,.6],[.2,.62],[-.05,.78],[.3,.45],[-.32,.4]])ell(c,x*w,-h*y+b,w*.2,h*.2,'#fbf7ea');c.fillStyle='#2b2724';c.fillRect(-w*.3,-h*.1,5,h*.1);c.fillRect(w*.22,-h*.1,5,h*.1);ell(c,w*.05,-h*.88+b,w*.12,h*.14,'#2b2724')},
+ tree(c,w,h,t,o){const v=hash(o.id||0)%3;c.fillStyle='rgba(8,16,12,.25)';c.beginPath();c.ellipse(0,0,w*.5,w*.1,0,0,TAU);c.fill();c.fillStyle='#5a3e26';rr(c,-w*.06,-h*.35,w*.12,h*.35,3);c.fill();const g=['#3f8f3a','#4a9a40','#357a35'][v];for(const [x,y,r] of[[-.2,.55,.28],[.2,.55,.28],[0,.78,.32],[-.12,.4,.26],[.14,.38,.25],[0,.92,.22]]){ell(c,x*w,-h*y,r*w,r*w,g)}ell(c,-w*.1,-h*.82,w*.18,w*.14,'#7fcf62');ell(c,w*.12,-h*.62,w*.12,w*.09,'#6dbf52')},
+ hedge(c,w,h){c.fillStyle='rgba(8,16,12,.22)';c.beginPath();c.ellipse(0,0,w*.5,w*.07,0,0,TAU);c.fill();c.fillStyle=lg(c,0,-h,0,0,'#4aa043','#2d6f2d');rr(c,-w*.5,-h,w,h,10);c.fill();for(let i=0;i<8;i++)ell(c,-w*.42+i*w*.12,-h*.9,w*.08,h*.12,'#63b857')},
+ house(c,w,h,t,o){const k=hash(o.id||0),wall=['#b5593f','#c1704a','#a8523a','#caa27a'][k%4],roof=['#4a4e58','#5a4a46','#3e4650'][k%3];c.fillStyle='rgba(8,16,12,.25)';c.beginPath();c.ellipse(0,0,w*.55,w*.08,0,0,TAU);c.fill();c.fillStyle=wall;rr(c,-w*.4,-h*.62,w*.8,h*.62,2);c.fill();c.fillStyle=roof;c.beginPath();c.moveTo(-w*.48,-h*.6);c.lineTo(0,-h);c.lineTo(w*.48,-h*.6);c.closePath();c.fill();c.fillStyle='#8a3a2a';c.fillRect(w*.22,-h*.92,w*.07,h*.2);c.fillStyle='#f4f0e0';for(const x of[-.28,.12])c.fillRect(x*w,-h*.5,w*.16,h*.2);c.fillStyle='#2a3a46';for(const x of[-.26,.14])c.fillRect(x*w,-h*.48,w*.12,h*.16);c.fillStyle='#2f4f3f';rr(c,-w*.06,-h*.34,w*.14,h*.34,2);c.fill();c.fillStyle='#4aa043';c.fillRect(-w*.46,-h*.09,w*.92,h*.09)},
+ shop(c,w,h,t,o){const k=hash(o.id||0),col=['#9a4a3a','#3d6f8f','#8a7a3a','#5a4a7a'][k%4];c.fillStyle='rgba(8,16,12,.25)';c.beginPath();c.ellipse(0,0,w*.55,w*.08,0,0,TAU);c.fill();c.fillStyle=col;rr(c,-w*.45,-h*.9,w*.9,h*.9,2);c.fill();c.fillStyle='#e9ecef';c.fillRect(-w*.45,-h*.96,w*.9,h*.06);c.fillStyle='#22323d';c.fillRect(-w*.35,-h*.62,w*.7,h*.4);c.fillStyle=k%2?'#d8262b':'#2e8a4b';for(let i=0;i<7;i++){if(i%2)continue;c.fillRect(-w*.4+i*w*.115,-h*.7,w*.115,h*.1)}c.fillStyle='#fff';c.fillRect(-w*.3,-h*.82,w*.6,h*.07)},
+ garage(c,w,h){c.fillStyle='rgba(8,16,12,.25)';c.beginPath();c.ellipse(0,0,w*.55,w*.08,0,0,TAU);c.fill();c.fillStyle='#a8523a';rr(c,-w*.45,-h*.7,w*.9,h*.7,2);c.fill();c.fillStyle='#4a4e58';c.beginPath();c.moveTo(-w*.5,-h*.68);c.lineTo(0,-h);c.lineTo(w*.5,-h*.68);c.closePath();c.fill();c.fillStyle='#3a4046';rr(c,-w*.28,-h*.5,w*.56,h*.5,3);c.fill();c.strokeStyle='#2a2e32';c.lineWidth=1.5;for(let i=1;i<6;i++){c.beginPath();c.moveTo(-w*.28,-h*.5+i*h*.083);c.lineTo(w*.28,-h*.5+i*h*.083);c.stroke()}},
+ digger(c,w,h){shadow(c,w*1.1);c.fillStyle='#2a2e30';rr(c,-w*.45,-h*.2,w*.9,h*.2,5);c.fill();c.fillStyle='#f08a1a';rr(c,-w*.3,-h*.6,w*.6,h*.4,5);c.fill();c.fillStyle='#22323d';rr(c,-w*.2,-h*.56,w*.4,h*.2,3);c.fill();c.strokeStyle='#e58a14';c.lineWidth=h*.1;c.lineCap='round';c.beginPath();c.moveTo(w*.2,-h*.5);c.lineTo(w*.44,-h*.98);c.lineTo(w*.1,-h*.8);c.stroke()},
+ cabin(c,w,h){c.fillStyle='rgba(8,16,12,.25)';c.beginPath();c.ellipse(0,0,w*.55,w*.08,0,0,TAU);c.fill();c.fillStyle='#c9d1d6';rr(c,-w*.45,-h*.8,w*.9,h*.8,3);c.fill();c.fillStyle='#22323d';c.fillRect(-w*.3,-h*.6,w*.25,h*.25);c.fillRect(w*.05,-h*.6,w*.25,h*.25);c.fillStyle='#f6e21c';c.fillRect(-w*.45,-h*.82,w*.9,h*.07)},
+ coin(c,w,h,t){const sq=Math.abs(Math.cos(t*3));const rx=w*.5*(.35+.65*sq);ell(c,0,-h*.5,rx,h*.5,lg(c,0,-h,0,0,'#ffe066','#d89b1a'));c.strokeStyle='#b57b10';c.lineWidth=1.5;c.beginPath();c.ellipse(0,-h*.5,rx*.78,h*.4,0,0,TAU);c.stroke();if(sq>.5){c.fillStyle='#b57b10';c.font='900 '+Math.round(h*.52)+'px Anton,Impact,sans-serif';c.textAlign='center';c.fillText('£',0,-h*.3)}},
+ taco(c,w,h){c.fillStyle='#f2b84a';c.beginPath();c.arc(0,-h*.1,w*.5,Math.PI,0);c.closePath();c.fill();c.fillStyle='#4fa33a';for(let i=0;i<6;i++)ell(c,-w*.38+i*w*.15,-h*.62,w*.09,h*.14,'#4fa33a');c.fillStyle='#d8262b';for(let i=0;i<4;i++)ell(c,-w*.25+i*w*.17,-h*.5,w*.07,h*.1,'#d8262b')},
+ job(c,w,h){c.fillStyle='#c98a4a';rr(c,-w*.5,-h*.7,w,h*.7,3);c.fill();c.strokeStyle='#7a4f20';c.lineWidth=1.5;c.beginPath();c.moveTo(-w*.5,-h*.35);c.lineTo(w*.5,-h*.35);c.moveTo(0,-h*.7);c.lineTo(0,0);c.stroke();c.fillStyle='#3a2400';c.font='900 '+Math.round(h*.3)+'px Anton,Impact,sans-serif';c.textAlign='center';c.fillText('JOB',0,-h*.85);ell(c,0,-h*1.0,w*.12,w*.12,'#55ffda')},
+ finish(c,w,h){c.fillStyle='#2a2e30';c.fillRect(-w*.5,-h,4,h);c.fillRect(w*.5-4,-h,4,h);for(let i=0;i<8;i++)for(let j=0;j<2;j++){c.fillStyle=(i+j)%2?'#fff':'#15171a';c.fillRect(-w*.5+i*w/8,-h+j*h*.18,w/8,h*.18)}},
+ boost(c,w,h){c.fillStyle='#f4f0e0';rr(c,-w*.3,-h*.7,w*.6,h*.7,5);c.fill();c.fillStyle='#d8262b';c.fillRect(-w*.3,-h*.5,w*.6,h*.14);ell(c,0,-h*.78,w*.34,h*.08,'#8a5a2a');ell(c,0,-h*.88,w*.12,h*.12,'#ffffff77')},
+ night(c,w,h){ell(c,0,-h*.5,w*.5,h*.5,'#2a3a7a');ell(c,w*.14,-h*.55,w*.36,h*.4,'#ffe9a0');ell(c,w*.24,-h*.58,w*.36,h*.4,'#2a3a7a')},
+ hitch(c,w,h){ell(c,0,-h*.2,w*.5,h*.2,'#2c7a4a');ell(c,0,-h*.5,w*.2,w*.2,lg(c,0,-h,0,0,'#e8eef0','#8a9aa0'));c.fillStyle='#8a9aa0';c.fillRect(-w*.06,-h*.35,w*.12,h*.25)},
+ shield(c,w,h,t){const p=1+Math.sin(t*5)*.06;c.save();c.scale(p,p);c.strokeStyle='#8a5a12';c.lineWidth=w*.16;c.lineCap='round';c.beginPath();c.arc(0,-h*.5,w*.3,Math.PI*.15,Math.PI*.85,true);c.stroke();c.strokeStyle='#ffd23f';c.lineWidth=w*.11;c.beginPath();c.arc(0,-h*.5,w*.3,Math.PI*.15,Math.PI*.85,true);c.stroke();c.restore()},
+ prize(c,w,h){ell(c,0,-h*.5,w*.5,h*.5,lg(c,0,-h,0,0,'#ffe066','#d89b1a'));c.fillStyle='#b57b10';c.font='900 '+Math.round(h*.4)+'px Anton,Impact,sans-serif';c.textAlign='center';c.fillText('★',0,-h*.35)}
+};
+ART.crumb=ART.coin;
+
+module.exports={SIZE,ART};
+
+},
+"./chase.js":function(module,exports,require){
+/* Behind-the-truck camera ("chase cam"). A pseudo-3D road drawn row by row, using exactly the same game (Drive model, route-world road bands, hazards,
+   pickups, collisions) as the top-down view. Only the camera changes. The truck is ChatGPT's rear-above sprite from the showroom sheet. */
+const {Renderer}=require("./render.js");
+const {roadAt,sceneryProps,sideProps,waterSide}=require("./route-world.js");
+const {roadTheme,laneX}=require("./geometry.js");
+const {ROUTE_ATLAS}=require("./route-atlas.js");
+const {PAINTS,hueShift,tintBody,DECAL_PAINT}=require("./rigart.js");
+const {HAZARD_SPECS}=require("./route-hazards.js");
+const {ART,SIZE}=require("./chaseart.js");
+const CAMBACK=260,FAR=2400,TAU=Math.PI*2,CURVE=1.9;
+const mix=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
+const rgb=c=>'rgb('+c[0]+','+c[1]+','+c[2]+')';
+const THEME_GROUND=[[124,128,134],[82,158,58],[92,170,66],[201,166,107]];   // town paving, country grass, suburban lawn, building-site sand
+const HAZE=[196,226,246];
+const FLAT={pit:1,mud:1,oil:1,grass:1};
+class ChaseRenderer extends Renderer{
+ resize(){super.resize();this.yT=this.H*.80;this.playerY=this.yT-120;this.worldScale=.72;this.camX=this.camX||210;}
+ /* screen x of a lane at the truck's depth (used for cash pop-ups and night lights) */
+ x(lane){return 210+(54+78*lane-(this.camX||210));}
+ /* project a world point (lane or raw x, z) to the screen: {x,y,s} */
+ /* Roads bend only a little in the model; the camera exaggerates the bend (applied to the road, the scenery and the items alike, so they stay lined up). */
+ shiftAt(z){const a=roadAt(z,this.g.seed),bs=a.bands,l=Math.min(...bs.map(b=>b.left)),r=Math.max(...bs.map(b=>b.right));return ((l+r)/2-210)*(CURVE-1);}
+ project(lane,z,rawX){const g=this.g,zr=z-(g.distance-CAMBACK),sc=CAMBACK/zr,wx=(rawX??(54+78*lane))+this.shiftAt(z);return {x:210+(wx-this.camX)*sc,y:this.y0+this.A/zr,s:sc};}
+ truckSprite(g){
+  const key=[g.truck,g.trailerPaint,g.decal,g.trailerDecal].join(':');if(this._ts&&this._ts.key===key)return this._ts.c;
+  const img=this.images.routeShowroom,rect=ROUTE_ATLAS.showroom.rects[4];if(!img)return null;
+  let c=document.createElement('canvas');c.width=rect[2];c.height=rect[3];c.getContext('2d').drawImage(img,...rect,0,0,rect[2],rect[3]);
+  try{const P=PAINTS[g.truck]||PAINTS[0];if(P.cab.hue||P.cab.sat!==undefined||P.cab.white)hueShift(c,P.cab);
+   else if(P.cab.sprite===1||P.cab.sprite===2){hueShift(c,{hue:P.cab.sprite===1?-150:100,sat:1});}
+   const TP=PAINTS[g.trailerPaint??1];if(TP&&TP.tint)tintBody(c,TP.tint);}catch(e){}
+  const dp=DECAL_PAINT[g.trailerDecal];if(dp){try{const x=c.getContext('2d');x.save();x.globalCompositeOperation='source-atop';x.beginPath();x.rect(20,70,107,150);x.clip();dp(x,20,70,107,150,'trailer',this);x.restore();}catch(e){}}
+  this._ts={key,c};return c;
+ }
+ draw(g,dt,truckIndex){
+  this.g=g;const c=this.ctx,pad=this.pad,W=420+2*pad,H=this.H;this.time+=dt;
+  const y0=this.y0=H*.31,A=this.A=(this.yT-y0)*CAMBACK,camZ=g.distance-CAMBACK,tx=laneX(g.x,g.distance)+this.shiftAt(g.distance);
+  const camX=this.camX=210+(tx-210)*.55,cx=210,seed=g.seed;
+  c.save();if(this.shake>0&&this.settings.motion){c.translate((Math.random()-.5)*this.shake,(Math.random()-.5)*this.shake);this.shake*=Math.exp(-dt*12);}
+  // ---- sky, sun, clouds, distant hills ----
+  const sky=c.createLinearGradient(0,0,0,y0);sky.addColorStop(0,'#2d86e6');sky.addColorStop(.7,'#8cc9f6');sky.addColorStop(1,rgb(HAZE));c.fillStyle=sky;c.fillRect(-pad,-4,W,y0+6);
+  const sun=c.createRadialGradient(cx+90,y0*.45,4,cx+90,y0*.45,y0*.55);sun.addColorStop(0,'#fffbe0ee');sun.addColorStop(1,'#fffbe000');c.fillStyle=sun;c.fillRect(-pad,0,W,y0);
+  const themeFar=roadTheme(camZ+FAR*.6);
+  for(const [k,col,amp,y] of [[.25,mix(THEME_GROUND[themeFar],HAZE,.55),26,y0-2],[.5,mix(THEME_GROUND[themeFar],[60,90,70],.45),18,y0+1]]){
+   c.fillStyle=rgb(col);c.beginPath();c.moveTo(-pad,y0+2);for(let x=-pad;x<=420+pad+8;x+=8)c.lineTo(x,y-amp*(.5+.5*Math.sin((x+camX*k*.4+camZ*.01*k)*.012*k*4+k*7))*(.6+.4*Math.sin(x*.031+k)));c.lineTo(420+pad,y0+2);c.closePath();c.fill();}
+  c.fillStyle='#ffffffcc';for(let i=0;i<5;i++){const x=((i*173+this.time*3+camZ*.004*(1+i%2)*.5)%(W+160))-80-pad,y=y0*(.18+.12*((i*37)%5)/5);for(const [dx,dy,r] of[[0,0,22],[24,-6,26],[50,2,20],[26,6,22]]){c.beginPath();c.ellipse(x+dx,y+dy,r*1.4,r*.55,0,0,TAU);c.fill();}}
+  // ---- the ground and the road, row by row ----
+  const step=2;let prev=null;
+  for(let y=H;y>y0+3;y-=step){
+   const zn=A/(y-y0),zf=A/(y-step-y0);if(zf>FAR*1.2)break;const zm=(zn+zf)/2,zw=camZ+zm,sn=CAMBACK/zn,sf=CAMBACK/zf,fog=Math.min(1,Math.pow(zm/FAR,1.4));
+   const stripe=Math.floor(zw/70)%2?1:0,gcol=mix(THEME_GROUND[roadTheme(zw)],HAZE,fog*.75).map(v=>v+(stripe?-5:3)*(1-fog));
+   c.fillStyle=rgb(gcol);c.fillRect(-pad,y-step,W,step+.6);
+   const a=roadAt(zw,seed),wsd=waterSide(a),sh0=((Math.min(...a.bands.map(b=>b.left))+Math.max(...a.bands.map(b=>b.right)))/2-210)*(CURVE-1);
+   if(a.motif==='river-bend'&&wsd){const edge=(wsd>0?Math.max(...a.bands.map(b=>b.right)):Math.min(...a.bands.map(b=>b.left)))+sh0,xe=cx+(edge+(wsd>0?22:-22)-camX)*sn;c.fillStyle=rgb(mix([40,98,132],HAZE,fog*.7));if(wsd>0)c.fillRect(xe,y-step,420+pad-xe+4,step+.6);else c.fillRect(-pad,y-step,xe+pad,step+.6);}
+   for(const b of a.bands){
+    const L0=b.left+sh0,R0=b.right+sh0,xln=cx+(L0-camX)*sn,xrn=cx+(R0-camX)*sn,xlf=cx+(L0-camX)*sf,xrf=cx+(R0-camX)*sf;
+    const base=b.surface==='mud'?[104,76,48]:[66,68,72],col=mix(base,HAZE,fog*.8);
+    const sh=10;c.fillStyle=rgb(mix(base.map(v=>v+30),HAZE,fog*.8));quad(c,xln-sh*sn,xrn+sh*sn,xlf-sh*sf,xrf+sh*sf,y,step);   // shoulder
+    c.fillStyle=rgb(col);quad(c,xln,xrn,xlf,xrf,y,step);
+    // edge lines and lane dividers
+    c.fillStyle=rgb(mix([236,234,222],HAZE,fog*.8));const el=2.2;
+    quad(c,xln,xln+el*sn,xlf,xlf+el*sf,y,step);quad(c,xrn-el*sn,xrn,xrf-el*sf,xrf,y,step);
+    const w=b.right-b.left,n=w>=340?5:Math.max(1,Math.round(w/74));
+    if(Math.floor(zw/50)%2===0&&b.surface!=='mud')for(let k=1;k<n;k++){const lw=Math.min(78,w/n),xm=(b.left+b.right)/2+sh0+(k-n/2)*lw;quad(c,cx+(xm-1.2-camX)*sn,cx+(xm+1.2-camX)*sn,cx+(xm-1.2-camX)*sf,cx+(xm+1.2-camX)*sf,y,step);}
+   }
+  }
+  // haze over the far distance
+  const haze=c.createLinearGradient(0,y0-6,0,y0+60);haze.addColorStop(0,rgb(HAZE)+'');haze.addColorStop(1,'rgba(196,226,246,0)');c.fillStyle=haze;c.fillRect(-pad,y0-6,W,66);
+  // ---- everything that stands on the road, far to near ----
+  const L=[];
+  for(const p of sceneryProps(camZ+CAMBACK-60,camZ+FAR,seed)){const zr=p.z-camZ;if(zr<CAMBACK-40)continue;L.push({zr,k:'scenery',p});}
+  if(pad>1)for(const p of sideProps(camZ+CAMBACK-60,camZ+FAR,seed,pad)){const zr=p.z-camZ;if(zr<CAMBACK-40)continue;L.push({zr,k:'scenery',p});}
+  for(const e of g.items){if(e.done)continue;const zr=e.z-camZ;if(zr<CAMBACK-30||zr>FAR)continue;L.push({zr,k:'item',e});}
+  if(g.sheep){const zr=g.sheep.z-camZ;if(zr>CAMBACK-30&&zr<FAR)L.push({zr,k:'herd',s:g.sheep});}
+  for(const d of g.leaving||[]){const zr=d.z-camZ;if(zr>CAMBACK-30&&zr<FAR)L.push({zr,k:'leaving',d});}
+  L.push({zr:CAMBACK,k:'truck'});
+  L.sort((a,b)=>b.zr-a.zr);
+  for(const o of L){
+   const sc=CAMBACK/o.zr,y=y0+A/o.zr,fog=Math.min(1,Math.pow(o.zr/FAR,1.4));
+   if(o.k==='truck'){this.drawTruck(g,cx+(tx-camX),y,dt);continue;}
+   c.save();c.globalAlpha=1-fog*.85;
+   const sh=this.shiftAt(o.k==='scenery'?o.p.z:o.k==='item'?o.e.z:o.k==='herd'?o.s.z:o.d.z);
+   if(o.k==='scenery')this.drawScenery(c,o.p,cx+(o.p.x+sh-camX)*sc,y,sc);
+   else if(o.k==='item')this.drawItem(c,o.e,cx+(laneX(o.e.lane,o.e.z)+sh-camX)*sc,y,sc,o.zr);
+   else if(o.k==='herd'){const s=o.s;for(let i=0;i<5;i++){let wx=54+78*i+sh,off=0;if(s.cleared)off=(i<2?-1:1)*Math.max(0,(g.time-s.baaAt-.3))*140;const bx=cx+(wx+off-camX)*sc,sz=SIZE[s.kind==='cows'?'cow':'sheep'];c.save();c.translate(bx,y);ART[s.kind==='cows'?'cow':'sheep'](c,sz[0]*sc,sz[1]*sc,this.time+i,{id:i});c.restore();}}
+   else if(o.k==='leaving'){const d=o.d,sz=SIZE[d.type]||[50,50];c.globalAlpha=Math.max(0,1-d.age/1.4);c.save();c.translate(cx+(laneX(d.lane,d.z)+sh+d.dir*d.age*130-camX)*sc,y);if(ART[d.type])ART[d.type](c,sz[0]*sc,sz[1]*sc,this.time*3,{id:7});c.restore();}
+   c.restore();
+  }
+  this.nightLight(g);
+  // floating text / sparkles (cash, fines)
+  for(const f of this.fx){f.age+=dt;f.x+=f.vx*dt;f.y+=f.vy*dt;if(f.kind!=='text')f.vy+=190*dt;const al=Math.max(0,Math.min(1,1-f.age/f.life));
+   if(f.kind==='text'){c.save();c.globalAlpha=al;this.label(f.text,f.x,f.y,'#fff0ad',17);c.restore();}else{c.save();c.globalAlpha=al;c.fillStyle=f.kind==='loss'?'#ff6a5a':'#ffd23f';c.beginPath();c.arc(f.x,f.y,4,0,TAU);c.fill();c.restore();}}
+  this.fx=this.fx.filter(f=>f.age<f.life);
+  // crash freeze ring
+  if(this.highlight){const h=this.highlight,t=this.time-h.t0,pulse=1+Math.sin(t*9)*.08;
+   if(h.item&&ART[h.item.type]){const sz=SIZE[h.item.type]||[50,50];c.save();c.translate(h.x,h.y+h.ry*.9);ART[h.item.type](c,sz[0]*1.5,sz[1]*1.5,this.time,{id:h.item.id});c.restore();}   // the thing you hit, in front
+   c.save();c.strokeStyle='#ff4b3a';c.lineWidth=4;c.shadowColor='#ff4b3a';c.shadowBlur=14;c.beginPath();c.ellipse(h.x,h.y,h.rx*pulse,h.ry*pulse,0,0,TAU);c.stroke();c.shadowBlur=0;
+   c.font='900 15px -apple-system,sans-serif';c.textAlign='center';const w=c.measureText(h.label).width+26,ly=Math.max(30,h.y-h.ry-30),lx=Math.min(420-w/2-8,Math.max(w/2+8,h.x));c.fillStyle='#1c0b0b';c.strokeStyle='#ff4b3a';c.lineWidth=2.5;c.beginPath();c.roundRect(lx-w/2,ly-17,w,28,9);c.fill();c.stroke();c.fillStyle='#fff3e0';c.fillText(h.label,lx,ly+3);c.restore();}
+  c.restore();
+ }
+ drawTruck(g,x,y,dt){
+  const c=this.ctx,img=this.truckSprite(g);const roll=((g.lane-g.x)*.05)+Math.sin(this.time*7)*.004;
+  c.save();c.translate(x,y);c.fillStyle='rgba(6,14,10,.35)';c.beginPath();c.ellipse(0,2,64,13,0,0,TAU);c.fill();
+  c.globalAlpha=g.invulnerable>0&&Math.floor(this.time*13)%2===0?.55:1;
+  if(img){const tw=g.hasTrailer===false?62:86,th=tw*img.height/img.width,body=g.hasTrailer===false?.34:1;c.rotate(roll);
+   if(g.hasTrailer===false){c.drawImage(img,0,0,img.width,img.height*.30,-tw/2,-th*.3,tw,th*.3);}else c.drawImage(img,-tw/2,-th+6,tw,th);
+   if(g.boost>0){c.fillStyle='rgba(255,170,60,.8)';for(const s of[-1,1]){c.beginPath();c.moveTo(s*tw*.32,-th*.04);c.lineTo(s*tw*.32+4,16+Math.random()*24);c.lineTo(s*tw*.32-4,-th*.04);c.fill();}}
+   if(g.shield){c.strokeStyle='rgba(255,230,120,.7)';c.lineWidth=4;c.beginPath();c.ellipse(0,-th*.45,tw*.75,th*.58,0,0,TAU);c.stroke();}}
+  c.restore();
+ }
+ drawScenery(c,p,x,y,sc){
+  let k;if(p.sheet==='routeProps'){k={0:'house',1:'tree',2:'garage',3:'hedge',4:'digger',5:'cabin'}[p.sprite]||'tree';}else{k={0:'shop',7:'shop',1:'shop',2:'tree',3:'house',4:'cabin',5:'tree'}[p.sprite]||'tree';}
+  const sz=SIZE[k];if(!sz||x<-120||x>540+this.pad)return;c.save();c.translate(x,y);ART[k](c,sz[0]*sc*1.25,sz[1]*sc*1.25,this.time,{id:parseInt(p.id)||p.z|0});c.restore();
+ }
+ drawItem(c,e,x,y,sc,zr){
+  const t=this.time+e.id;
+  if(FLAT[e.type]){const spec=HAZARD_SPECS[e.type],w=spec.width*sc*1.1,d=spec.height,hs=Math.max(2,this.A*(1/zr-1/(zr+d))*.9);c.save();c.translate(x,y);
+   c.fillStyle=e.type==='pit'?'#23252a':e.type==='mud'?'#6a4a2a':e.type==='oil'?'#2c2f4a':'#3d8a37';c.beginPath();c.ellipse(0,-hs*.5,w*.5,hs*.5,0,0,TAU);c.fill();
+   if(e.type==='pit'){c.fillStyle='#14161a';c.beginPath();c.ellipse(0,-hs*.5,w*.36,hs*.36,0,0,TAU);c.fill();}
+   if(e.type==='oil'){const g2=c.createLinearGradient(-w*.4,0,w*.4,0);g2.addColorStop(0,'#b04bd8');g2.addColorStop(.5,'#3fd2c4');g2.addColorStop(1,'#e8c24a');c.globalAlpha*=.7;c.fillStyle=g2;c.beginPath();c.ellipse(0,-hs*.5,w*.38,hs*.38,0,0,TAU);c.fill();}
+   c.restore();return;}
+  const sz=SIZE[e.type]||SIZE[(HAZARD_SPECS[e.type]&&e.type)||'cone']||[40,40],fn=ART[e.type];if(!fn)return;
+  const bob=['coin','crumb','taco','boost','night','hitch','shield','prize','job'].includes(e.type)?-14*sc-Math.sin(t*4)*3*sc:0;
+  c.save();c.translate(x,y+bob);
+  if(e.type==='crumb')fn(c,sz[0]*sc*1.2,sz[1]*sc*1.2,t,{id:e.id});else fn(c,sz[0]*sc*1.1,sz[1]*sc*1.1,t,{id:e.id});
+  if(e.honkable&&zr<620)this.label('HONK!',0,-sz[1]*sc*1.25-6,'#fff0a8',9);
+  c.restore();
+ }
+}
+function quad(c,xl1,xr1,xl2,xr2,y,step){c.beginPath();c.moveTo(xl1,y+.5);c.lineTo(xr1,y+.5);c.lineTo(xr2,y-step-.7);c.lineTo(xl2,y-step-.7);c.closePath();c.fill();}
+
+module.exports={ChaseRenderer};
+
+},
 "./wheel.js":function(module,exports,require){
 /* Infinite swipe wheel: the focused item sits proud in the middle, neighbours shrink away either side and the
    list wraps round forever. Used by the home menu and the garage. No dependencies.
@@ -1307,6 +1499,7 @@ const {CATALOG,DECALS,PAINT_IDS,DECAL_IDS,defaults : defaultUpgrades,normalize :
 const {Drive,clamp,themes,CRASHES}=require("./model.js");
 const {HAZARD_SPECS}=require("./route-hazards.js");
 const {Renderer,loadImages}=require("./render.js");
+const {ChaseRenderer}=require("./chase.js");
 const {Sound}=require("./audio.js");
 const {Wheel}=require("./wheel.js");
 const {Garage}=require("./garage.js");
@@ -1314,7 +1507,7 @@ const {JOKES,jokeOrder}=require("./jokes.js");
 const $=id=>document.getElementById(id),money=v=>'£'+Math.max(0,Math.round(v)).toLocaleString('en-GB');
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const KEY='truckin-save-v1';
-const defaults={version:1,name:'',player:globalThis.crypto?.randomUUID?.()||'driver-'+Date.now()+'-'+Math.random().toString(36).slice(2),wallet:0,best:0,truck:0,trailerPaint:1,owned:[0,1],upgrades:defaultUpgrades(),decal:0,trailerDecal:0,ownedDecals:[0],scores:[],stats:{jobs:0,horns:0,tacos:0,doubles:0},settings:{music:.7,sfx:.8,haptics:true,tall:false,motion:!matchMedia('(prefers-reduced-motion: reduce)').matches},tutorial:false};
+const defaults={version:1,name:'',player:globalThis.crypto?.randomUUID?.()||'driver-'+Date.now()+'-'+Math.random().toString(36).slice(2),wallet:0,best:0,truck:0,trailerPaint:1,owned:[0,1],upgrades:defaultUpgrades(),decal:0,trailerDecal:0,ownedDecals:[0],scores:[],stats:{jobs:0,horns:0,tacos:0,doubles:0},settings:{music:.7,sfx:.8,haptics:true,tall:false,view:'top',motion:!matchMedia('(prefers-reduced-motion: reduce)').matches},tutorial:false};
 let saved={};try{saved=JSON.parse(localStorage.getItem(KEY)||'{}');}catch{}
 const profile={...defaults,...saved,upgrades:normalizeUpgrades(saved.upgrades),settings:{...defaults.settings,...saved.settings},stats:{...defaults.stats,...saved.stats}};
 profile.wallet=clamp(Number(profile.wallet)||0,0,1e9);profile.best=clamp(Number(profile.best)||0,0,1e9);
@@ -1383,8 +1576,8 @@ function handleEvents(){if(!game)return;for(const e of game.events.splice(0)){co
  case'crash':{
   // Freeze on the impact with a red ring and a plain-English label, so you can see exactly what you hit; then the comic.
   const h=game.lastHit,NAMES={car:'CAR',lowbridge:'LOW BRIDGE',weakbridge:'WEAK BRIDGE',oil:'OIL SLICK',house:'HOUSE',cow:'COW',icecream:'ICE-CREAM VAN',binlorry:'BIN LORRY'};
-  if(h&&e.kind!=='sheep'){const spec=HAZARD_SPECS[h.type],x=h.x??renderer.x(h.lane,h.z),y=renderer.playerY-(h.z-game.distance)*renderer.worldScale;
-   renderer.highlight={x,y,rx:Math.max(34,(spec?.width||70)*.62),ry:Math.max(30,(spec?.height||80)*renderer.worldScale*.62),label:'YOU HIT: '+(NAMES[e.kind]||e.kind.toUpperCase()),t0:renderer.time,item:h.item};renderer.shake=profile.settings.motion?14:0;haptic('heavy');sound.play('brake');renderer.draw(game,0,profile.truck);
+  if(h&&e.kind!=='sheep'){const spec=HAZARD_SPECS[h.type],P=renderer.project&&renderer.g?renderer.project(h.lane,h.z,h.x):null,x=P?P.x:(h.x??renderer.x(h.lane,h.z)),y=P?P.y-24*P.s:renderer.playerY-(h.z-game.distance)*renderer.worldScale;
+   renderer.highlight={x,y,rx:P?Math.max(40,(spec?.width||70)*P.s*.7):Math.max(34,(spec?.width||70)*.62),ry:P?Math.max(40,(spec?.width||70)*P.s*.7):Math.max(30,(spec?.height||80)*renderer.worldScale*.62),label:'YOU HIT: '+(NAMES[e.kind]||e.kind.toUpperCase()),t0:renderer.time,item:h.item};renderer.shake=profile.settings.motion?14:0;haptic('heavy');sound.play('brake');renderer.draw(game,0,profile.truck);
    clearTimeout(crashComicTimer);crashComicTimer=setTimeout(()=>{if(state==='ended')showComic(e.kind);},1900);comicDelayed=true;}
   else showComic(e.kind);break;}
  case'bailout':sound.play('flush');renderer.shake=profile.settings.motion?12:0;haptic('heavy');toast('MATES’ RATES TO THE RESCUE','−£400 excess · '+({car:'Car park shuffle.',lowbridge:'Roof: mostly intact.',weakbridge:'Bridge: mostly intact.',oil:'Slick recovery.'}[e.kind]||'Phew.'),2.6);break;
@@ -1406,7 +1599,7 @@ async function finish(reason,kind=''){if(ending)return;ending=true;state='ended'
  if(!native()&&backendUp){let id=onlineId||await runRequest;let msg='Saved on this device. Online board is unavailable.';if(id){try{const r=await fetch('/api/leaderboard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,player:profile.player,nickname:profile.name,score:result.score,distance:result.distance,jobs:result.jobs}),signal:AbortSignal.timeout(8000)});msg=r.ok?'Your shift is on the live leaderboard.':'Saved on this device. This run could not be posted.';}catch{}}const waitStatus=()=>{if(activeSheet==='result'&&$('saveStatus'))$('saveStatus').textContent=msg;};waitStatus();if(kind)setTimeout(waitStatus,3300);}
 }
 function guide(){openSheet('DRIVER’S GUIDE','KEEP IT SHINY SIDE UP',"<div class='guide-row'><span class='guide-symbol'>‹ ›</span><div><b>One swipe. One position.</b><p>One swipe moves one step across the view. Follow the bends; fewer positions fit on narrow roads. Read both signs before a fork. Swipe left or right. Keyboard: arrow keys or A / D.</p></div></div><div class='guide-row'><span class='sprite' data-sprite='4'></span><div><b>It’s not just the sheep.</b><p>Cars, low bridges, weak bridges, oil slicks and garden-path shortcuts (houses) end your shift on the spot. Cones, bus lanes, no-entry signs and the rest only cost a fine. Mates’ Rates insurance level 3 bails you out of one crash per shift.</p></div></div><div class='guide-row'><span class='sprite' data-sprite='9'></span><div><b>Green glow? Get that job.</b><p>Drive into the pallet. Every golden breadcrumb adds £25. Collect the finish flag to bank the whole job.</p></div></div><div class='guide-row'><span class='sprite' data-sprite='8'></span><div><b>A very important taco break.</b><p>Grab a shiny taco for £100 and a short breather. The tacho joke practically wrote itself.</p></div></div><div class='guide-row'><span class='sprite' data-sprite='12'></span><div><b>Wait for BAA. Then honk!</b><p>Double-tap, use HONK or press Space within the short yellow warning window. Early horns don’t count.</p></div></div><div class='guide-row'><span class='sprite' data-sprite='14'></span><div><b>Double trailer. Double trouble.</b><p>Purple jobs pay double. Rapid swerves can jackknife the outfit. Let the sway settle between moves.</p></div></div><div class='guide-row'><span class='guide-symbol'>↗</span><div><b>Choose your road.</b><p>Forks split around scenery. Main roads are free. No-entry roads cost £120; access roads and public paths cost £90. Mud slows you and reduces steering response until the tyres clear. A gold special pays £85, but the risky route can cost more than the prize.</p></div></div><div class='guide-row'><span class='guide-symbol'>🐄</span><div><b>Moo-ve it! Honk the herd.</b><p>Cows and geese on the road? HONK before you reach them and they’ll trot off (+£60 cow, +£35 geese). Morris dancers and cyclists can be honked off too. Hit a cow and your shift ends. Ice-cream vans and bin lorries end it too. Tractors, caravans, hay bales and geese just cost a fine. Grab a gold horseshoe and your next crash is on the house.</p></div></div><div class='guide-row'><span class='guide-symbol'>📱</span><div><b>Tall phone? Tall view.</b><p>On a tall phone, a joke ticker fills the top and the scenery stretches out sideways. On a smaller phone or iPad, switch on Tall-phone view in the cab settings to preview it. Untick it for normal play.</p></div></div><div class='guide-row'><span class='guide-symbol'>⛓</span><div><b>Drop it. Run light.</b><p>Tap DROP TRAILER or press X for 16% extra speed and quicker steering. Any unbanked delivery is abandoned. Collect a green hitch or a new job to attach a trailer again.</p></div></div><p class='sheet-copy'>Warnings appear on the lane ahead of actual rolling-road features: low bridges, weak bridges, bus lanes, no-entry sections, gardens and roadworks. Change position early—and keep your trailer clear. Fines eat your £500 float. Bank your shift from Pause whenever you like.</p><div class='guide-row'><span class='extra' data-extra='0'></span><div><b>Night shift. Double bubble.</b><p>Pick up the glowing moon. Follow a dimly lit trail of coins worth twice as much; lighting upgrades improve your view.</p></div></div><div class='guide-row'><span class='extra' data-extra='1'></span><div><b>Thermos turbo!</b><p>Coffee means a burst of speed; tacos slow things down. Garage equipment improves earnings, comfort and control.</p></div></div><button class='secondary' id='guideDone'>Got it. Let’s roll.</button>",'guide');$('guideDone').onclick=closeSheet;}
-function settings(){openSheet('IN THE CAB','JUST HOW YOU LIKE IT',"<div class='setting'><label for='musicVolume'>Road-trip music</label><input id='musicVolume' type='range' min='0' max='1' step='.05' value='"+profile.settings.music+"'></div><div class='setting'><label for='sfxVolume'>Sound effects</label><input id='sfxVolume' type='range' min='0' max='1' step='.05' value='"+profile.settings.sfx+"'></div><div class='setting'><label for='hapticSetting'>Haptic feedback</label><input id='hapticSetting' type='checkbox' "+(profile.settings.haptics?'checked':'')+"></div><div class='setting'><label for='motionSetting'>Extra motion & screen shake</label><input id='motionSetting' type='checkbox' "+(profile.settings.motion?'checked':'')+"></div><div class='setting'><label for='tallSetting'>Tall-phone view (preview)</label><input id='tallSetting' type='checkbox' "+(profile.settings.tall?'checked':'')+"></div><p class='status-note' style='margin:-4px 0 8px'>Shows the game as it looks on a tall phone: a joke ticker on top, the road shifted up and the scenery extended at the sides. Untick for normal play.</p><div class='setting'><label for='guideSetting'>Highlight steering target</label><input id='guideSetting' type='checkbox' "+(profile.settings.guides!==false?'checked':'')+"></div><label class='field-label' for='editName'>DRIVER NAME</label><div class='plate'><span class='gb'>GB</span><input id='editName' type='text' maxlength='16' value='"+escape(profile.name)+"' placeholder='ROAD LEGEND'></div><button class='secondary' id='saveSettings'>Save settings</button><button class='quiet' id='privacyButton'>Privacy & your progress</button><p class='status-note'>v2.1.0 · Original art & music · No ads or in-app purchases</p>",'settings');$('musicVolume').oninput=e=>{profile.settings.music=Number(e.target.value);sound.update();};$('sfxVolume').oninput=e=>{profile.settings.sfx=Number(e.target.value);sound.play('click');};$('hapticSetting').onchange=e=>profile.settings.haptics=e.target.checked;$('motionSetting').onchange=e=>profile.settings.motion=e.target.checked;$('guideSetting').onchange=e=>profile.settings.guides=e.target.checked;$('tallSetting').onchange=e=>{profile.settings.tall=e.target.checked;save();resize();};$('saveSettings').onclick=()=>{profile.name=$('editName').value.replace(/[^a-zA-Z0-9 _.-]/g,'').trim().slice(0,16)||'Road legend';save();closeSheet();};$('privacyButton').onclick=privacy;}
+function settings(){openSheet('IN THE CAB','JUST HOW YOU LIKE IT',"<div class='setting'><label for='musicVolume'>Road-trip music</label><input id='musicVolume' type='range' min='0' max='1' step='.05' value='"+profile.settings.music+"'></div><div class='setting'><label for='sfxVolume'>Sound effects</label><input id='sfxVolume' type='range' min='0' max='1' step='.05' value='"+profile.settings.sfx+"'></div><div class='setting'><label for='hapticSetting'>Haptic feedback</label><input id='hapticSetting' type='checkbox' "+(profile.settings.haptics?'checked':'')+"></div><div class='setting'><label for='motionSetting'>Extra motion & screen shake</label><input id='motionSetting' type='checkbox' "+(profile.settings.motion?'checked':'')+"></div><div class='setting'><label for='viewSetting'>Behind-the-truck camera (new)</label><input id='viewSetting' type='checkbox' "+(profile.settings.view==='chase'?'checked':'')+"></div><div class='setting'><label for='tallSetting'>Tall-phone view (preview)</label><input id='tallSetting' type='checkbox' "+(profile.settings.tall?'checked':'')+"></div><p class='status-note' style='margin:-4px 0 8px'>Shows the game as it looks on a tall phone: a joke ticker on top, the road shifted up and the scenery extended at the sides. Untick for normal play.</p><div class='setting'><label for='guideSetting'>Highlight steering target</label><input id='guideSetting' type='checkbox' "+(profile.settings.guides!==false?'checked':'')+"></div><label class='field-label' for='editName'>DRIVER NAME</label><div class='plate'><span class='gb'>GB</span><input id='editName' type='text' maxlength='16' value='"+escape(profile.name)+"' placeholder='ROAD LEGEND'></div><button class='secondary' id='saveSettings'>Save settings</button><button class='quiet' id='privacyButton'>Privacy & your progress</button><p class='status-note'>v2.1.0 · Original art & music · No ads or in-app purchases</p>",'settings');$('musicVolume').oninput=e=>{profile.settings.music=Number(e.target.value);sound.update();};$('sfxVolume').oninput=e=>{profile.settings.sfx=Number(e.target.value);sound.play('click');};$('hapticSetting').onchange=e=>profile.settings.haptics=e.target.checked;$('motionSetting').onchange=e=>profile.settings.motion=e.target.checked;$('guideSetting').onchange=e=>profile.settings.guides=e.target.checked;$('viewSetting').onchange=e=>setView(e.target.checked?'chase':'top');$('tallSetting').onchange=e=>{profile.settings.tall=e.target.checked;save();resize();};$('saveSettings').onclick=()=>{profile.name=$('editName').value.replace(/[^a-zA-Z0-9 _.-]/g,'').trim().slice(0,16)||'Road legend';save();closeSheet();};$('privacyButton').onclick=privacy;}
 function privacy(){openSheet('YOUR DATA','SMALL PRINT. SHORT VERSION.',"<p class='sheet-copy'>Your truck unlocks, upgrades, settings and recent shifts are stored on this device. Clearing website data or removing the app can remove that progress.</p><p class='sheet-copy'>The online board stores your chosen driver name and submitted run results with an app-specific player ID. Never use a real name if you don’t want it shown. No advertising, analytics, location tracking, payments or contact permissions are used by this game.</p><p class='sheet-copy'>On iPhone, Game Center is optional and uses your Apple gaming profile. You can play offline without it.</p><p class='status-note'>"+(storageWarning?'This browser could not save progress. Check available storage and private browsing settings.':'Progress is saved after each finished shift and garage purchase.')+"</p>",'privacy');}
 async function refreshScores(){if(activeSheet!=='leaderboard')return;const target=$('scores');try{if(!backendUp)throw Error();let r=await fetch('/api/leaderboard?mode='+scoreMode,{signal:AbortSignal.timeout(6000)});if(!r.ok)throw Error();let d=await r.json();if(activeSheet!=='leaderboard')return;target.innerHTML=d.scores.length?d.scores.map((s,i)=>"<div class='score-row'><span class='rank'>"+(i+1)+"</span><span class='name'>"+escape(s.nickname)+"</span><b>"+money(s.score)+"</b></div>").join(''):"<div class='empty'>A clear road ahead.<br>Finish a shift to set the first score.</div>";$('boardStatus').textContent='LIVE · best shift per driver · refreshes every 15 seconds';}catch{backendUp=false;if(activeSheet!=='leaderboard')return;$('sheetEyebrow').textContent='YOUR BEST SHIFTS';const list=profile.scores.filter(s=>s.score>0&&(scoreMode!=='daily'||(s.mode==='daily'&&s.date.slice(0,10)===new Date().toISOString().slice(0,10)))).sort((a,b)=>b.score-a.score).slice(0,10);target.innerHTML=list.length?list.map((s,i)=>"<div class='score-row'><span class='rank'>"+(i+1)+"</span><span class='name'>"+escape(s.name)+"</span><b>"+money(s.score)+"</b></div>").join(''):"<div class='empty'>No shifts saved on this device yet.<br>Time to get truckin’.</div>";$('boardStatus').textContent='ON THIS DEVICE · the online board isn’t connected';}}
 function leaderboard(){if(native()){bridge('leaderboard',{mode:scoreMode});return;}openSheet('ROAD LEGENDS','THE LIVE LEADERBOARD',"<div class='score-tabs'><button id='allScores' class='"+(scoreMode==='all'?'active':'')+"'>All time</button><button id='dailyScores' class='"+(scoreMode==='daily'?'active':'')+"'>Daily dispatch</button></div><div id='scores'><div class='empty'>Checking the dispatch board…</div></div><p class='status-note' id='boardStatus'>Best net earnings wins. No invented drivers.</p>",'leaderboard');$('allScores').onclick=()=>{scoreMode='all';leaderboard();};$('dailyScores').onclick=()=>{scoreMode='daily';leaderboard();};clearInterval(leaderTimer);refreshScores();leaderTimer=setInterval(refreshScores,15000);}
@@ -1453,7 +1646,9 @@ let hudAccumulator=0,checkpointClock=0;const AMBIENT={cow:['moo',680],icecream:[
 function ambient(){for(const e of game.items){const a=AMBIENT[e.type];if(!a||e.heard||e.done)continue;const d=e.z-game.distance;if(d>0&&d<a[1]){e.heard=true;sound.play(a[0],.8,{pan:(e.lane-2)*.35});}}}
 function frame(now){const dt=clamp((now-lastTime)/1000,0,.04);lastTime=now;if(game&&state==='playing'){game.tick(dt);handleEvents();ambient();checkpointClock+=dt;if(checkpointClock>5){save();checkpointClock=0;}renderer.draw(game,dt,profile.truck);hudAccumulator+=dt;if(hudAccumulator>.05){updateHud();hudAccumulator=0;}}else if(game&&renderer?.highlight)renderer.draw(game,dt,profile.truck);requestAnimationFrame(frame);}
 updateHome();
-loadImages().then(images=>{renderer=new Renderer($('road'),images,profile.settings);layoutApp();$('tapPrompt').disabled=false;$('tapLabel').textContent='TAP TO START';updateHome();requestAnimationFrame(frame);}).catch(()=>$('loadError').classList.remove('hidden'));
+let topR=null,chaseR=null,gameImages=null;const wantChase=()=>/[?&]chase/.test(location.search)||profile.settings.view==='chase';
+function setView(v){profile.settings.view=v;if(!topR)return;if(v==='chase'){chaseR=chaseR||new ChaseRenderer($('road'),gameImages,profile.settings);renderer=chaseR;}else renderer=topR;renderer.resize();layoutApp();if(game)renderer.draw(game,0,profile.truck);save();}
+loadImages().then(images=>{gameImages=images;topR=new Renderer($('road'),images,profile.settings);if(wantChase()){chaseR=new ChaseRenderer($('road'),images,profile.settings);renderer=chaseR;}else renderer=topR;layoutApp();$('tapPrompt').disabled=false;$('tapLabel').textContent='TAP TO START';updateHome();requestAnimationFrame(frame);}).catch(()=>$('loadError').classList.remove('hidden'));
 if('serviceWorker'in navigator&&location.protocol.startsWith('http')&&!native())navigator.serviceWorker.register('./sw.js').catch(()=>{});
 
 // Read-only QA surface on localhost; no extra players, scores or network endpoints.

@@ -136,3 +136,6 @@ html,body,button,input{font-family:var(--body)}
 #closeSheet{font-size:0!important;position:relative}
 #closeSheet::before,#closeSheet::after{content:'';position:absolute;left:50%;top:50%;width:18px;height:3.5px;border-radius:2px;background:#3a2400;transform:translate(-50%,-50%) rotate(45deg)}
 #closeSheet::after{transform:translate(-50%,-50%) rotate(-45deg)}
+#garage .big-button.done,#sheet .big-button.done,.big-button.done{background:linear-gradient(180deg,#3e8d92,#256a70 50%,#195359)!important;color:#d4fff0!important;text-shadow:0 1px 0 #0006;box-shadow:0 0 0 2px #0b2a2e,0 6px 0 #0c2f33,0 14px 22px #000a,inset 0 2px 0 #ffffff40!important}
+#garage .big-button.locked,#sheet .big-button.locked,.big-button.locked{background:linear-gradient(180deg,#5b6f76,#3d4f56 55%,#2e3e44)!important;color:#e3eef2!important;text-shadow:0 1px 0 #0007;box-shadow:0 0 0 2px #1b2a2f,0 6px 0 #1b2a2f,0 12px 18px #000a,inset 0 2px 0 #ffffff30!important}
+.hud-top small,.cash-readout small,.miles-readout small{white-space:nowrap;letter-spacing:1.1px!important;font-size:9px!important}

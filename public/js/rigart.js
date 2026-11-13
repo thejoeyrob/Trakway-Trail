@@ -18,7 +18,7 @@ const mk=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;r
 function rgb2hsl(r,g,b){r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2;let h=0,s=0;if(mx!==mn){const d=mx-mn;s=l>.5?d/(2-mx-mn):d/(mx+mn);h=mx===r?(g-b)/d+(g<b?6:0):mx===g?(b-r)/d+2:(r-g)/d+4;h*=60;}return[h,s,l];}
 function hsl2rgb(h,s,l){h=((h%360)+360)%360/360;if(!s)return[l*255,l*255,l*255];const q=l<.5?l*(1+s):l+s-l*s,p=2*l-q,f=t=>{t=(t+1)%1;return t<1/6?p+(q-p)*6*t:t<.5?q:t<2/3?p+(q-p)*(2/3-t)*6:p;};return[f(h+1/3)*255,f(h)*255,f(h-1/3)*255];}
 function crop(img,rect){const c=mk(rect[2],rect[3]);c.getContext('2d').drawImage(img,...rect,0,0,rect[2],rect[3]);return c;}
-function hueShift(c,o){const x=c.getContext('2d'),d=x.getImageData(0,0,c.width,c.height),p=d.data;
+export function hueShift(c,o){const x=c.getContext('2d'),d=x.getImageData(0,0,c.width,c.height),p=d.data;
  for(let i=0;i<p.length;i+=4){if(!p[i+3])continue;let[h,s,l]=rgb2hsl(p[i],p[i+1],p[i+2]);
   // only strongly coloured paint moves; chrome, tyres, glass and lamps keep their colours
   const paint=s>.28&&l>.1&&l<.85&&!(h>5&&h<60&&s>.8);
@@ -26,7 +26,7 @@ function hueShift(c,o){const x=c.getContext('2d'),d=x.getImageData(0,0,c.width,c
   h+=o.hue||0;s=Math.min(1,s*(o.sat??1));l=o.white?Math.min(.97,.64+l*.5):Math.min(.97,l+(o.light||0)*(1-Math.abs(l-.5)*.6));
   const[r,g,b]=hsl2rgb(h,s,l);p[i]=r+(o.warm?6:0);p[i+1]=g+(o.warm?3:0);p[i+2]=b;}
  x.putImageData(d,0,0);return c;}
-function tintBody(c,tint){const x=c.getContext('2d'),d=x.getImageData(0,0,c.width,c.height),p=d.data,T=[parseInt(tint.slice(1,3),16),parseInt(tint.slice(3,5),16),parseInt(tint.slice(5,7),16)];
+export function tintBody(c,tint){const x=c.getContext('2d'),d=x.getImageData(0,0,c.width,c.height),p=d.data,T=[parseInt(tint.slice(1,3),16),parseInt(tint.slice(3,5),16),parseInt(tint.slice(5,7),16)];
  for(let i=0;i<p.length;i+=4){if(!p[i+3])continue;const mx=Math.max(p[i],p[i+1],p[i+2]),mn=Math.min(p[i],p[i+1],p[i+2]),lum=(.3*p[i]+.59*p[i+1]+.11*p[i+2])/255,sat=mx?(mx-mn)/mx:0;
   if(lum<.42||sat>.4)continue;const k=Math.min(1.12,lum*1.18),m=Math.min(1,(lum-.42)*3.2);
   p[i]+=(T[0]*k-p[i])*m;p[i+1]+=(T[1]*k-p[i+1])*m;p[i+2]+=(T[2]*k-p[i+2])*m;}
