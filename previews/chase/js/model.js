@@ -1,13 +1,13 @@
 import {laneX,rigPose,roadTheme,RIG} from './geometry.js';
 import {chooseRoadScenario} from './road-events.js';
-import {ROUTE_VERSION,CHUNK_LENGTH,roadAt,surfaceAt,routeLanes,laneCorridor,nearestLane,reachableCorridor,steeringX,sceneryProps,rewardPath} from './route-world.js';
+import {ROUTE_VERSION,CHUNK_LENGTH,roadAt,surfaceAt,routeLanes,laneCorridor,nearestLane,reachableCorridor,steeringX,sceneryProps,rewardPath,waterSide} from './route-world.js';
 import {HAZARD_SPECS,sweptOverlap} from './route-hazards.js';
 import {normalize,deliveryBonus} from './upgrades.js';
 export const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export const themes=['THE TOWN RUN','COUNTRY MILES','SUBURBAN SHORTCUT','HARD HAT HAUL'];
 export const ROAD_TYPES=['lowbridge','weakbridge','bus','noentry','narrow','grass','house','works'];
 /* Hazards that end the shift outright, each with its own comic vignette (see COMICS in game.js) and result-sheet line. */
-export const CRASHES={car:'Not a bumper car.',lowbridge:'Height restriction. Not a suggestion.',weakbridge:'Weight limit: less than you.',oil:'Slick move, driver.',house:'Planning permission denied.',sheep:'Ewe had one job.',cow:'Holy cow. Literally.',icecream:'Chocolate flake-ing disaster.',binlorry:'Bin there, done that.'};
+export const CRASHES={car:'Not a bumper car.',lowbridge:'Height restriction. Not a suggestion.',weakbridge:'Weight limit: less than you.',oil:'Slick move, driver.',house:'Planning permission denied.',sheep:'Ewe had one job.',cow:'Holy cow. Literally.',icecream:'Chocolate flake-ing disaster.',binlorry:'Bin there, done that.',water:'Silly dipping.'};
 export const PICKUPS=['job','crumb','finish','taco','coin','night','boost','hitch','prize','shield'];
 /* Weighted hazard mix per scenery stage. Every hazard type in route-hazards.js appears somewhere, so the road never feels empty or samey. */
 export const MIX=[
@@ -26,7 +26,7 @@ export function biomeAt(z){return roadTheme(z);}
 export function hazardKinds(z){return [['car','cone','bus','noentry','lowbridge'],['grass','weakbridge','oil','lowbridge','narrow'],['house','car','noentry','narrow'],['barrier','cone','oil','works']][biomeAt(z)];}
 export class Drive {
  constructor(options={}){
-  this.seed=options.seed??Date.now();this.routeVersion=ROUTE_VERSION;this.hasTrailer=true;this.grip=0;this.offroad=0;this.surface='asphalt';this.dropCooldown=0;this.detached=[];this.routeFines={};this.routeChoice={};this.nextHitch=0;this.nearIds=[];this.sceneryHits={};this.rng=seeded(this.seed);
+  this.seed=options.seed??Date.now();this.routeVersion=ROUTE_VERSION;this.hasTrailer=true;this.grip=0;this.offroad=0;this.waterWarned=-1;this.surface='asphalt';this.dropCooldown=0;this.detached=[];this.routeFines={};this.routeChoice={};this.nextHitch=0;this.nearIds=[];this.sceneryHits={};this.rng=seeded(this.seed);
   this.mode=options.mode||'endless';this.upgrades=normalize(this.mode==='daily'?{}:options.upgrades);
   this.truck=this.mode==='daily'?0:(options.truck||0);this.decal=this.mode==='daily'?0:(options.decal||0);this.trailerPaint=this.mode==='daily'?1:(options.trailerPaint??1);this.trailerDecal=this.mode==='daily'?0:(options.trailerDecal||0);this.hornAt=-10;
   this.events=[];this.items=[];this.distance=0;this.time=0;this.money=500;this.earned=0;this.fines=0;this.jobs=0;this.crumbs=0;this.horns=0;this.near=0;
@@ -192,6 +192,12 @@ export class Drive {
   const trailerContact=this.hasTrailer?surfaceAt(pose.trailer.x,this.distance-pose.trailer.y,this.seed,15):contact;
   if(contact.surface==='mud'||trailerContact.surface==='mud'){if(this.grip<.1)this.emit('mud');this.grip=4.8;}
   if(!contact.onRoad||!trailerContact.onRoad){this.offroad+=dt;if(this.offroad>.55){this.fine(35,'Keep it on the road.');if([1,3].includes(this.stage))this.grip=Math.max(this.grip,2.5);this.offroad=-1.7;}}else this.offroad=Math.max(0,this.offroad-dt*2);
+  // Water: the river bend has no road under it. Nothing steers you away; drive in and it's a dip.
+  {const wa=roadAt(this.distance,this.seed),ws=waterSide(wa);
+   if(ws&&this.invulnerable<=0){const edge=ws>0?Math.max(...wa.bands.map(b=>b.right)):Math.min(...wa.bands.map(b=>b.left)),lx=laneX(this.x,this.distance);
+    if((lx-edge)*ws>20){this.lastHit={type:'water',lane:this.x,z:this.distance,x:lx};this.crash('water');if(!this.finished)this.lane=nearestLane(this.distance,this.lane,this.seed,false);}}
+   const ah=roadAt(this.distance+850,this.seed),aw=waterSide(ah);
+   if(aw&&this.waterWarned!==ah.id){const edge=aw>0?Math.max(...ah.bands.map(b=>b.right)):Math.min(...ah.bands.map(b=>b.left));this.waterWarned=ah.id;if((laneX(this.lane,this.distance)-edge)*aw>6)this.emit('hint',{text:'WATER AHEAD · MOVE OVER'});}}
   if(contact.rule&&!this.routeFines[contact.route.id]){this.routeFines[contact.route.id]=true;this.fine(contact.rule==='oneway'?120:90,contact.rule==='oneway'?'One way. The other way.':'Residents and public access only.');}
   if(contact.route.gate>.97&&!this.routeChoice[contact.route.id]){this.routeChoice[contact.route.id]=contact.branch;this.emit('routeChoice',{branch:contact.branch,motif:contact.route.motif});}
   for(const key of Object.keys(this.routeFines))if(+key<contact.route.id-2)delete this.routeFines[key];

@@ -48,6 +48,7 @@ const COMICS={
  cow:{art:"<div class='stage'><span class='emo b'>🐄</span><span class='emo a'>🚛</span><i class='burst'>MOOOO!</i></div>",title:'MOO-VE OVER!',sub:'HOLY COW. LITERALLY.<br>YOU SHOULD HAVE HONKED.',sfx:['brake','moo','flush']},
  binlorry:{art:"<div class='stage'><span class='emo b'>🗑️</span><span class='emo a'>🚛</span><i class='burst'>CLANG!</i></div>",title:'BIN THERE, DONE THAT!',sub:'REFUSE TO LOOK WHERE YOU’RE GOING.<br>COLLECTION: ONE LORRY.',sfx:['clang','brake','scatter']},
  icecream:{art:"<div class='stage'><span class='emo b'>🍦</span><span class='emo a'>🚛</span><i class='burst'>SPLAT!</i></div>",title:'99 PROBLEMS!',sub:'ONE FLAKE-ING DISASTER.<br>NO SPRINKLES. NO REFUNDS.',sfx:['brake','splat','chime']},
+ water:{art:"<div class='stage'><span class='emo b'>🌊</span><span class='emo a'>🚛</span><i class='burst'>SPLOOSH!</i></div>",title:'SILLY DIPPING!',sub:'THE ROAD WENT LEFT.<br>YOU WENT WET.',sfx:['brake','flush','splat']},
  house:{art:"<div class='stage'><span class='part home'>"+IMG('house')+"</span><span class='part cab'>"+IMG('cab')+"</span><i class='burst'>DING-DONG!</i></div>",title:'KNOCK, KNOCK!',sub:'WHO’S THERE? A LORRY.<br>IN THE LOUNGE.',sfx:['horn','brake','flush']}
 };
 let comicAt=0,comicDelayed=false,crashComicTimer=0,forkToastId=-1;
@@ -79,8 +80,9 @@ function handleEvents(){if(!game)return;for(const e of game.events.splice(0)){co
  case'hint':toast(e.text,'',1.2);break;
  case'crash':{
   // Freeze on the impact with a red ring and a plain-English label, so you can see exactly what you hit; then the comic.
-  const h=game.lastHit,NAMES={car:'CAR',lowbridge:'LOW BRIDGE',weakbridge:'WEAK BRIDGE',oil:'OIL SLICK',house:'HOUSE',cow:'COW',icecream:'ICE-CREAM VAN',binlorry:'BIN LORRY'};
-  if(h&&e.kind!=='sheep'){const spec=HAZARD_SPECS[h.type],P=renderer.project&&renderer.g?renderer.project(h.lane,h.z,h.x):null,x=P?P.x:(h.x??renderer.x(h.lane,h.z)),y=P?P.y-24*P.s:renderer.playerY-(h.z-game.distance)*renderer.worldScale;
+  const h=game.lastHit,NAMES={car:'CAR',lowbridge:'LOW BRIDGE',weakbridge:'WEAK BRIDGE',oil:'OIL SLICK',house:'HOUSE',cow:'COW',icecream:'ICE-CREAM VAN',binlorry:'BIN LORRY',water:'THE RIVER'};
+  if(e.kind==='water'){renderer.shake=profile.settings.motion?10:0;haptic('heavy');sound.play('flush');sound.play('splat',.6);clearTimeout(crashComicTimer);crashComicTimer=setTimeout(()=>{if(state==='ended')showComic('water');},1300);comicDelayed=true;}
+  else if(h&&e.kind!=='sheep'){const spec=HAZARD_SPECS[h.type],P=renderer.project&&renderer.g?renderer.project(h.lane,h.z,h.x):null,x=P?P.x:(h.x??renderer.x(h.lane,h.z)),y=P?P.y-24*P.s:renderer.playerY-(h.z-game.distance)*renderer.worldScale;
    renderer.highlight={x,y,rx:P?Math.max(40,(spec?.width||70)*P.s*.7):Math.max(34,(spec?.width||70)*.62),ry:P?Math.max(40,(spec?.width||70)*P.s*.7):Math.max(30,(spec?.height||80)*renderer.worldScale*.62),label:'YOU HIT: '+(NAMES[e.kind]||e.kind.toUpperCase()),t0:renderer.time,item:h.item};renderer.shake=profile.settings.motion?14:0;haptic('heavy');sound.play('brake');renderer.draw(game,0,profile.truck);
    clearTimeout(crashComicTimer);crashComicTimer=setTimeout(()=>{if(state==='ended')showComic(e.kind);},1900);comicDelayed=true;}
   else showComic(e.kind);break;}

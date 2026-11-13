@@ -51,3 +51,29 @@ export const ART={
  prize(c,w,h){ell(c,0,-h*.5,w*.5,h*.5,lg(c,0,-h,0,0,'#ffe066','#d89b1a'));c.fillStyle='#b57b10';c.font='900 '+Math.round(h*.4)+'px Anton,Impact,sans-serif';c.textAlign='center';c.fillText('★',0,-h*.35)}
 };
 ART.crumb=ART.coin;
+/* The tractor unit on its own (trailer dropped), seen from behind and above. Painted in code in the cab colour. */
+ART.cabRear=function(c,w,h,t,o){
+ const col=o.col||'#d6dde2';shadow(c,w*1.3);
+ // chassis rails, fifth-wheel plate and two sets of twin rear wheels
+ for(const s of[-1,1]){for(const dy of[0,-h*.2]){wheel(c,s*w*.42,-h*.16+dy*.6,h*.16);wheel(c,s*w*.3,-h*.16+dy*.6,h*.16)}}
+ c.fillStyle='#1a1d20';rr(c,-w*.36,-h*.46,w*.72,h*.34,4);c.fill();
+ c.fillStyle=lg(c,0,-h*.42,0,-h*.26,'#5b6368','#33393d');rr(c,-w*.3,-h*.44,w*.6,h*.2,6);c.fill();   // fifth wheel plate
+ c.fillStyle='#e8c24a';c.fillRect(-w*.05,-h*.4,w*.1,h*.1);c.fillStyle='#0d0f10';c.fillRect(-w*.015,-h*.4,w*.03,h*.12);   // king-pin slot
+ c.strokeStyle='#d2342a';c.lineWidth=2;c.beginPath();c.moveTo(-w*.2,-h*.42);c.quadraticCurveTo(-w*.28,-h*.52,-w*.18,-h*.6);c.stroke();   // coiled air lines
+ c.strokeStyle='#e8c24a';c.beginPath();c.moveTo(w*.2,-h*.42);c.quadraticCurveTo(w*.28,-h*.52,w*.18,-h*.6);c.stroke();
+ // mudflaps and number plate
+ c.fillStyle='#16191b';for(const s of[-1,1])rr(c,s*w*.36-w*.07,-h*.14,w*.14,h*.12,2),c.fill();
+ c.fillStyle='#ffd23f';rr(c,-w*.1,-h*.1,w*.2,h*.07,1.5);c.fill();
+ // cab: rear wall, roof fairing, window, mirrors and stacks
+ for(const s of[-1,1]){c.fillStyle=lg(c,s*w*.5,0,s*w*.5,-h,'#e8ecef','#8d969b');rr(c,s*w*.5-3,-h*.97,6,h*.62,3);c.fill();   // exhaust stacks
+  c.fillStyle='rgba(180,190,196,'+(.35+.2*Math.sin(t*6+s))+')';c.beginPath();c.arc(s*w*.5+Math.sin(t*3+s)*2,-h*1.02-(t*20%10),3.5,0,TAU);c.fill();
+  c.fillStyle='#1c2023';rr(c,s*w*.5-(s>0?0:7),-h*.72,7,h*.2,2);c.fill();}   // mirrors
+ c.fillStyle=lg(c,-w*.4,0,w*.4,0,col,shade(col));rr(c,-w*.4,-h*.86,w*.8,h*.5,w*.1);c.fill();
+ c.fillStyle='rgba(255,255,255,.22)';rr(c,-w*.36,-h*.84,w*.72,h*.1,w*.08);c.fill();
+ c.fillStyle=lg(c,0,-h*.72,0,-h*.5,'#27353f','#101820');rr(c,-w*.26,-h*.72,w*.52,h*.2,4);c.fill();
+ c.fillStyle='rgba(255,255,255,.14)';c.beginPath();c.moveTo(-w*.22,-h*.72);c.lineTo(-w*.04,-h*.72);c.lineTo(-w*.14,-h*.52);c.lineTo(-w*.26,-h*.52);c.fill();
+ c.fillStyle=lg(c,-w*.38,0,w*.38,0,shade(col),col);rr(c,-w*.43,-h*.99,w*.86,h*.14,w*.06);c.fill();   // roof deflector
+ for(const s of[-1,1]){c.fillStyle='#ff2a22';c.shadowColor='#ff2a22';c.shadowBlur=6;rr(c,s*w*.38-w*.05,-h*.52,w*.1,h*.07,2);c.fill();c.shadowBlur=0}   // tail lights
+ if(o.boost){c.fillStyle='rgba(255,180,60,.85)';for(const s of[-1,1]){c.beginPath();c.moveTo(s*w*.3-4,-h*.05);c.lineTo(s*w*.3,18+Math.random()*22);c.lineTo(s*w*.3+4,-h*.05);c.fill()}}
+};
+function shade(hex){const n=parseInt(hex.slice(1),16),f=v=>Math.round(v*.62);return 'rgb('+f(n>>16)+','+f(n>>8&255)+','+f(n&255)+')'}
