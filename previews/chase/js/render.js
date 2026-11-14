@@ -61,4 +61,11 @@ export class Renderer {
  c.restore();}
 }
 export async function loadImages(){const names=['sprites','roads','restrictions','cover','terrain','extras'];const extra={routeSurfaces:'surfaces',routeProps:'props',routeTrucks:'trucks',routeShowroom:'showroom',routeScenery:'scenery'};let result={};await new Promise(res=>{const i=new Image();i.onload=()=>{result.vehicles=i;res();};i.onerror=()=>res();i.src=(window.TRUCKIN_IMAGE_DATA&&window.TRUCKIN_IMAGE_DATA.vehicles)||'./assets/route-v2/vehicles.webp';});
- await Promise.all([...names,...Object.keys(extra)].map(n=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>{result[n]=i;res();};i.onerror=()=>rej(new Error(n));i.src=(window.TRUCKIN_IMAGE_DATA&&window.TRUCKIN_IMAGE_DATA[n])||('./assets/'+(extra[n]?'route-v2/'+extra[n]:n)+'.webp');})));return result;}
+ await Promise.all([...names,...Object.keys(extra)].map(n=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>{result[n]=i;res();};i.onerror=()=>rej(new Error(n));i.src=(window.TRUCKIN_IMAGE_DATA&&window.TRUCKIN_IMAGE_DATA[n])||('./assets/'+(extra[n]?'route-v2/'+extra[n]:n)+'.webp');})));
+ await Promise.all(['traffic','scenery','pickups'].map(name=>new Promise(resolve=>{
+  const img=new Image();
+  img.onload=()=>{result[name]=img;resolve();};
+  img.onerror=()=>resolve();
+  img.src='./assets/chase-pro/'+name+'.webp';
+ })));
+ return result;}
