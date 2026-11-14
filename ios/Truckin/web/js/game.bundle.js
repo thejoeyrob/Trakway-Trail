@@ -1965,7 +1965,7 @@ class Garage{
   else meta=s.selected?'ON THE ROAD':s.owned?'OWNED':this.money(s.price);
   return "<div class='gcard "+(s.locked?'locked':'')+" "+(s.selected?'equipped':'')+"'>"+this.art(it)+(s.locked?"<b class='lockbadge'>"+LOCK+"</b>":'')+"<span class='gname'>"+it.name.replace(/^THE /,'')+"</span><span class='gmeta'>"+meta+"</span></div>";}
  open(){this.root.classList.remove('hidden');this.root.classList.add('opening');setTimeout(()=>this.root.classList.remove('opening'),600);this.running=true;
-  this.chase=this.profile.settings.view==='chase';this.preview=new (this.chase?ChaseRenderer:Renderer)(this.canvas,this.images,this.profile.settings,{fixedWidth:true});this.images_r=this.preview;
+  this.chase=this.profile.settings.view==='chase'||/[?&]chase/.test(location.search);this.preview=new (this.chase?ChaseRenderer:Renderer)(this.canvas,this.images,this.profile.settings,{fixedWidth:true});this.images_r=this.preview;
   this.setTab(this.tab,true);this.last=performance.now();const loop=t=>{if(!this.running)return;this.draw((t-this.last)/1000);this.last=t;requestAnimationFrame(loop);};requestAnimationFrame(loop);}
  close(){this.running=false;this.root.classList.add('hidden');this.sound.play('click');this.onExit?.();}
  setTab(tab,first){this.tab=tab;const items=this.items();
