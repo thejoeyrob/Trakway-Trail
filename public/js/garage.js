@@ -1,6 +1,7 @@
 import {Wheel} from './wheel.js';
 import {CATALOG,DECALS,TRUCKS,DECAL_TAGS,STATS} from './upgrades.js';
 import {Renderer} from './render.js';
+import {ChaseRenderer} from './chase.js';
 import {drawRig,thumb} from './rigart.js';
 import {RIG} from './geometry.js';
 const LOCK="<svg class='padlock' viewBox='0 0 24 24' aria-hidden='true'><path d='M7 10V7a5 5 0 0 1 10 0v3' fill='none' stroke='currentColor' stroke-width='2.6' stroke-linecap='round'/><rect x='4.5' y='10' width='15' height='11' rx='3' fill='currentColor'/><circle cx='12' cy='15.5' r='1.7' fill='#10343a'/></svg>";
@@ -8,11 +9,12 @@ const LOCK="<svg class='padlock' viewBox='0 0 24 24' aria-hidden='true'><path d=
    Paints and roof graphics preview even when you can't afford them; only buying/fitting is locked. Cab and trailer are separate, and any
    style you own can be fitted to either or both. */
 export class Garage{
- constructor(o){Object.assign(this,o);this.tab='trucks';this.target='both';this.idx={trucks:0,trailers:0,livery:0,upgrades:0};this.pop=0;this.running=false;this.spark=[];this.sway=0;
+ constructor(o){Object.assign(this,o);this.tab='trucks';this.target='both';this.idx={trucks:0,trailers:0,livery:0,upgrades:0};this.pop=0;this.running=false;this.spark=[];this.sway=0;this.rigView='full';this.rigView='full';
   const q=s=>this.root.querySelector(s);this.q=q;this.canvas=q('#showroom');
   q('#garageBack').onclick=()=>this.close();
   q('#garageTabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b&&b.dataset.tab!==this.tab){this.sound.play('click');this.sound.rev(1);this.setTab(b.dataset.tab);}});
   q('#gTarget').addEventListener('click',e=>{const b=e.target.closest('[data-t]');if(b){this.target=b.dataset.t;this.sound.play('click');this.update();}});
+  q('#gRig').addEventListener('click',e=>{const b=e.target.closest('[data-r]');if(b){this.rigView=b.dataset.r;this.sound.play('click');this.update();}});
   q('#gAction').onclick=()=>this.act();q('#gBoth').onclick=()=>this.act(true);
   const c=this.canvas;c.addEventListener('pointerdown',()=>{this.sound.honk();this.bump();});
   document.addEventListener('keydown',e=>{if(!this.running)return;if(e.key==='ArrowLeft'){this.wheel.step(-1);e.preventDefault();}else if(e.key==='ArrowRight'){this.wheel.step(1);e.preventDefault();}else if(e.key==='Escape'){this.close();e.preventDefault();}});
@@ -38,7 +40,7 @@ export class Garage{
   else meta=s.selected?'ON THE ROAD':s.owned?'OWNED':this.money(s.price);
   return "<div class='gcard "+(s.locked?'locked':'')+" "+(s.selected?'equipped':'')+"'>"+this.art(it)+(s.locked?"<b class='lockbadge'>"+LOCK+"</b>":'')+"<span class='gname'>"+it.name.replace(/^THE /,'')+"</span><span class='gmeta'>"+meta+"</span></div>";}
  open(){this.root.classList.remove('hidden');this.root.classList.add('opening');setTimeout(()=>this.root.classList.remove('opening'),600);this.running=true;
-  this.preview=new Renderer(this.canvas,this.images,this.profile.settings,{fixedWidth:true});this.images_r=this.preview;
+  this.chase=this.profile.settings.view==='chase';this.preview=new (this.chase?ChaseRenderer:Renderer)(this.canvas,this.images,this.profile.settings,{fixedWidth:true});this.images_r=this.preview;
   this.setTab(this.tab,true);this.last=performance.now();const loop=t=>{if(!this.running)return;this.draw((t-this.last)/1000);this.last=t;requestAnimationFrame(loop);};requestAnimationFrame(loop);}
  close(){this.running=false;this.root.classList.add('hidden');this.sound.play('click');this.onExit?.();}
  setTab(tab,first){this.tab=tab;const items=this.items();
@@ -58,6 +60,7 @@ export class Garage{
   else pv.upgrades[it.id]=Math.min(3,p.upgrades[it.id]+(p.upgrades[it.id]<3?1:0));return pv;}
  update(){const it=this.cur(),s=this.st(it),q=this.q,p=this.profile;
   q('#garageWallet').textContent=this.money(p.wallet);
+  q('#gRig').classList.toggle('hidden',!this.chase);q('#gRig').querySelectorAll('[data-r]').forEach(b=>b.classList.toggle('active',b.dataset.r===this.rigView));
   q('#gName').textContent=it.name;q('#gDesc').textContent=it.desc;
   q('#gTarget').classList.toggle('hidden',it.kind!=='decal');q('#gTarget').querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('active',b.dataset.t===this.target));
   let stat='';
@@ -91,6 +94,7 @@ export class Garage{
   for(let i=0;i<46;i++){const a=Math.random()*6.283,v=70+Math.random()*190;this.spark.push({x:0,y:0,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:.8+Math.random()*.7,age:0,r:2+Math.random()*4});}
   this.root.classList.add('flash');setTimeout(()=>this.root.classList.remove('flash'),500);}
  draw(dt){const r=this.preview,c=r.ctx,W=420,H=r.H;if(!W||!H||!isFinite(H))return;dt=Math.min(.05,Math.max(0,dt||0));
+  if(this.chase){this.drawChase(r,c,W,H,dt);return;}
   r.time+=dt;this.pop=Math.max(0,this.pop-dt*2.4);
   // The in-game road, scrolling slowly so the lamps, flames and decals feel alive.
   const off=(r.time*60)%256;r.world.paint(0,0,0,W,H,off);
@@ -104,5 +108,19 @@ export class Garage{
   drawRig(r,{...pv,lane,x,angle:Math.sin(t*.9-.5)*.08,trailer:2+Math.sin(t*.9-.3)*.14,rear:2,hasTrailer:true,job:null,grip:0,boost:Math.max(0,Math.sin(t*.7)*3),shield:false,hornAge:this.pop>0?(1-this.pop)*.35:9},W/2,cy,1,s,ys,t);
   if(this.locked){c.save();c.fillStyle='#8ff3ff1c';const off2=(r.time*28)%6;for(let y=off2;y<H;y+=6)c.fillRect(0,y,W,2);c.restore();}
   c.save();c.translate(W/2,H/2);for(const sp of this.spark){sp.age+=dt;sp.x+=sp.vx*dt;sp.y+=sp.vy*dt;sp.vy+=140*dt;const a=Math.max(0,1-sp.age/sp.life);c.globalAlpha=a;c.fillStyle='#fff3b0';c.beginPath();c.moveTo(sp.x,sp.y-sp.r*2);c.lineTo(sp.x+sp.r*.6,sp.y-sp.r*.6);c.lineTo(sp.x+sp.r*2,sp.y);c.lineTo(sp.x+sp.r*.6,sp.y+sp.r*.6);c.lineTo(sp.x,sp.y+sp.r*2);c.lineTo(sp.x-sp.r*.6,sp.y+sp.r*.6);c.lineTo(sp.x-sp.r*2,sp.y);c.lineTo(sp.x-sp.r*.6,sp.y-sp.r*.6);c.closePath();c.fill();}c.restore();this.spark=this.spark.filter(sp=>sp.age<sp.life);
+ }
+ /* Chase-view preview: the real chase camera on a quiet, slow-rolling road, zoomed in on the rig so paint, decals and either rig
+    configuration (with trailer / cab only) are shown exactly as they will look when driving. */
+ drawChase(r,c,W,H,dt){
+  this.pop=Math.max(0,this.pop-dt*2.4);const pv=this.pv(),t=r.time+dt,bare=this.rigView==='cab';
+  this.cdist=(this.cdist||4000)+dt*260;this.sway=Math.sin(t*.9)*.9;
+  const g={seed:11,distance:this.cdist,x:2+this.sway*.12,lane:2,trailer:2,rear:2,angle:Math.sin(t*.9-.5)*.1,sway:Math.sin(t*1.3)*.4,speed:260,time:t,items:[],sheep:null,leaving:[],hasTrailer:!bare,job:null,grip:0,boost:Math.max(0,Math.sin(t*.7)*3),shield:false,invulnerable:0,night:null,
+   upgrades:pv.upgrades,truck:pv.truck,decal:pv.decal,trailerPaint:pv.trailerPaint,trailerDecal:pv.trailerDecal,hornAge:this.pop>0?(1-this.pop)*.35:9,finished:false,lives:0,combo:0,money:0,multiplier:1,stage:0,offroad:0,surface:'asphalt',detached:[],effects:[]};
+  const z=1.35+this.pop*.05;c.save();c.translate(W/2,H*.99);c.scale(z,z);c.translate(-W/2,-H*.99);
+  try{r.draw(g,dt,pv.truck);}catch(e){console.error(e);}
+  c.restore();
+  if(this.locked){c.save();c.fillStyle='#8ff3ff1c';const off2=(t*28)%6;for(let y=off2;y<H;y+=6)c.fillRect(0,y,W,2);c.restore();}
+  c.save();c.translate(W/2,H*.62);for(const sp of this.spark){sp.age+=dt;sp.x+=sp.vx*dt;sp.y+=sp.vy*dt;sp.vy+=140*dt;const a=Math.max(0,1-sp.age/sp.life);c.globalAlpha=a;c.fillStyle='#fff3b0';c.beginPath();c.arc(sp.x,sp.y,sp.r,0,6.283);c.fill();}c.restore();
+  this.spark=this.spark.filter(sp=>sp.age<sp.life);
  }
 }

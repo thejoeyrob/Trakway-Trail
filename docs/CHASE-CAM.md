@@ -40,3 +40,8 @@ A second sheet for scenery (trees, hedges, shopfronts, garage, digger, site cabi
 > **Sheet 5, the lorry from behind (6 x 2 cells, 384 px):** row 1 tractor unit + trailer in six paint colours; row 2 tractor unit only (trailer dropped) in the same six colours. Slightly open mirrors, twin exhaust stacks, glowing red tail lights, number plate, mudflaps.
 >
 > **Sheet 6, ground tiles (seamless, 512 px each, 3 x 3):** fresh asphalt, worn asphalt with lane paint, mud, river water with ripples, short grass, long grass, paving slabs, gravel, sand.
+
+## Painted pass (handover applied)
+- Applied the painted-chase patch (atlases in `public/assets/chase-pro/`, `chase-*-pro.js`). Painted art masters came as a separate zip and are not in the repo.
+- Detached cab: painted roof/deflector/beacons cut from the showroom top view, flipped to face away, recoloured with the same paint recipe as the full rig and drawn over a matching body (`cabSprite` in `chase.js`). Checked across all six cab paints.
+- Garage (chase view): the preview is the real chase camera, with a SHOW toggle for TRAILER or CAB ONLY. The top-down preview is unchanged when the view is Top.

@@ -5,10 +5,11 @@ const root=path.resolve(import.meta.dirname,'..'),dst=path.join(root,'ios/Trucki
 await rm(dst,{recursive:true,force:true});for(const x of ['assets','js'])await mkdir(path.join(dst,x),{recursive:true});
 await cp(path.join(root,'public/assets/comic'),path.join(dst,'assets/comic'),{recursive:true});
 await cp(path.join(root,'public/assets/route-v2'),path.join(dst,'assets/route-v2'),{recursive:true});
+await cp(path.join(root,'public/assets/chase-pro'),path.join(dst,'assets/chase-pro'),{recursive:true});
 await cp(path.join(root,'public/assets/menu'),path.join(dst,'assets/menu'),{recursive:true});
 for(const f of ['sprites.webp','roads.webp','restrictions.webp','cover.webp','intro-jw.png','icon.png','farmer.webp','terrain.webp','extras.webp','icon-180.png'])await copyFile(path.join(root,'public/assets',f),path.join(dst,'assets',f));
 await copyFile(path.join(root,'public/game.css'),path.join(dst,'game.css'));await copyFile(path.join(root,'public/ui-v3.css'),path.join(dst,'ui-v3.css'));await cp(path.join(root,'public/assets/fonts'),path.join(dst,'assets/fonts'),{recursive:true});
-const files=['route-atlas.js','propart.js','route-world.js','route-hazards.js','route-render.js','showroom.js','atlas.js','geometry.js','rigart.js','road-events.js','upgrades.js','model.js','audio.js','render.js','chaseart.js','chase.js','wheel.js','jokes.js','garage.js','game.js'];
+const files=['chase-atlas.js','chase-finish-pro.js','chase-detail-pro.js','chase-world-pro.js','route-atlas.js','propart.js','route-world.js','route-hazards.js','route-render.js','showroom.js','atlas.js','geometry.js','rigart.js','road-events.js','upgrades.js','model.js','audio.js','render.js','chaseart.js','chase.js','wheel.js','jokes.js','garage.js','game.js'];
 const functions=[];
 for(const name of files){let source=await readFile(path.join(root,'public/js',name),'utf8');const exports=[];
  source=source.replace(/import\s*\{([^}]+)\}\s*from\s*['"]([^'"]+)['"];?/g,(_,names,loc)=>{
@@ -27,7 +28,7 @@ await writeFile(path.join(dst,'play.html'),html);
 const MP3=['roadtrip','menumusic','jweds-jingle'],data={};for(const n of ['roadtrip','menumusic','ignition','idle','rev','cash','crumb','pickup','delivery','horn','sheep','flush','brake','click','scatter','bonus','moo','chime','morris','cyclebell','clang','splat','shield','shieldbreak','goose','jweds-jingle']){try{data[n]=(await readFile(path.join(root,'public/audio',n+(MP3.includes(n)?'.mp3':'.wav')))).toString('base64');}catch(e){if(n!=='jweds-jingle')throw e;}}
 /* Images whose pixels the game reads (paint recolouring, decals, garage thumbnails) are embedded as data: URLs. Images loaded from file:// are
    cross-origin to the page in WKWebView and would block that; data: images are not. */
-const imageData={};for(const [key,file] of [['routeTrucks','route-v2/trucks.webp'],['extras','extras.webp'],['routeSurfaces','route-v2/surfaces.webp'],['routeShowroom','route-v2/showroom.webp']])imageData[key]='data:image/webp;base64,'+(await readFile(path.join(root,'public/assets',file))).toString('base64');
+const imageData={};for(const [key,file] of [['chaseMaterials','chase-pro/chase-materials.webp'],['routeTrucks','route-v2/trucks.webp'],['extras','extras.webp'],['routeSurfaces','route-v2/surfaces.webp'],['routeShowroom','route-v2/showroom.webp']])imageData[key]='data:image/webp;base64,'+(await readFile(path.join(root,'public/assets',file))).toString('base64');
 await writeFile(path.join(dst,'js/image-data.js'),'window.TRUCKIN_IMAGE_DATA='+JSON.stringify(imageData)+';');
 await writeFile(path.join(dst,'js/audio-data.js'),'window.TRUCKIN_AUDIO_DATA='+JSON.stringify(data)+';');
 console.log('Offline native web bundle synced: '+(bundle.length/1024).toFixed(1)+' KB of JS; all game art and audio included.');
