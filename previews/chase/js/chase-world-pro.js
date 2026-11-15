@@ -97,11 +97,12 @@ export class ChaseWorldPro {
  }
  farHaze(c,{g,y0,W,pad}){
   const night=!!g.night;
-  const haze=c.createLinearGradient(0,y0-9,0,y0+66);
-  haze.addColorStop(0,night?'rgba(75,100,130,.72)':'rgba(221,235,231,.84)');
-  haze.addColorStop(.5,night?'rgba(58,76,103,.24)':'rgba(222,235,227,.25)');
-  haze.addColorStop(1,'rgba(221,235,231,0)');
-  c.fillStyle=haze;c.fillRect(-pad,y0-9,W,77);
+  const haze=c.createLinearGradient(0,y0-46,0,y0+70);
+  haze.addColorStop(0,night?'rgba(75,100,130,0)':'rgba(222,233,226,0)');
+  haze.addColorStop(.36,night?'rgba(75,100,130,.62)':'rgba(222,233,226,.78)');
+  haze.addColorStop(.55,night?'rgba(58,76,103,.3)':'rgba(222,233,226,.34)');
+  haze.addColorStop(1,'rgba(222,233,226,0)');
+  c.fillStyle=haze;c.fillRect(-pad,y0-46,W,116);
  }
  roadDetail(c,{X,kind,k,j,y,step,zw,sn,fog}){
   if(this.pats){this.material(c,this.pats[kind===1?0:1],X(15+78*k),X(15+78*(j+1)),y,zw,sn,fog,kind===1?.23:.31);}
