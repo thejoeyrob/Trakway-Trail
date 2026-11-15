@@ -1,7 +1,7 @@
 /* Behind-the-truck camera ("chase cam"). A pseudo-3D road drawn row by row, using exactly the same game (Drive model, route-world road bands, hazards,
    pickups, collisions) as the top-down view. Only the camera changes. The truck is ChatGPT's rear-above sprite from the showroom sheet. */
 import {Renderer} from './render.js';
-import {roadAt,sceneryProps,sideProps,waterSide} from './route-world.js';
+import {roadAt,sceneryProps,sideProps,waterSide,roadEdge} from './route-world.js';
 import {roadTheme,laneX} from './geometry.js';
 import {ROUTE_ATLAS} from './route-atlas.js';
 import {PAINTS,hueShift,tintBody,DECAL_PAINT} from './rigart.js';
@@ -18,7 +18,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const mix=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
 const rgb=c=>'rgb('+c[0]+','+c[1]+','+c[2]+')';
 const THEME_GROUND=[[124,128,134],[82,158,58],[92,170,66],[201,166,107]];   // town paving, country grass, suburban lawn, building-site sand
-const HAZE=[196,226,246];
+const HAZE=[222,233,226];
 const FLAT={pit:1,mud:1,oil:1,grass:1};
 export class ChaseRenderer extends Renderer{
  resize(){super.resize();this.yT=this.H*.80;this.playerY=this.yT-120;this.worldScale=.72;this.camX=this.camX||210;}
@@ -92,13 +92,13 @@ export class ChaseRenderer extends Renderer{
   this.worldPro.sky(c,{g,camZ,y0,W,pad,cx});
   // ---- the ground and the road, row by row. The road never bends or sways: five fixed lanes. A lane is tarmac where the map has a
   //      drivable surface under it, and grass or river where it doesn't (that is the hazard: you have to move over). ----
-  const step=H>850?3:2,pats=this.world&&this.world.patterns&&this.world.patterns.length?this.world.patterns:null,kinds=[0,0,0,0,0];
+  const fogRows=[],step=H>850?3:2,pats=this.world&&this.world.patterns&&this.world.patterns.length?this.world.patterns:null,kinds=[0,0,0,0,0];
   const fillSpan=(pi,col,x1,x2,y,sn,zw,zr,wob)=>{
-   if(x2<=x1)return;const p=pats&&pats[pi];
-   if(p){const d=-A/(zr*zr),v=(zw%256)+(wob||0);p.setTransform({a:sn,b:0,c:0,d,e:cx-camX*sn,f:y-v*d});c.fillStyle=p;}else c.fillStyle=col;
+   if(x2<=x1)return;const p=sn<.16?null:pats&&pats[pi];
+   if(p){const K=pi===WATER?1.6:pi===ASPHALT?2.1:1.9,d=-A/(zr*zr)/K,v=((zw+(wob||0))*K)%256;p.setTransform({a:sn/K,b:0,c:0,d,e:cx-camX*sn,f:y-v*d});c.fillStyle=p;}else c.fillStyle=col;
    c.fillRect(x1,y-step,x2-x1,step+.6);};
   for(let y=H;y>y0+3;y-=step){
-   const zn=A/(y-y0),zf=A/(y-step-y0);if(zf>FAR*1.2)break;const zm=(zn+zf)/2,zw=camZ+zm,sn=CAMBACK/zn,fog=Math.min(1,Math.pow(zm/FAR,1.4));
+   const zn=A/(y-y0),zf=A/(y-step-y0);if(zf>FAR*9)break;const zm=(zn+zf)/2,zw=camZ+zm,sn=CAMBACK/zn,fog=Math.min(1,Math.pow(zm/FAR,1.7));
    const th=roadTheme(zw),a=roadAt(zw,seed),ws=waterSide(a),bs=a.bands,edge=ws?(ws>0?Math.max(...bs.map(b=>b.right)):Math.min(...bs.map(b=>b.left))):0;
    fillSpan(GROUND_PAT[th],rgb(THEME_GROUND[th]),-pad,420+pad,y,sn,zw,zm);this.worldPro.groundDetail(c,{th,y,zw,sn,fog,pad});
    let lo=5,hi=-1;
@@ -124,9 +124,12 @@ export class ChaseRenderer extends Renderer{
     if(dash&&kind===1)for(let m=k+1;m<=j;m++){const x=X(L0+LANE*m);c.fillStyle='rgba(244,241,230,.9)';c.fillRect(x-lw/2,y-step,lw,step+.6);}
     this.worldPro.roadDetail(c,{X,kind,k,j,y,step,zw,sn,fog});
     k=j+1;}
-   // fog and a faint mowing stripe over the whole row
-   c.fillStyle=(g.night?'rgba(51,70,91,':'rgba(196,226,246,')+(fog*.77).toFixed(3)+')';c.fillRect(-pad-60,y-step,W+120,step+.6);
-   if(Math.floor(zw/70)%2){c.fillStyle='rgba(0,0,0,'+(.05*(1-fog)).toFixed(3)+')';c.fillRect(-pad-60,y-step,W+120,step+.6);}
+   fogRows.push(y,fog,sn,zw);
+  }
+  // fog and a faint mowing stripe, as a second pass over the finished rows (no seams between rows)
+  for(let i=0;i<fogRows.length;i+=4){const y=fogRows[i],fog=fogRows[i+1],sn=fogRows[i+2],zw=fogRows[i+3];
+   c.fillStyle=(g.night?'rgba(51,70,91,':'rgba(222,233,226,')+Math.min(.97,fog*.92).toFixed(3)+')';c.fillRect(-pad-60,y-step,W+120,step+.6);
+   if(sn>.5&&Math.floor(zw/70)%2){c.fillStyle='rgba(0,0,0,'+(.05*(1-fog)).toFixed(3)+')';c.fillRect(-pad-60,y-step,W+120,step+.6);}
   }
   // haze over the far distance
   this.worldPro.farHaze(c,{g,y0,W,pad});
@@ -134,6 +137,9 @@ export class ChaseRenderer extends Renderer{
   const L=[];
   for(const p of sceneryProps(camZ+CAMBACK-60,camZ+FAR,seed)){const zr=p.z-camZ;if(zr<CAMBACK-40)continue;L.push({zr,k:'scenery',p});}
   if(pad>1)for(const p of sideProps(camZ+CAMBACK-60,camZ+FAR,seed,pad)){const zr=p.z-camZ;if(zr<CAMBACK-40)continue;L.push({zr,k:'scenery',p});}
+  // extra roadside trees and hedges outside the carriageway (decoration only, no collisions), so the verges are not empty
+  for(let n=Math.floor((camZ+CAMBACK-60)/64);n<=Math.ceil((camZ+FAR)/64);n++){if(n<0)continue;const h=hash2(n*31+seed);if(h%5<2)continue;const z=n*64+(h>>>3)%40,a=roadAt(z,seed),side=h&1?1:-1;if(waterSide(a)===side)continue;const th=roadTheme(z),edge=roadEdge(z,side,seed)+side*(46+(h>>>9)%120);const zr=z-camZ;if(zr<CAMBACK-40)continue;
+   L.push({zr,k:'scenery',p:{id:'d'+n,x:edge,z,sprite:th===3?(h%3?5:4):(th===0&&h%4===0?3:1),sheet:'routeProps',decor:1}});}
   for(const e of g.items){if(e.done)continue;const zr=e.z-camZ;if(zr<CAMBACK-30||zr>FAR)continue;L.push({zr,k:'item',e});}
   if(g.sheep){const zr=g.sheep.z-camZ;if(zr>CAMBACK-30&&zr<FAR)L.push({zr,k:'herd',s:g.sheep});}
   for(const d of g.leaving||[]){const zr=d.z-camZ;if(zr>CAMBACK-30&&zr<FAR)L.push({zr,k:'leaving',d});}
@@ -150,6 +156,9 @@ export class ChaseRenderer extends Renderer{
    else if(o.k==='leaving'){const d=o.d,sz=SIZE[d.type]||[50,50];c.globalAlpha=Math.max(0,1-d.age/1.4);c.save();c.translate(cx+(laneX(d.lane,d.z)+sh+d.dir*d.age*130-camX)*sc,y);this.billboard(c,d.type,sz[0]*sc,sz[1]*sc,this.time*3,7);c.restore();}
    c.restore();
   }
+  if(!g.night){ // grade: warm sun from the upper right, darker corners
+   const gr=c.createLinearGradient(W,0,W*.25,H*.6);gr.addColorStop(0,'rgba(255,226,160,.16)');gr.addColorStop(1,'rgba(255,226,160,0)');c.fillStyle=gr;c.fillRect(-pad,0,W,H);
+   const vg=c.createRadialGradient(W/2-pad,H*.55,H*.28,W/2-pad,H*.55,H*.82);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(8,14,24,.34)');c.fillStyle=vg;c.fillRect(-pad,0,W,H);}
   this.nightLight(g);
   this.finishPro.after(c,g,{H,W,pad,y0,cx});
   // floating text / sparkles (cash, fines)
@@ -186,9 +195,16 @@ export class ChaseRenderer extends Renderer{
   if(g.shield){const t=this.time;c.strokeStyle='rgba(255,230,120,'+(.55+.2*Math.sin(t*8))+')';c.lineWidth=4;c.beginPath();c.ellipse(0,-th*.45,tw*.78,th*.6,0,0,TAU);c.stroke();c.fillStyle='rgba(255,230,120,.12)';c.fill();}
   if(g.crashKind==='water'){c.strokeStyle='rgba(255,255,255,.9)';c.fillStyle='rgba(220,240,255,.8)';c.lineWidth=3;const t=(this.time*3)%1;for(let i=0;i<9;i++){const a=-Math.PI*(i/8),r=24+t*50;c.beginPath();c.arc(Math.cos(a)*r*.9,-10+Math.sin(a)*r,3+((i*7)%3),0,TAU);c.fill();}}
  }
+ /* Contact shadow plus a long soft shadow thrown to the left (the sun is high on the right), so props sit on the ground. */
+ castShadow(c,x,y,w,h,k,a=1){
+  if(this.g&&this.g.night||w<4)return;const tall=/tree|house|shop|garage|cabin|digger|bus|binlorry|icecream|tractor|caravan|lowbridge|weakbridge|hedge|barn|pub|cottage|poplar/.test(k);
+  c.save();c.fillStyle='rgba(14,24,16,'+(.30*a*c.globalAlpha).toFixed(3)+')';c.beginPath();c.ellipse(x-w*.06,y,w*.46,Math.max(1.5,w*.085),0,0,TAU);c.fill();
+  if(tall){c.fillStyle='rgba(14,24,16,'+(.15*a*c.globalAlpha).toFixed(3)+')';c.beginPath();c.moveTo(x+w*.30,y+1);c.lineTo(x-w*.30,y-1);c.lineTo(x-w*.30-h*.55,y+h*.07);c.lineTo(x+w*.10-h*.4,y+h*.09);c.closePath();c.fill();}
+  c.restore();
+ }
  drawScenery(c,p,x,y,sc){
   let k;if(p.sheet==='routeProps'){k={0:'house',1:'tree',2:'garage',3:'hedge',4:'digger',5:'cabin'}[p.sprite]||'tree';}else{k={0:'shop',7:'shop',1:'shop',2:'tree',3:'house',4:'cabin',5:'tree'}[p.sprite]||'tree';}
-  const sz=SIZE[k];if(!sz||x<-120||x>540+this.pad)return;this.detailPro.sceneryBase(c,p,x,y,sc,k);c.save();c.translate(x,y);if(!this.billboard(c,k,sz[0]*sc*1.25,sz[1]*sc*1.25,this.time,parseInt(p.id)||p.z|0))this.detailPro.sceneryOverlay(c,p,sz[0]*sc*1.25,sz[1]*sc*1.25,k);c.restore();
+  const sz=SIZE[k];if(!sz||x<-120||x>540+this.pad)return;this.detailPro.sceneryBase(c,p,x,y,sc,k);this.castShadow(c,x,y,sz[0]*sc*1.25,sz[1]*sc*1.25,k);c.save();c.translate(x,y);if(!this.billboard(c,k,sz[0]*sc*1.25,sz[1]*sc*1.25,this.time,parseInt(p.id)||p.z|0))this.detailPro.sceneryOverlay(c,p,sz[0]*sc*1.25,sz[1]*sc*1.25,k);c.restore();
  }
  drawItem(c,e,x,y,sc,zr){
   const t=this.time+e.id;
@@ -204,7 +220,7 @@ export class ChaseRenderer extends Renderer{
    c.restore();return;}
   const sz=SIZE[e.type]||SIZE[(HAZARD_SPECS[e.type]&&e.type)||'cone']||[40,40],fn=ART[e.type];if(!fn)return;
   const bob=['coin','crumb','taco','boost','night','hitch','shield','prize','job'].includes(e.type)?-14*sc-Math.sin(t*4)*3*sc:0;
-  c.save();c.translate(x,y+bob);
+  this.castShadow(c,x,y,sz[0]*sc*1.1,sz[1]*sc*1.1,e.type,bob?.5:1);c.save();c.translate(x,y+bob);
   this.detailPro.itemUnderlay(c,e,sz,sc,zr,t);
   const scale=sc*(e.type==='crumb'?1.2:1.1);
   this.billboard(c,e.type,sz[0]*scale,sz[1]*scale,t,e.id);
