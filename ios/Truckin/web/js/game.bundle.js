@@ -587,6 +587,315 @@ function drawVehicle(c,img,kind,w,h,t){const cell=VEHICLE_CELLS[kind];
 module.exports={HAS_ART,drawProp,VEHICLE_CELLS,drawVehicle};
 
 },
+"./route-map.js":function(module,exports,require){
+/* TRUCKIN' & DRIVIN' — the road map.
+   The world is an endless chain of SEGMENTS (3000 units each). A segment belongs to a BIOME (city, urban, country, highway) and is one of
+   10 authored VARIANTS of that biome. Segments are joined in a shuffled order that never repeats a biome back to back, and every run starts
+   at a different segment, so the route is never the same.  Every segment starts and ends on its biome's plain layout and blends smoothly from
+   the previous segment (no square ends).
+
+   Across the road there are always five lane slots (the truck's five positions, world x = 54 + 78 * lane). A slot is either DRIVABLE
+   (road / bus lane / oncoming lane) or something else (closed for works, water, parked cars, central reservation, bridge parapet, verge ...).
+   FEATURES (road works, bus lanes, a lake, a dual carriageway, parking, a bridge ...) change what the slots are over a stretch of road,
+   with long tapers so a closing lane narrows like a real one. The model only ever sees the drivable bands, so everything that already
+   works (hazard placement, pickups, fines, contact) keeps working.  */
+const SEG=3900,RAMP_START=330;
+const BIOMES=['city','urban','country','highway'];
+const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+const smooth=t=>{t=clamp(t);return t*t*(3-2*t);};
+function hash(n,seed=1){let x=Math.imul((n|0)^(seed|0),0x45d9f3b);x=Math.imul(x^(x>>>16),0x45d9f3b);return (x^(x>>>16))>>>0;}
+const mulberry=a=>()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};
+const LANE_W=78;
+const LANE_X0=15;
+const laneCentre=k=>54+78*k;
+
+/* ----- lane states.  {drv,rk,fk}: drivable?, road kind (road|bus|oncoming) and what it looks like when it is not drivable ----- */
+const R=()=>({drv:true,rk:'road',fk:'grass'});
+const V=fk=>({drv:false,rk:'road',fk});
+const BASE={city:[R(),R(),R(),R(),R()],urban:[R(),R(),R(),R(),R()],highway:[R(),R(),R(),R(),R()],country:[V('verge'),R(),R(),R(),V('verge')]};
+const FARSIDE={city:'pavement',urban:'pavement',highway:'shoulder',country:'verge'};
+
+/* ----- features ----- */
+const edgeLanes=(side,n)=>Array.from({length:n},(_,i)=>side<0?i:4-i);
+function makeFeature(type,side,rng,biome){
+ const f={t:type,side,lanes:[],T:null,len:600,r:300,deco:type};
+ const between=(a,b)=>a+Math.floor(rng()*(b-a+1));
+ switch(type){
+  case 'works':{const n=biome==='country'?1:between(1,2);f.lanes=edgeLanes(side,n);f.T=V('closed');f.len=between(380,620);f.r=n>1?340:270;break;}
+  case 'bus':f.lanes=edgeLanes(side,1);f.T={drv:true,rk:'bus',fk:'grass'};f.len=between(450,720);f.r=70;break;
+  case 'parking':f.lanes=edgeLanes(side,1);f.T=V('parked');f.len=between(380,600);f.r=220;break;
+  case 'oncoming':{const n=biome==='country'||biome==='highway'?1:between(1,2);f.lanes=biome==='country'?[side<0?1:3]:edgeLanes(side,n);f.T={drv:true,rk:'oncoming',fk:'grass'};f.len=between(420,700);f.r=90;break;}
+  case 'dual':f.lanes=[2];f.T=V('median');f.extra=[{lanes:edgeLanes(side,2),T:{drv:true,rk:'oncoming',fk:'grass'}}];f.len=between(450,720);f.r=150;break;
+  case 'lake':{const n=between(2,3);f.lanes=edgeLanes(side,n+(biome==='country'?0:0));f.T=V('water');f.len=between(520,720);f.r=320;
+   if(n===3)f.extra=[{lanes:[side<0?4:0],T:{drv:true,rk:'oncoming',fk:'verge'}}];else f.extra=[{lanes:[side<0?4:0],T:{drv:true,rk:'road',fk:'verge'}}];break;}
+  case 'bridge':f.lanes=[0,4];f.T=V('barrier');f.len=between(380,520);f.r=180;break;
+  case 'widen':f.lanes=[side<0?0:4];f.T={drv:true,rk:'road',fk:'verge'};f.len=between(400,560);f.r=260;break;
+  case 'narrow':f.lanes=[side<0?1:3];f.T=V('hedge');f.len=between(400,560);f.r=240;break;
+  case 'zebra':f.len=60;f.r=0;break;
+  case 'junction':f.len=150;f.r=0;break;
+ }
+ return f;
+}
+const PALETTE={
+ city:['bus','works','parking','dual','zebra','junction','oncoming','bridge','works','bus'],
+ urban:['bus','works','parking','oncoming','zebra','junction','bridge','widen','works','bus'],
+ country:['works','lake','oncoming','bridge','widen','narrow','lake','works','widen','narrow'],
+ highway:['works','dual','oncoming','bridge','works','dual','works','bridge','dual','oncoming']
+};
+const recipeCache=new Map();
+/* The authored layouts: variant v (0-9) of a biome is always the same stretch of road. */
+function recipe(biome,v){
+ const key=biome+v;if(recipeCache.has(key))return recipeCache.get(key);
+ const rng=mulberry(hash(BIOMES.indexOf(biome)*97+v*13+5,0xA11CE)),list=[];let z=560+Math.floor(rng()*160);
+ const pal=PALETTE[biome],want=4+Math.floor(rng()*3);
+ let last='';
+ for(let i=0;i<want*2&&list.length<want;i++){
+  let type=pal[Math.floor(rng()*pal.length)];if(type===last)type=pal[(pal.indexOf(type)+3)%pal.length];
+  const side=rng()<.5?-1:1,f=makeFeature(type,side,rng,biome);
+  const total=f.len+f.r*2;if(z+total>SEG-340)break;
+  f.a=z+f.r;f.b=f.a+f.len;list.push(f);last=type;z+=total+30+Math.floor(rng()*150);
+  // cosmetic crossings between the bigger features
+  if(rng()<.55&&(biome==='city'||biome==='urban')&&z+260<SEG-420){const c=makeFeature(rng()<.5?'zebra':'junction',rng()<.5?-1:1,rng,biome);c.a=z;c.b=z+c.len;list.push(c);z+=c.len+260;}
+ }
+ const out={biome,v,features:list};recipeCache.set(key,out);return out;
+}
+const segCache=new Map();
+function segInfo(n,seed=1){
+ n=Math.max(0,n|0);const key=seed+':'+n;if(segCache.has(key))return segCache.get(key);
+ const cycle=Math.floor(n/4),bag=BIOMES.slice();
+ for(let i=3;i>0;i--){const j=hash(cycle*31+i,seed)%(i+1);[bag[i],bag[j]]=[bag[j],bag[i]];}
+ if(cycle>0){const prev=segInfo(cycle*4-1,seed).biome;if(bag[0]===prev)[bag[0],bag[1]]=[bag[1],bag[0]];}
+ const biome=bag[n%4],variant=hash(n*7+BIOMES.indexOf(biome),seed^0x5bd1e995)%10,rc=recipe(biome,variant);
+ const s={id:n,start:n*SEG,end:(n+1)*SEG,biome,variant,features:rc.features};
+ segCache.set(key,s);if(segCache.size>400)segCache.delete(segCache.keys().next().value);return s;
+}
+/* Each run starts on the first plain stretch of a different segment, so the route is not the same twice. */
+const offsetOf=seed=>(hash(seed,0xC0FFEE)%48)*SEG;
+
+function blendLane(B,T,w){ // B base state, T target state, w 0..1 -> {o,rk,fk}
+ if(B.drv&&T.drv)return {o:1,rk:w>.5?T.rk:B.rk,fk:B.fk};
+ if(B.drv&&!T.drv)return {o:1-w,rk:B.rk,fk:T.fk};
+ if(!B.drv&&T.drv)return {o:w,rk:T.rk,fk:B.fk};
+ return {o:0,rk:'road',fk:w>.5?T.fk:B.fk};
+}
+function lanesAt(zw,seed=1){
+ const n=Math.floor(zw/SEG),s=segInfo(n,seed),lz=zw-s.start,base=BASE[s.biome];
+ const lanes=base.map(b=>({o:b.drv?1:0,rk:b.rk,fk:b.fk}));
+ // blend in from the previous segment's plain layout
+ if(n>0&&lz<RAMP_START){const pb=BASE[segInfo(n-1,seed).biome],w=smooth(lz/RAMP_START);for(let k=0;k<5;k++)lanes[k]=blendLane(pb[k],base[k],w);}
+ const active=[];
+ for(const f of s.features){
+  const w=f.r>0?smooth((lz-(f.a-f.r))/f.r)*smooth((f.b+f.r-lz)/f.r):(lz>=f.a&&lz<=f.b?1:0);
+  if(w<=0||!f.T)continue;active.push(f);
+  const apply=(lanesList,T)=>{for(const k of lanesList)if(base[k]&&(T.drv||base[k].drv||true)){const cur=lanes[k];const B=base[k];lanes[k]=blendLane(B,T,w);if(cur.o!==undefined&&B.drv===false&&!T.drv)lanes[k].fk=w>.5?T.fk:B.fk;}};
+  apply(f.lanes,f.T);for(const e of f.extra||[])apply(e.lanes,e.T);
+ }
+ return {lanes,seg:s,lz,active};
+}
+const GAP=.02;
+function bandsFrom(lanes){
+ const bands=[];let k=0;
+ while(k<5){
+  if(lanes[k].o<=GAP){k++;continue;}
+  const rk=lanes[k].rk;let j=k;while(j+1<5&&lanes[j+1].o>.999&&lanes[j+1].rk===rk)j++;
+  const sl=LANE_X0+LANE_W*k,sr=LANE_X0+LANE_W*(j+1);
+  bands.push({left:sl+LANE_W*(1-lanes[k].o),right:sr-LANE_W*(1-lanes[j].o),surface:'asphalt',rule:rk==='bus'?'bus':rk==='oncoming'?'oncoming':'',branch:'main',rk,lanes:[k,j]});
+  k=j+1;
+ }
+ return bands;
+}
+const mapCache=new Map();
+/* Everything the game needs to know about the road at distance z (same shape as the old route-world roadAt, plus the map). */
+function mapAt(z,seed=1){
+ z=Math.max(0,z);const zw=z+offsetOf(seed),q=Math.round(zw*4)/4,key=seed+':'+q;
+ let r=mapCache.get(key);if(r)return r;
+ const {lanes,seg,lz,active}=lanesAt(zw,seed),bands=bandsFrom(lanes);
+ r={id:Math.floor(zw/SEG)-Math.floor(offsetOf(seed)/SEG),worldId:seg.id,start:z-lz,end:z-lz+SEG,motif:'map',biome:seg.biome,variant:seg.variant,side:0,restricted:'',prizeSide:'',signZ:-1e9,decisionZ:-1e9,
+  p:lz,gate:0,bands,sign:null,lanes,features:active.map(f=>f.t),zw};
+ mapCache.set(key,r);if(mapCache.size>5000)mapCache.delete(mapCache.keys().next().value);return r;
+}
+/* What is under the wheel at world x: {kind,onRoad,rk,beyond}. kind = the surface or obstacle there. */
+function terrainAt(x,z,seed=1){
+ const r=mapAt(z,seed);
+ for(const b of r.bands)if(x>=b.left&&x<=b.right)return {kind:b.rk,onRoad:true,rule:b.rule,beyond:0,route:r};
+ const k=clamp(Math.floor((x-LANE_X0)/LANE_W),0,4),l=r.lanes[k];
+ let edgeDist=Infinity;for(const b of r.bands)edgeDist=Math.min(edgeDist,x<b.left?b.left-x:x-b.right);
+ return {kind:l.fk,onRoad:false,rule:'',beyond:edgeDist,route:r};
+}
+const segLength=SEG;
+const biomeAt=(z,seed=1)=>mapAt(z,seed).biome;
+
+/* ----- roadside ----- */
+const STYLE={
+ city:['tower','shops','flats','tower','shops'],
+ urban:['terrace','terrace','semi','semi','terrace','flats','park'],
+ country:['hedge','hedge','field','cottage','hedge','wood','barn','wall'],
+ highway:['embank','wood','noise','embank','embank','wood']
+};
+const PAVE={city:50,urban:58,country:22,highway:64};
+function sideStyle(zw,side,seed=1){
+ const n=Math.floor(zw/SEG),s=segInfo(n,seed),lz=zw-s.start;let biome=s.biome;
+ if(lz<RAMP_START&&n>0&&hash(Math.floor(zw/110),seed+side)%100<(1-lz/RAMP_START)*100)biome=segInfo(n-1,seed).biome;   // suburban fringe: the old biome fades out
+ const lanes=lanesAt(zw,seed).lanes,outer=lanes[side<0?0:4],second=lanes[side<0?1:3];
+ const cell=Math.floor(zw/380);
+ if(outer.fk==='water'&&outer.o<.5)return {biome,style:'shore',pave:20};
+ if(outer.fk==='barrier'&&outer.o<.5)return {biome,style:'river',pave:20};
+ const opts=STYLE[biome],style=opts[hash(cell*5+(side>0?3:1),seed^0x77)%opts.length];
+ return {biome,style,pave:PAVE[biome]};
+}
+const CELL=192;
+/* Building and tree lots along both sides: deterministic, each facing the road. */
+function lotsAt(z0,z1,seed=1){
+ const off=offsetOf(seed),out=[];
+ for(let n=Math.floor((z0+off)/CELL);n<=Math.ceil((z1+off)/CELL);n++){
+  if(n<0)continue;
+  for(const side of[-1,1]){
+   const zw=n*CELL,st=sideStyle(zw+CELL/2,side,seed),h=hash(n*13+(side>0?7:3),seed^0x91);
+   const v=h%7,tall=st.style==='tower'?280+(h>>>3)%140:st.style==='flats'?190+(h>>>3)%50:st.style==='barn'?130:st.style==='noise'?90:st.style==='wall'?40:st.style==='hedge'?52:st.style==='embank'?54:st.style==='cottage'?118+(h>>>4)%24:st.style==='shops'?150+(h>>>3)%36:st.style==='semi'?138+(h>>>5)%22:150+(h>>>5)%30;
+   const setback=st.style==='semi'||st.style==='terrace'?30:0;
+   const gap=['terrace','shops','tower','flats','hedge','wall','noise','embank'].includes(st.style)?0:20+(h>>>9)%40;
+   out.push({id:n+':'+side,z:zw-off+gap/2,len:CELL-gap,side,style:st.style,biome:st.biome,v,h:tall,
+    x:side<0?LANE_X0-st.pave-setback:LANE_X0+LANE_W*5+st.pave+setback,pave:st.pave,hs:h});
+  }
+ }
+ return out;
+}
+/* Painted-in road dressing: cones along closures, parked cars, bus shelters, crossings. */
+function decoAt(z0,z1,seed=1){
+ const off=offsetOf(seed),out=[];
+ for(let n=Math.floor((z0+off)/SEG);n<=Math.floor((z1+off)/SEG);n++){
+  if(n<0)continue;const s=segInfo(n,seed);
+  for(const f of s.features){
+   const a=s.start+f.a-f.r-off,b=s.start+f.b+f.r-off;if(b<z0||a>z1)continue;
+   const sideX=f.side<0?LANE_X0:LANE_X0+LANE_W*5;
+   if(f.t==='works'){
+    const a0=s.start+f.a-f.r-off,b0=s.start+f.b+f.r-off;
+    for(let z=Math.ceil(a0/40)*40;z<=b0;z+=40){const r=mapAt(z,seed),L=r.bands.length?Math.min(...r.bands.map(b=>b.left)):LANE_X0,Rr=r.bands.length?Math.max(...r.bands.map(b=>b.right)):LANE_X0+LANE_W*5;
+     out.push({type:'cone',x:f.side<0?L:Rr,z,id:Math.round(z)});}
+    const mz=s.start+f.a+f.len*.45-off,cl=f.lanes.reduce((a,k)=>a+laneCentre(k),0)/f.lanes.length;out.push({type:'digger',x:cl,z:mz,id:Math.round(mz)});
+    out.push({type:'barrier',x:cl,z:s.start+f.a-off+30,id:Math.round(mz)+1});
+   }else if(f.t==='parking'){
+    for(let z=Math.ceil((s.start+f.a-off)/66)*66;z<=s.start+f.b-off;z+=66){const hh=hash(Math.round(z),seed);if(hh%5===0)continue;out.push({type:'car',x:laneCentre(f.lanes[0]),z,id:hh,parked:true});}
+   }else if(f.t==='bus'){
+    out.push({type:'busstop',x:f.side<0?LANE_X0-24:LANE_X0+LANE_W*5+24,z:s.start+f.a+f.len*.55-off,id:f.a,side:f.side});
+   }else if(f.t==='zebra'||f.t==='junction'){
+    out.push({type:f.t,x:f.side<0?LANE_X0:LANE_X0+LANE_W*5,z:s.start+f.a-off,len:f.len,id:f.a,side:f.side});
+   }
+  }
+ }
+ return out;
+}
+
+module.exports={hash,LANE_W,LANE_X0,laneCentre,recipe,segInfo,lanesAt,mapAt,terrainAt,segLength,biomeAt,sideStyle,lotsAt,decoAt};
+
+},
+"./facades.js":function(module,exports,require){
+/* Painted building fronts for the chase camera. Each is drawn once into a canvas and then stretched along the roadside on a plane that FACES the
+   road (so you see terraces, shops and tower blocks the way you really would from a lorry, not a house turned to face you). Style follows the
+   welcome-page illustrations: glossy flat colour, soft top light, no photo-realism. */
+const cache=new Map();
+const BRICK=['#b5533c','#a24b36','#c97a4c','#8f5a46','#b8a07a','#9b4a3a','#c08a5c'];
+const DOORS=['#2d5aa8','#2a7a4a','#a02a2a','#262a30','#e0a82e','#6a3fa0'];
+const WALLS=['#efe6d2','#e8d9b8','#d8e3d0','#e9d2c0','#f3efe6'];
+const SHOPS=['#c8372d','#2f6fa8','#2f8a52','#e0a82e','#7a3f9a','#e86a2e'];
+const mk=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c;};
+const rr=(x,a,b,w,h,r)=>{x.beginPath();x.roundRect(a,b,w,h,r);};
+function lg(x,y0,y1,a,b){const g=x.createLinearGradient(0,y0,0,y1);g.addColorStop(0,a);g.addColorStop(1,b);return g;}
+function window2(x,a,b,w,h,lit){
+ x.fillStyle='#f5f1e6';rr(x,a-2,b-2,w+4,h+4,2);x.fill();
+ x.fillStyle=lit?lg(x,b,b+h,'#ffe9a8','#f2c868'):lg(x,b,b+h,'#9bc6e0','#4d7da0');rr(x,a,b,w,h,1.5);x.fill();
+ x.fillStyle='#f5f1e6';x.fillRect(a+w/2-.8,b,1.6,h);x.fillRect(a,b+h*.45,w,1.4);
+ x.fillStyle='rgba(255,255,255,.28)';x.beginPath();x.moveTo(a+2,b+h-2);x.lineTo(a+w*.45,b+2);x.lineTo(a+w*.62,b+2);x.lineTo(a+w*.18,b+h-2);x.fill();
+ x.fillStyle='#d8d0bc';x.fillRect(a-3,b+h+2,w+6,3);
+}
+function slateRoof(x,w,top,h,col){
+ x.fillStyle=lg(x,top,top+h,col,'#262c34');x.fillRect(0,top,w,h);
+ x.fillStyle='rgba(255,255,255,.07)';for(let i=top+3;i<top+h;i+=5)x.fillRect(0,i,w,1.2);
+}
+const PAINT={
+ terrace(x,w,h,v){ // two storeys, two houses across
+  const brick=BRICK[v%BRICK.length];x.fillStyle=lg(x,0,h,brick,'#00000030');x.fillRect(0,h*.2,w,h*.8);
+  x.fillStyle='rgba(0,0,0,.10)';for(let y=h*.2;y<h;y+=4)x.fillRect(0,y,w,.8);
+  slateRoof(x,w,0,h*.2,'#5a6672');x.fillStyle='#8a4a3a';for(const cx of[w*.25,w*.75]){x.fillRect(cx-5,-6,10,16);x.fillStyle='#4a2a22';x.fillRect(cx-6,-6,12,3);x.fillStyle='#8a4a3a';}
+  for(let i=0;i<2;i++){const ox=i*w/2;
+   window2(x,ox+w*.07,h*.34,w*.12,h*.2,v%3===0);window2(x,ox+w*.3,h*.34,w*.12,h*.2,v%2===0);
+   window2(x,ox+w*.07,h*.66,w*.12,h*.2,false);
+   x.fillStyle=DOORS[(v+i*2)%DOORS.length];rr(x,ox+w*.3,h*.62,w*.1,h*.36,2);x.fill();x.fillStyle='#e8d890';x.fillRect(ox+w*.375,h*.8,2,2);
+   x.fillStyle='#e8e0cc';x.fillRect(ox+w*.28,h*.6,w*.14,3);}
+  x.fillStyle='#4f7a3c';x.fillRect(0,h*.96,w,h*.04);},
+ semi(x,w,h,v){ // two semi-detached halves, hipped roof, bay window, drive
+  const wall=WALLS[v%WALLS.length];x.fillStyle=lg(x,0,h,wall,'#00000028');x.fillRect(0,h*.28,w,h*.7);
+  x.fillStyle=BRICK[v%BRICK.length];x.fillRect(0,h*.78,w,h*.2);
+  x.fillStyle=lg(x,0,h*.3,'#7a4a3a','#4a2e28');x.beginPath();x.moveTo(-4,h*.3);x.lineTo(w*.12,0);x.lineTo(w*.88,0);x.lineTo(w+4,h*.3);x.closePath();x.fill();
+  for(let i=0;i<2;i++){const ox=i*w/2;
+   window2(x,ox+w*.06,h*.4,w*.14,h*.2,v%2===0);window2(x,ox+w*.28,h*.4,w*.1,h*.2,false);
+   x.fillStyle='#e8e0cc';rr(x,ox+w*.05,h*.62,w*.18,h*.28,3);x.fill();window2(x,ox+w*.07,h*.65,w*.14,h*.16,false);
+   x.fillStyle=DOORS[(v+i)%DOORS.length];rr(x,ox+w*.3,h*.64,w*.08,h*.34,2);x.fill();}
+  x.fillStyle='#3f7a35';x.fillRect(0,h*.95,w,h*.05);},
+ shops(x,w,h,v){
+  const up=BRICK[(v+2)%BRICK.length];x.fillStyle=lg(x,0,h,up,'#00000030');x.fillRect(0,0,w,h);
+  slateRoof(x,w,0,h*.1,'#58646f');
+  for(let i=0;i<2;i++){const ox=i*w/2,col=SHOPS[(v+i*2)%SHOPS.length];
+   window2(x,ox+w*.07,h*.18,w*.1,h*.2,false);window2(x,ox+w*.25,h*.18,w*.1,h*.2,v%2===0);
+   x.fillStyle=col;x.fillRect(ox+2,h*.45,w/2-4,h*.12);for(let k=0;k<8;k++){x.fillStyle=k%2?'#f4f1e6':col;x.fillRect(ox+4+k*(w/2-8)/8,h*.58,(w/2-8)/8,h*.08);}
+   x.fillStyle=lg(x,h*.66,h,'#ffe9b0','#e0b060');x.fillRect(ox+6,h*.67,w/2-12,h*.3);
+   for(let k=0;k<3;k++){x.fillStyle=['#c8372d','#2f8a52','#e0a82e'][(k+v)%3];x.fillRect(ox+10+k*(w/2-24)/3,h*.84,(w/2-30)/3,h*.12);}
+   x.fillStyle='#2a2e34';x.fillRect(ox+w*.36,h*.67,w*.07,h*.31);}
+  x.fillStyle='#8a8a86';x.fillRect(0,h*.97,w,h*.03);},
+ flats(x,w,h,v){
+  x.fillStyle=lg(x,0,h,BRICK[(v+1)%BRICK.length],'#00000035');x.fillRect(0,0,w,h);
+  x.fillStyle='#d8d4c8';x.fillRect(0,0,w,h*.05);x.fillRect(0,h*.97,w,h*.03);
+  const rows=Math.max(3,Math.round(h/30));for(let r=0;r<rows;r++)for(let k=0;k<4;k++){window2(x,w*(.06+k*.235),h*(.09+r*(.84/rows)),w*.13,h*(.84/rows)*.55,(r*3+k+v)%5===0);
+   x.fillStyle='#ccc8bc';x.fillRect(w*(.045+k*.235),h*(.09+r*(.84/rows))+h*(.84/rows)*.62,w*.17,2);}
+  x.fillStyle='#2a2e34';x.fillRect(w*.42,h*.9,w*.16,h*.1);},
+ tower(x,w,h,v){
+  const tone=[['#5a7a94','#2f4a60'],['#6a8a9a','#364e5a'],['#7a8794','#3d4650'],['#4f7a86','#27464e']][v%4];
+  x.fillStyle=lg(x,0,h,tone[0],tone[1]);x.fillRect(0,0,w,h);
+  x.fillStyle='rgba(255,255,255,.07)';x.fillRect(0,0,w*.5,h);
+  const cols=6,rows=Math.max(6,Math.round(h/14));for(let r=0;r<rows;r++)for(let k=0;k<cols;k++){const lit=((r*7+k*3+v)%6)===0;x.fillStyle=lit?'#ffe9a8':'rgba(180,220,245,.55)';x.fillRect(w*(.04+k*.155),h*(.04+r*.92/rows),w*.1,h*.92/rows*.58);}
+  x.fillStyle='#c8d0d6';x.fillRect(0,0,w,h*.025);x.fillStyle='#e0e4e8';x.fillRect(w*.4,-8,w*.2,10);
+  x.fillStyle='#252a30';x.fillRect(w*.38,h*.93,w*.24,h*.07);},
+ cottage(x,w,h,v){
+  x.fillStyle=lg(x,0,h,WALLS[v%WALLS.length],'#00000030');x.fillRect(w*.05,h*.35,w*.9,h*.63);
+  x.fillStyle=lg(x,0,h*.45,'#c9a45a','#7a5a2a');x.beginPath();x.moveTo(-6,h*.46);x.quadraticCurveTo(w*.5,-h*.12,w+6,h*.46);x.lineTo(w+6,h*.5);x.lineTo(-6,h*.5);x.closePath();x.fill();
+  x.fillStyle='rgba(60,40,10,.25)';for(let i=0;i<8;i++)x.fillRect(0,h*.1+i*5,w,1);
+  window2(x,w*.14,h*.55,w*.16,h*.18,true);window2(x,w*.68,h*.55,w*.16,h*.18,false);
+  x.fillStyle=DOORS[v%DOORS.length];rr(x,w*.43,h*.6,w*.14,h*.38,w*.07);x.fill();
+  for(let i=0;i<14;i++){x.fillStyle=['#e86a8a','#f2c82e','#fff','#a86ae0'][i%4];x.beginPath();x.arc(w*.08+i*w*.065,h*.95-(i%3)*2,2.4,0,6.3);x.fill();}
+  x.fillStyle='#4a8a38';x.fillRect(0,h*.94,w,h*.06);},
+ barn(x,w,h,v){
+  x.fillStyle=lg(x,0,h,v%2?'#9a3a2e':'#8a5a3a','#00000040');x.fillRect(w*.04,h*.3,w*.92,h*.7);
+  x.fillStyle='#4a4c52';x.beginPath();x.moveTo(-4,h*.34);x.lineTo(w*.5,0);x.lineTo(w+4,h*.34);x.closePath();x.fill();
+  x.fillStyle='#d8cfb8';rr(x,w*.32,h*.5,w*.36,h*.5,3);x.fill();x.strokeStyle='#8a2a22';x.lineWidth=3;x.strokeRect(w*.32,h*.5,w*.36,h*.5);x.beginPath();x.moveTo(w*.32,h*.5);x.lineTo(w*.68,h*1);x.moveTo(w*.68,h*.5);x.lineTo(w*.32,h*1);x.stroke();
+  x.fillStyle='#e8e0c8';x.fillRect(w*.46,h*.38,w*.08,h*.08);},
+ hedge(x,w,h,v){
+  x.fillStyle=lg(x,0,h,'#4f8a3a','#2d5a26');x.fillRect(0,h*.2,w,h*.8);
+  for(let i=0;i<46;i++){x.fillStyle=['#5fa043','#3f7a30','#6fb04c','#356a2a'][i%4];x.beginPath();x.arc((i*37.7)%w,h*.25+((i*13)%7)*h*.1,h*.22,0,6.3);x.fill();}
+  x.fillStyle='rgba(0,0,0,.22)';x.fillRect(0,h*.88,w,h*.12);},
+ wall(x,w,h,v){
+  x.fillStyle=lg(x,0,h,'#b0a89a','#7a746a');x.fillRect(0,0,w,h);
+  for(let r=0;r<4;r++)for(let k=0;k<9;k++){x.fillStyle='rgba(0,0,0,.18)';x.fillRect(k*w/8+(r%2)*w/16,r*h/4,1.4,h/4);}
+  x.fillStyle='rgba(0,0,0,.2)';for(let r=1;r<4;r++)x.fillRect(0,r*h/4,w,1.4);x.fillStyle='#8a8478';x.fillRect(0,0,w,h*.12);},
+ noise(x,w,h,v){
+  x.fillStyle=lg(x,0,h,'#7fa08a','#5a7a68');x.fillRect(0,0,w,h);
+  for(let k=0;k<=6;k++){x.fillStyle='#8a9aa0';x.fillRect(k*w/6-2,0,4,h);}
+  x.fillStyle='rgba(0,0,0,.14)';for(let r=1;r<5;r++)x.fillRect(0,r*h/5,w,1.2);x.fillStyle='#b8c4c8';x.fillRect(0,0,w,h*.1);},
+ embank(x,w,h,v){
+  x.fillStyle=lg(x,0,h,'#6aa04a','#3d7330');x.fillRect(0,0,w,h);
+  for(let i=0;i<34;i++){x.fillStyle=['#7ab858','#4f8a38','#5a9a40'][i%3];x.beginPath();x.ellipse((i*29.3)%w,h*.3+((i*17)%5)*h*.14,6,3,0,0,6.3);x.fill();}}
+};
+/* texture for a lot: darker on the side away from the sun (the right side of the road faces left, into the shade) */
+function facadeTexture(style,v,tall,side){
+ const key=style+'|'+v+'|'+Math.round(tall/8)+'|'+side;let c=cache.get(key);if(c)return c;
+ const W=192,H=Math.max(24,Math.round(tall));
+ c=mk(W,H);const x=c.getContext('2d');(PAINT[style]||PAINT.hedge)(x,W,c.height,v);
+ if(side>0){x.globalCompositeOperation='source-atop';x.fillStyle='rgba(18,30,50,.28)';x.fillRect(0,0,W,c.height);}
+ cache.set(key,c);if(cache.size>160)cache.delete(cache.keys().next().value);return c;
+}
+
+module.exports={facadeTexture};
+
+},
 "./route-world.js":function(module,exports,require){
 /* Route World 2.0. Distances and polygons are the shared source of truth for
  * artwork, signs, spawning and wheel contact. Five INPUT positions are retained;
@@ -617,7 +926,12 @@ function routeSpec(index,seed=1){
  routeCache.set(key,s);if(routeCache.size>256)routeCache.delete(routeCache.keys().next().value);
  return s;
 }
+const {mapAt}=require("./route-map.js");
+/* 'map' = the authored biome map (route-map.js). 'legacy' = the original motif roads (kept for the top-down painter's own tests). */
+let MODE=(typeof process!=='undefined'&&process.env&&process.env.TRUCKIN_ROUTE)||'map';
+const setRouteMode=m=>{MODE=m;};const routeMode=()=>MODE;
 function roadAt(z,seed=1){
+ if(MODE==='map')return mapAt(z,seed);
  z=Math.max(0,z);const s=routeSpec(Math.floor(z/CHUNK_LENGTH),seed),p=z-s.start;
  const gate=smooth((p-500)/440)*smooth((2480-p)/440),wave=Math.sin((p-500)/1900*Math.PI*2);
  const band=(centre,width,surface='asphalt',rule='',branch='main')=>({left:centre-width/2,right:centre+width/2,surface,rule,branch});
@@ -677,13 +991,13 @@ function reachableCorridor(items,z0,z1,seed=1,start=[0,1,2,3,4],maxSpeed=530){
  }
  return true;
 }
-function routeWarning(distance,seed=1){const index=Math.floor(Math.max(0,distance)/CHUNK_LENGTH),r=roadAt(index*CHUNK_LENGTH+900,seed);if(distance-r.start<1100)return {...r.sign,distance:Math.max(0,Math.round((r.decisionZ-distance)/10)),id:r.id};return null;}
+function routeWarning(distance,seed=1){if(MODE==='map')return null;const index=Math.floor(Math.max(0,distance)/CHUNK_LENGTH),r=roadAt(index*CHUNK_LENGTH+900,seed);if(distance-r.start<1100)return {...r.sign,distance:Math.max(0,Math.round((r.decisionZ-distance)/10)),id:r.id};return null;}
 /* Outermost edge of the road on one side over the whole length of a prop, so a prop never overhangs the carriageway on a bend. */
 function roadEdge(z,side,seed=1,span=62){let o=side<0?Infinity:-Infinity;for(const dz of[-span,-span/2,0,span/2,span]){const a=roadAt(z+dz,seed),v=side<0?Math.min(...a.bands.map(b=>b.left)):Math.max(...a.bands.map(b=>b.right));o=side<0?Math.min(o,v):Math.max(o,v);}return o;}
 /* Side of the road with water at a river bend (props are not placed on the water). */
 const waterSide=a=>a.motif==='river-bend'&&a.gate>.4?-a.side:0;
 function sceneryProps(z0,z1,seed=1){
- const props=[];for(let n=Math.floor(z0/210);n<=Math.ceil(z1/210);n++){
+ const props=[];if(MODE==='map')return props;for(let n=Math.floor(z0/210);n<=Math.ceil(z1/210);n++){
   if(n<0)continue;const z=n*210+hash(n+123,seed)%70,a=roadAt(z,seed),stage=roadTheme(z);
   for(const side of [-1,1]){if(waterSide(a)===side)continue;const outer=roadEdge(z,side,seed);
    const sprite=stage===0||stage===2?(hash(n+side,seed)%3===0?1:0):stage===3?[4,7,2][hash(n+side,seed)%3]:1;
@@ -701,7 +1015,7 @@ function sceneryProps(z0,z1,seed=1){
 /* Decorative scenery for the extra width on iPads and the tall-phone preview: further rows of the same painted houses, trees and
    hedges, set back from the verge. No collision; purely to carry the world out to the screen edges. */
 function sideProps(z0,z1,seed=1,pad=0){
- const props=[];if(pad<2)return props;
+ const props=[];if(pad<2||MODE==='map')return props;
  const cols=Math.ceil(pad/118);
  for(let n=Math.floor(z0/260);n<=Math.ceil(z1/260);n++){if(n<0)continue;
   for(const side of[-1,1])for(let col=0;col<cols;col++){
@@ -718,7 +1032,7 @@ function sideProps(z0,z1,seed=1,pad=0){
  return props;
 }
 
-module.exports={ROUTE_VERSION,CHUNK_LENGTH,MOTIFS,hash,steeringX,routeSpec,roadAt,surfaceAt,routeLanes,laneCorridor,nearestLane,rewardPath,reachableCorridor,routeWarning,roadEdge,waterSide,sceneryProps,sideProps};
+module.exports={ROUTE_VERSION,CHUNK_LENGTH,MOTIFS,hash,steeringX,routeSpec,setRouteMode,routeMode,roadAt,surfaceAt,routeLanes,laneCorridor,nearestLane,rewardPath,reachableCorridor,routeWarning,roadEdge,waterSide,sceneryProps,sideProps};
 
 },
 "./route-hazards.js":function(module,exports,require){
@@ -1101,15 +1415,15 @@ module.exports={SCENARIO_NAMES,chooseRoadScenario};
 },
 "./upgrades.js":function(module,exports,require){
 const CATALOG=[
- ['stability','STEADY EDDIE','Trailer stabiliser: sway settles 20% faster per level.',350,10],
- ['suspension','AIR-RIDE','Air suspension: 8% less trailer angle per level.',450,10],
- ['steering','QUICK HANDS','Better wheel: steering response 12% quicker per level.',400,9],
- ['lights','SEE EWE LATER','LED lightbar: 65 metres more visibility per level.',500,7],
- ['exhaust','BIG PIPES','Chrome stacks: 5% more coin earnings per level.',550,2],
- ['washroom','ENSUITE SUITE','Sleeper washroom: +£20 per taco break per level.',650,3],
- ['bunk','SLEEP LIKE A LOG','Better bunk: rested handling and 3% delivery bonus per level.',550,8],
- ['insurance','MATES’ RATES','Damage insurance: 12% smaller fines per level. Level 3 adds a once-per-shift bail-out from a crash (£400 excess).',350,11],
- ['horn','THE BIG TOOT','Air horn: 0.16 second more sheep-reaction time per level.',350,0]
+ ['stability','STEADY EDDIE','Trailer stabiliser: sway settles 20% faster per level.',700,10],
+ ['suspension','AIR-RIDE','Air suspension: 8% less trailer angle per level.',800,10],
+ ['steering','QUICK HANDS','Better wheel: steering response 12% quicker per level.',750,9],
+ ['lights','SEE EWE LATER','Light bar: at night every level throws the headlight beams much further up the road. Standard lights show only a short stretch.',900,7],
+ ['exhaust','BIG PIPES','Chrome stacks: 5% more coin earnings per level.',1200,2],
+ ['washroom','ENSUITE SUITE','Sleeper washroom: +£20 per taco break per level.',1000,3],
+ ['bunk','SLEEP LIKE A LOG','Better bunk: rested handling and 3% delivery bonus per level.',1100,8],
+ ['insurance','MATES’ RATES','Damage insurance: 12% smaller fines per level. Level 3 adds a once-per-shift bail-out from a crash (£400 excess).',900,11],
+ ['horn','THE BIG TOOT','Air horn: 0.16 second more sheep-reaction time per level.',700,0]
 ].map(([id,name,description,cost,icon])=>({id,name,description,cost,icon}));
 const defaults=()=>Object.fromEntries(CATALOG.map(u=>[u.id,0]));
 const normalize=(v={})=>Object.fromEntries(CATALOG.map(u=>[u.id,Math.min(3,Math.max(0,Math.floor(Number(v?.[u.id])||0)))]));
@@ -1117,17 +1431,17 @@ const normalize=(v={})=>Object.fromEntries(CATALOG.map(u=>[u.id,Math.min(3,Math.
 const TRUCKS=[
  {id:1,name:'ARCTIC WHITE',desc:'Clean, crisp and entirely forgettable. The trailer’s factory colour.',cost:0,bonus:0},
  {id:0,name:'THE OLD FAITHFUL',desc:'Your trusty turquoise mile muncher.',cost:0,bonus:0},
- {id:2,name:'THE TANGERINE DREAM',desc:'Sunset paint · +2% delivery earnings.',cost:1200,bonus:2},
- {id:3,name:'THE NIGHT SHIFT',desc:'Midnight purple · +4% delivery earnings.',cost:2800,bonus:4},
- {id:4,name:'POST HASTE',desc:'Pillar-box red. Stops traffic and fits through letterboxes. Not really.',cost:1600,bonus:2},
- {id:5,name:'RACING GREEN',desc:'Proper British green · for drivers with taste and a flat cap.',cost:2000,bonus:3}
+ {id:2,name:'THE TANGERINE DREAM',desc:'Sunset paint · +2% delivery earnings.',cost:2500,bonus:2},
+ {id:3,name:'THE NIGHT SHIFT',desc:'Midnight purple · +4% delivery earnings.',cost:6000,bonus:4},
+ {id:4,name:'POST HASTE',desc:'Pillar-box red. Stops traffic and fits through letterboxes. Not really.',cost:3500,bonus:2},
+ {id:5,name:'RACING GREEN',desc:'Proper British green · for drivers with taste and a flat cap.',cost:4500,bonus:3}
 ];
 /* Roof graphics, drawn as vector art clipped to the cab and trailer roofs (see rigart.js). */
 const DECALS=[
  {id:0,name:'FACTORY',cost:0},
- {id:1,name:'GOLD WINGS',cost:700},
- {id:2,name:'HOT HAUL',cost:900},
- {id:3,name:'FLOCK ROYALTY',cost:1100}
+ {id:1,name:'GOLD WINGS',cost:1500},
+ {id:2,name:'HOT HAUL',cost:2000},
+ {id:3,name:'FLOCK ROYALTY',cost:2500}
 ];
 const DECAL_TAGS=['Factory finish. Honest and humble.','Golden wings for a golden driver. +2% on deliveries.','Flames on a lorry. Speed not included. +2% on deliveries.','Flock Royalty: the sheep approve. +2% on deliveries.'];
 const PAINT_IDS=TRUCKS.map(t=>t.id);
@@ -1145,17 +1459,22 @@ const STATS={
  horn:{label:'HORN WINDOW',f:l=>(.75+l*.16).toFixed(2)+' s'}
 };
 
-module.exports={CATALOG,defaults,normalize,TRUCKS,DECALS,DECAL_TAGS,PAINT_IDS,DECAL_IDS,deliveryBonus,STATS};
+/* Upgrade prices rise steeply: level 1 costs the listed price, level 2 about three times that and level 3 about eight times. A typical shift earns around £3,000, so the first level of anything is a shift or two, and a fully loaded rig takes dozens of shifts. */
+const LEVEL_MULT=[1,3.2,8];
+const upgradePrice=(base,level)=>Math.round(base*LEVEL_MULT[Math.min(2,Math.max(0,level))]/50)*50;
+
+module.exports={CATALOG,defaults,normalize,TRUCKS,DECALS,DECAL_TAGS,PAINT_IDS,DECAL_IDS,deliveryBonus,STATS,LEVEL_MULT,upgradePrice};
 
 },
 "./model.js":function(module,exports,require){
 const {laneX,rigPose,roadTheme,RIG}=require("./geometry.js");
 const {chooseRoadScenario}=require("./road-events.js");
-const {ROUTE_VERSION,CHUNK_LENGTH,roadAt,surfaceAt,routeLanes,laneCorridor,nearestLane,reachableCorridor,steeringX,sceneryProps,rewardPath,waterSide}=require("./route-world.js");
+const {ROUTE_VERSION,CHUNK_LENGTH,roadAt,surfaceAt,routeLanes,laneCorridor,nearestLane,reachableCorridor,steeringX,sceneryProps,rewardPath,waterSide,routeMode}=require("./route-world.js");
+const {terrainAt}=require("./route-map.js");
 const {HAZARD_SPECS,sweptOverlap}=require("./route-hazards.js");
 const {normalize,deliveryBonus}=require("./upgrades.js");
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const themes=['THE TOWN RUN','COUNTRY MILES','SUBURBAN SHORTCUT','HARD HAT HAUL'];
+const themes=['THE CITY RUN','COUNTRY MILES','SUBURBAN SHORTCUT','MOTORWAY MILES'];
 const ROAD_TYPES=['lowbridge','weakbridge','bus','noentry','narrow','grass','house','works'];
 /* Hazards that end the shift outright, each with its own comic vignette (see COMICS in game.js) and result-sheet line. */
 const CRASHES={car:'Not a bumper car.',lowbridge:'Height restriction. Not a suggestion.',weakbridge:'Weight limit: less than you.',oil:'Slick move, driver.',house:'Planning permission denied.',sheep:'Ewe had one job.',cow:'Holy cow. Literally.',icecream:'Chocolate flake-ing disaster.',binlorry:'Bin there, done that.',water:'Silly dipping.'};
@@ -1174,6 +1493,9 @@ const pickWeighted=(list,r)=>{let t=list.reduce((a,b)=>a+b[1],0)*r;for(const [k,
 function seeded(seed){const fn=()=>{seed|=0;seed=(seed+0x6D2B79F5)|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;fn.state=seed;return((t^t>>>14)>>>0)/4294967296;};fn.state=seed;return fn;}
 function jobPath(lane,rng,count=10){const p=[];for(let i=0;i<count;i++){if(i%2)lane=clamp(lane+(rng()>.5?1:-1),0,4);p.push(lane);}return p;}
 function biomeAt(z){return roadTheme(z);}
+const THEME_OF={city:0,country:1,urban:2,highway:3};
+/* Which of the funny hazards make sense where: cows and tractors belong in the country, not on a motorway. */
+const FUNNY_AT={city:['icecream','morris','cyclists','binlorry'],urban:['icecream','morris','cyclists','binlorry','caravan','geese'],country:['cow','icecream','morris','cyclists','geese','tractor','caravan','binlorry'],highway:['caravan','binlorry']};
 function hazardKinds(z){return [['car','cone','bus','noentry','lowbridge'],['grass','weakbridge','oil','lowbridge','narrow'],['house','car','noentry','narrow'],['barrier','cone','oil','works']][biomeAt(z)];}
 class Drive {
  constructor(options={}){
@@ -1253,7 +1575,7 @@ class Drive {
   // 1-3 hazards per row. Always at least two open lanes in the corridor, and the reachability test below keeps one of them steerable.
   let count=1+(this.rng()<.32+.4*r?1:0)+(this.rng()<.08+.34*r?1:0);
   count=Math.min(count,Math.max(1,corridor.length-2),busy?2:3);
-  const biome=biomeAt(z),mix=route.motif==='roadworks'?[['works',3],['pit',2],['barrier',3],['cone',2]]:MIX[biome];
+  const mapped=routeMode()==='map',biome=mapped?THEME_OF[route.biome]:biomeAt(z),mix=(mapped?route.features.includes('works'):route.motif==='roadworks')?[['works',3],['pit',2],['barrier',3],['cone',2]]:MIX[biome];
   const order=corridor.slice();for(let i=order.length-1;i>0;i--){const j=Math.floor(this.rng()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
   const placed=[];
   for(const lane of order){
@@ -1293,8 +1615,9 @@ class Drive {
  freeLane(z,pref=2){const lanes=routeLanes(z,this.seed,{legal:true}).sort((a,b)=>Math.abs(a-pref)-Math.abs(b-pref));return lanes.find(l=>!this.laneBusy(l,z-170,z+170,100))??null;}
  /* One funny encounter, taken from the shuffled bag. Honkable ones can be shooed; cow, ice-cream van and bin lorry end the shift if you hit them. */
  spawnFunny(z){
-  if(!this.funnyBag.length){const a=FUNNY.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(this.rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}if(!this.funnyStarted){a.splice(a.indexOf('cow'),1);a.unshift('cow');this.funnyStarted=true;}this.funnyBag=a;}
-  const kind=this.funnyBag[0],spec=HAZARD_SPECS[kind],reserve=kind==='tractor'||kind==='caravan'?650:0;
+  if(!this.funnyBag.length){const a=FUNNY.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(this.rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}if(!this.funnyStarted){const f=FUNNY_AT[routeMode()==='map'?roadAt(z,this.seed).biome:'country']||FUNNY,first=f.includes('cow')?'cow':f[0];a.splice(a.indexOf(first),1);a.unshift(first);this.funnyStarted=true;}this.funnyBag=a;}
+  const here=routeMode()==='map'?roadAt(z,this.seed).biome:'country',okKinds=FUNNY_AT[here]||FUNNY,pick=this.funnyBag.findIndex(k=>okKinds.includes(k));if(pick<0)return false;
+  const kind=this.funnyBag[pick],spec=HAZARD_SPECS[kind],reserve=kind==='tractor'||kind==='caravan'?650:0;
   const corridor=laneCorridor(z-100,z+260,this.seed,true);if(corridor.length<3)return false;
   const order=corridor.slice();for(let i=order.length-1;i>0;i--){const j=Math.floor(this.rng()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
   for(const lane of order){
@@ -1302,7 +1625,7 @@ class Drive {
    const cand={type:kind,lane,z,length:0,reserve,done:false,collectible:false};
    if(!reachableCorridor([...this.items.filter(e=>!e.collectible&&!e.done),cand],z-500,z+650,this.seed))continue;
    const props={length:0,warning:430};if(kind==='tractor'||kind==='caravan'){props.drift=kind==='caravan'?85:95;props.reserve=reserve;}if(['cow','geese','morris','cyclists'].includes(kind))props.honkable=true;
-   this.add(kind,z,lane,props);this.funnyBag.shift();return true;}
+   this.add(kind,z,lane,props);this.funnyBag.splice(pick,1);return true;}
   return false;
  }
  spawn(){const busy=this.job||this.sheep||this.night,pending=this.items.some(e=>['job','night'].includes(e.type)&&!e.done);
@@ -1311,19 +1634,21 @@ class Drive {
   if(!busy&&!this.shield&&this.distance>this.nextShield-700&&!this.items.some(e=>e.type==='shield'&&!e.done)){const z=this.distance+620,l=nearestLane(z,Math.floor(this.rng()*5),this.seed);if(!this.laneBusy(l,z-100,z+100,100)){this.add('shield',z,l);this.nextShield=this.distance+6200+this.rng()*2500;}}
   if(!this.hasTrailer&&this.nextHitch&&this.distance>this.nextHitch-700&&!this.items.some(e=>e.type==='hitch'&&!e.done)){const z=this.distance+650,lane=nearestLane(z,this.lane,this.seed);if(!this.laneBusy(lane,z-100,z+100,100)){this.add('hitch',z,lane);this.nextHitch=z+1500;}}
   if(!this.sheep&&!this.night&&this.distance>this.nextFunny-1300){const z=Math.max(this.nextFunny,this.distance+900);if(this.spawnFunny(z))this.nextFunny=z+1250+this.rng()*750-this.ramp()*300;else this.nextFunny=this.distance+200;}
+  if(routeMode()==='map'&&this.distance>(this.nextOncoming||0)){const ah=roadAt(this.distance+950,this.seed),bd=ah.bands.find(b=>b.rule==='oncoming');this.nextOncoming=this.distance+420+this.rng()*520;
+   if(bd){const lanes=[];for(let l=bd.lanes[0];l<=bd.lanes[1];l++)lanes.push(l);const lane=lanes[Math.floor(this.rng()*lanes.length)],z=this.distance+950,type=this.rng()<.22?'bus':'car';if(!this.laneBusy(lane,z-60,z+160,60))this.add(type,z,lane,{oncoming:true,traffic:true,speed:210+this.rng()*120,length:0});}}
   while(this.row<this.distance+1300){
    const r=this.ramp(),gapSec=Math.max(.5,.9-.38*r);
    const nearJob=this.items.some(e=>['job','night'].includes(e.type)&&!e.done&&Math.abs(e.z-this.row)<520);
    if(this.sheep||nearJob){this.row+=this.cruise*(gapSec+this.rng()*.4);continue;}
    if(this.spawnEncounter(this.row)){this.row+=600+this.cruise*(.9+this.rng()*.5);continue;}
    this.row+=this.makeRow(this.row,gapSec)+this.cruise*(gapSec+this.rng()*.4);}
-  if(this.distance>this.nextSheep-850&&!busy&&!this.items.some(e=>e.type==='night'&&!e.done)){const kind=((this.herdN=(this.herdN||0)+1)%2===1)!==(this.rng()<.25)?'sheep':'cows';this.sheep={z:this.distance+850,baa:false,baaAt:Infinity,cleared:false,kind};this.emit('sheepWarning',{kind});for(const e of this.items)if(e.type==='job'&&!e.done&&e.z>this.distance)e.z=this.sheep.z+900;this.items=this.items.filter(e=>e.type==='job'||e.z+(e.length||0)<this.sheep.z-450||e.z>this.sheep.z+400);this.nextSheep=this.distance+7600+this.rng()*1800;}
+  if(this.distance>this.nextSheep-850&&!busy&&(routeMode()!=='map'||(roadAt(this.distance+900,this.seed).biome==='country'||(this.nextSheep+=1,false)))&&!this.items.some(e=>e.type==='night'&&!e.done)){const kind=((this.herdN=(this.herdN||0)+1)%2===1)!==(this.rng()<.25)?'sheep':'cows';this.sheep={z:this.distance+850,baa:false,baaAt:Infinity,cleared:false,kind};this.emit('sheepWarning',{kind});for(const e of this.items)if(e.type==='job'&&!e.done&&e.z>this.distance)e.z=this.sheep.z+900;this.items=this.items.filter(e=>e.type==='job'||e.z+(e.length||0)<this.sheep.z-450||e.z>this.sheep.z+400);this.nextSheep=this.distance+7600+this.rng()*1800;}
  }
  /* 0 at the depot gate -> 1 after ~7 miles: hazards bunch up and the rig gets quicker so long shifts end on skill, not boredom */
  ramp(){return clamp(this.distance/48000,0,1);}
  tick(dt){if(this.finished)return;dt=clamp(dt,0,.05);this.time+=dt;for(const d of this.leaving)d.age+=dt;this.leaving=this.leaving.filter(d=>d.age<1.4);
   for(const k of ['invulnerable','slow','boost','rested','grip','dropCooldown'])this[k]=Math.max(0,this[k]-dt);
-  const base=250+Math.min(80,this.time*.8)+95*this.ramp();this.cruise=base;this.speed=Math.min(560,base*(this.slow>0?.65:this.boost>0?1.3:1)*(this.hasTrailer?1:1.38)*(this.grip>0?.92:1));const oldDistance=this.distance,oldX=this.x;this.distance+=this.speed*dt;this.stage=biomeAt(this.distance);
+  const base=250+Math.min(80,this.time*.8)+95*this.ramp();this.cruise=base;this.speed=Math.min(560,base*(this.slow>0?.65:this.boost>0?1.3:1)*(this.hasTrailer?1:1.38)*(this.grip>0?.92:1));const oldDistance=this.distance,oldX=this.x;this.distance+=this.speed*dt;this.stage=routeMode()==='map'?THEME_OF[roadAt(this.distance,this.seed).biome]:biomeAt(this.distance);
   this.rapid=Math.max(0,this.rapid-dt*(this.job?.double?.19:.43)*(1+.2*this.upgrades.stability)*(this.rested>0?1.2:1));
   this.x+=(this.lane-this.x)*(1-Math.exp(-dt*(this.grip>0?6.2:11)*(this.hasTrailer?1:1.3)*(1+.12*this.upgrades.steering)));
   this.trailer+=(this.x-this.trailer)*(1-Math.exp(-dt*(this.job?.double?2.2:4)));
@@ -1343,13 +1668,24 @@ class Drive {
   const trailerContact=this.hasTrailer?surfaceAt(pose.trailer.x,this.distance-pose.trailer.y,this.seed,15):contact;
   if(contact.surface==='mud'||trailerContact.surface==='mud'){if(this.grip<.1)this.emit('mud');this.grip=4.8;}
   if(!contact.onRoad||!trailerContact.onRoad){this.offroad+=dt;if(this.offroad>.55){this.fine(35,'Keep it on the road.');if([1,3].includes(this.stage))this.grip=Math.max(this.grip,2.5);this.offroad=-1.7;}}else this.offroad=Math.max(0,this.offroad-dt*2);
-  // Water: the river bend has no road under it. Nothing steers you away; drive in and it's a dip.
+  // The map: water, parked cars and parapets are not roads. Nothing steers you away; drive into one and that's the end of the run (or a bailout).
+  if(routeMode()==='map'){
+   const T=terrainAt(laneX(this.x,this.distance),this.distance,this.seed);
+   if(!T.onRoad&&this.invulnerable<=0){
+    if(T.kind==='water'&&T.beyond>14){this.lastHit={type:'water',lane:this.x,z:this.distance,x:laneX(this.x,this.distance)};this.crash('water');}
+    else if((T.kind==='parked'||T.kind==='barrier')&&T.beyond>8){this.lastHit={type:'car',lane:this.x,z:this.distance,x:laneX(this.x,this.distance)};this.crash('car');}
+    if(!this.finished&&this.invulnerable>0)this.lane=nearestLane(this.distance,this.lane,this.seed,false);
+   }
+   const A=terrainAt(laneX(this.lane,this.distance),this.distance+850,this.seed);
+   if(!A.onRoad&&A.kind==='water'&&A.beyond>14&&this.waterWarned!==A.route.worldId){this.waterWarned=A.route.worldId;this.emit('hint',{text:'WATER AHEAD · MOVE OVER'});}
+  }else{
   {const wa=roadAt(this.distance,this.seed),ws=waterSide(wa);
    if(ws&&this.invulnerable<=0){const edge=ws>0?Math.max(...wa.bands.map(b=>b.right)):Math.min(...wa.bands.map(b=>b.left)),lx=laneX(this.x,this.distance);
     if((lx-edge)*ws>20){this.lastHit={type:'water',lane:this.x,z:this.distance,x:lx};this.crash('water');if(!this.finished)this.lane=nearestLane(this.distance,this.lane,this.seed,false);}}
    const ah=roadAt(this.distance+850,this.seed),aw=waterSide(ah);
    if(aw&&this.waterWarned!==ah.id){const edge=aw>0?Math.max(...ah.bands.map(b=>b.right)):Math.min(...ah.bands.map(b=>b.left));this.waterWarned=ah.id;if((laneX(this.lane,this.distance)-edge)*aw>6)this.emit('hint',{text:'WATER AHEAD · MOVE OVER'});}}
-  if(contact.rule&&!this.routeFines[contact.route.id]){this.routeFines[contact.route.id]=true;this.fine(contact.rule==='oneway'?120:90,contact.rule==='oneway'?'One way. The other way.':'Residents and public access only.');}
+  }
+  if(contact.rule&&!this.routeFines[contact.route.id]){this.routeFines[contact.route.id]=true;const R={oneway:[120,'One way. The other way.'],bus:[60,'Bus lane. Bus fine.'],oncoming:[150,'Wrong side of the road.']}[contact.rule]||[90,'Residents and public access only.'];this.fine(R[0],R[1]);}
   if(contact.route.gate>.97&&!this.routeChoice[contact.route.id]){this.routeChoice[contact.route.id]=contact.branch;this.emit('routeChoice',{branch:contact.branch,motif:contact.route.motif});}
   for(const key of Object.keys(this.routeFines))if(+key<contact.route.id-2)delete this.routeFines[key];
   for(const key of Object.keys(this.routeChoice))if(+key<contact.route.id-2)delete this.routeChoice[key];
@@ -1580,6 +1916,8 @@ ART.cabRear=function(c,w,h,t,o){
  if(o.boost){c.fillStyle='rgba(255,180,60,.85)';for(const s of[-1,1]){c.beginPath();c.moveTo(s*w*.3-4,-h*.05);c.lineTo(s*w*.3,18+Math.random()*22);c.lineTo(s*w*.3+4,-h*.05);c.fill()}}
 };
 function shade(hex){const n=parseInt(hex.slice(1),16),f=v=>Math.round(v*.62);return 'rgb('+f(n>>16)+','+f(n>>8&255)+','+f(n&255)+')'}
+ART.lamp=function(c,w,h){c.fillStyle='rgba(8,16,12,.3)';c.beginPath();c.ellipse(0,0,w*.5,w*.12,0,0,TAU);c.fill();c.fillStyle=lg(c,-w*.1,0,w*.1,0,'#6a7078','#3c4248');c.fillRect(-w*.07,-h,w*.14,h);c.fillStyle='#4a5058';c.beginPath();c.moveTo(-w*.07,-h);c.quadraticCurveTo(-w*.07,-h*1.06,w*.35,-h*1.04);c.lineTo(w*.35,-h*1.0);c.quadraticCurveTo(w*.05,-h*1.02,w*.07,-h*.96);c.closePath();c.fill();c.fillStyle='#fff3c4';c.fillRect(w*.22,-h*1.03,w*.18,h*.03);};
+ART.busstop=function(c,w,h){shadow(c,w);c.fillStyle='rgba(150,200,225,.45)';rr(c,-w*.45,-h*.82,w*.9,h*.78,3);c.fill();c.strokeStyle='#3a4a58';c.lineWidth=Math.max(1,w*.04);c.strokeRect(-w*.45,-h*.82,w*.9,h*.78);c.fillStyle='#c8372d';rr(c,-w*.5,-h*.94,w,h*.14,3);c.fill();c.fillStyle='#fff';c.fillRect(-w*.3,-h*.9,w*.12,h*.06);c.fillStyle='#e8e0d0';c.fillRect(-w*.28,-h*.28,w*.56,h*.08);};
 
 module.exports={SIZE,ART};
 
@@ -1588,7 +1926,9 @@ module.exports={SIZE,ART};
 /* Behind-the-truck camera ("chase cam"). A pseudo-3D road drawn row by row, using exactly the same game (Drive model, route-world road bands, hazards,
    pickups, collisions) as the top-down view. Only the camera changes. The truck is ChatGPT's rear-above sprite from the showroom sheet. */
 const {Renderer}=require("./render.js");
-const {roadAt,sceneryProps,sideProps,waterSide,roadEdge}=require("./route-world.js");
+const {roadAt}=require("./route-world.js");
+const {lotsAt,decoAt,mapAt}=require("./route-map.js");
+const {facadeTexture}=require("./facades.js");
 const {roadTheme,laneX}=require("./geometry.js");
 const {ROUTE_ATLAS}=require("./route-atlas.js");
 const {PAINTS,hueShift,tintBody,DECAL_PAINT}=require("./rigart.js");
@@ -1599,6 +1939,7 @@ const {ChaseFinishPro}=require("./chase-finish-pro.js");
 const {ChaseDetailPro}=require("./chase-detail-pro.js");
 const {ChaseWorldPro}=require("./chase-world-pro.js");
 const CAMBACK=260,FAR=2400,TAU=Math.PI*2;
+const GCOL={city:[168,162,152],urban:[96,160,70],country:[88,150,62],highway:[80,140,62]},GPAT={city:7,urban:12,country:3,highway:3},PAVE={city:50,urban:58,country:22,highway:64},NOFACADE=['park','wood','field','shore','river'];
 const GROUND_PAT=[7,3,12,11],ASPHALT=0,MUD=5,WATER=14,LANE=78,L0=15;   // surface-atlas cells used for the ground, road, mud and river
 const CAB_COL=['#d6dde2','#f2f2ee','#e0601c','#6a2fb8','#b02a24','#2a8a44'];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -1678,50 +2019,74 @@ class ChaseRenderer extends Renderer{
   this.worldPro ||= new ChaseWorldPro(this);
   c.save();if(this.shake>0&&this.settings.motion){c.translate((Math.random()-.5)*this.shake,(Math.random()-.5)*this.shake);this.shake*=Math.exp(-dt*12);}
   // ---- cinematic sky, atmospheric depth, far scenery ----
-  {const cv=this.canvas,key=roadTheme(camZ+1150)+(g.night?'n':'d')+cv.width+'x'+cv.height;
+  {const cv=this.canvas,key=mapAt(camZ+1150,g.seed).biome+(g.night?'n':'d')+cv.width+'x'+cv.height;
    if(!this._sky||this._sky.width!==cv.width||this._sky.height!==cv.height){this._sky=document.createElement('canvas');this._sky.width=cv.width;this._sky.height=cv.height;this._skyKey='';}
    if(this._skyKey!==key||(this._skyN=(this._skyN||0)+1)%4===0){const sc2=this._sky.getContext('2d');sc2.setTransform(1,0,0,1,0,0);sc2.clearRect(0,0,cv.width,cv.height);sc2.setTransform(c.getTransform());this.worldPro.sky(sc2,{g,camZ,y0,W,pad,cx});this._skyKey=key;}
    c.save();c.setTransform(1,0,0,1,0,0);c.drawImage(this._sky,0,0);c.restore();}
+  const LL=15,RR=405,marks=[];for(const d of decoAt(camZ,camZ+FAR*3,seed)){if(d.type==='zebra')marks.push({t:'zebra',z0:d.z,z1:d.z+d.len,side:d.side});else if(d.type==='junction')marks.push({t:'junction',z0:d.z,z1:d.z+d.len,side:d.side});}
   // ---- the ground and the road, row by row. The road never bends or sways: five fixed lanes. A lane is tarmac where the map has a
   //      drivable surface under it, and grass or river where it doesn't (that is the hazard: you have to move over). ----
   {const cv=this.canvas,RS=(this.q||0)>0?.5:.62,rw=Math.round(cv.width*RS),rh=Math.round(cv.height*RS);   // the ground and road are drawn at reduced resolution (fill-rate), the painted sprites stay sharp
    if(!this._rows||this._rows.width!==rw||this._rows.height!==rh){this._rows=document.createElement('canvas');this._rows.width=rw;this._rows.height=rh;}
    const rc=this._rows.getContext('2d');rc.setTransform(1,0,0,1,0,0);rc.clearRect(0,0,rw,rh);const T=c.getTransform();rc.setTransform(T.a*RS,T.b*RS,T.c*RS,T.d*RS,T.e*RS,T.f*RS);
    {const c=rc;
+  let curYt=0,curHh=0;const Tm=rc.getTransform(),SS=Tm.d,FF=Tm.f,snap=v=>(Math.round(v*SS+FF)-FF)/SS;
   const fogRows=[],step=(this.q||0)>0?4:H>850?3:2,pats=this.world&&this.world.patterns&&this.world.patterns.length?this.world.patterns:null,kinds=[0,0,0,0,0];
   const fillSpan=(pi,col,x1,x2,y,sn,zw,zr,wob)=>{
    if(x2<=x1)return;const p=sn<(pi===ASPHALT?.2:.28)?null:pats&&pats[pi];
    if(p){const K=pi===WATER?1.6:pi===ASPHALT?2.1:1.9,d=-A/(zr*zr)/K,v=((zw+(wob||0))*K)%256;p.setTransform({a:sn/K,b:0,c:0,d,e:cx-camX*sn,f:y-v*d});c.fillStyle=p;}else c.fillStyle=col;
-   c.fillRect(x1,y-step,x2-x1,step+.6);};
+   c.fillRect(x1,curYt,x2-x1,curHh);};
   for(let y=H;y>y0+3;y-=step){
-   const zn=A/(y-y0),zf=A/(y-step-y0);if(zf>FAR*9)break;const zm=(zn+zf)/2,zw=camZ+zm,sn=CAMBACK/zn,fog=Math.min(1,Math.pow(zm/FAR,1.7));
-   const th=roadTheme(zw),a=roadAt(zw,seed),ws=waterSide(a),bs=a.bands,edge=ws?(ws>0?Math.max(...bs.map(b=>b.right)):Math.min(...bs.map(b=>b.left))):0;
-   fillSpan(GROUND_PAT[th],rgb(THEME_GROUND[th]),-pad,420+pad,y,sn,zw,zm);if(th===0&&sn>=.28){c.fillStyle='rgba(238,224,196,.34)';c.fillRect(-pad,y-step,W,step+.6);}   // pale pavement, clearly not tarmac
-   this.worldPro.groundDetail(c,{th,y,zw,sn,fog,pad});
-   const X=u=>cx+(u-camX)*sn;
-   if(ws){ // river: from 20 units beyond the road edge outwards (that is where the model says "dip"), with a grassy bank between
-    const wb=edge+ws*20,ripple=Math.sin(this.time*1.3+zw*.02)*7+this.time*14;
-    const x1=ws<0?-pad-60:X(wb),x2=ws<0?X(wb):420+pad+60;
-    fillSpan(WATER,'#2f7aa6',x1,x2,y,sn,zw,zm,ripple);c.fillStyle='rgba(40,150,215,.38)';c.fillRect(x1,y-step,x2-x1,step+.6);
-    this.worldPro.waterDetail(c,{x1,x2,y,zw,sn,step,fog,time:this.time});
-    const b1=X(Math.min(edge,wb)),b2=X(Math.max(edge,wb));c.fillStyle=rgb(mix([96,126,72],HAZE,fog*.8));c.fillRect(b1,y-step,b2-b1,step+.6);   // bank
-    c.fillStyle='rgba(255,255,255,'+(.5*(1-fog)).toFixed(3)+')';c.fillRect(ws<0?x2-Math.max(1,2*sn):x1,y-step,Math.max(1,2*sn),step+.6);   // foam line
-    if(Math.floor((zw+this.time*40)/46)%3===0){c.fillStyle='rgba(255,255,255,'+(.35*(1-fog)).toFixed(3)+')';const gx=(ws<0?x1:x2)+((hash2(Math.floor(zw/46))%100)/100-(ws<0?1:0))*(Math.abs(x2-x1)*.8);c.fillRect(gx,y-step,Math.max(2,18*sn),1.4);}
+   const yt=snap(y-step),hh=snap(y)-yt;curYt=yt;curHh=hh;
+   const zn=A/(y-y0),zf=A/(yt-y0);if(zf>FAR*9)break;const zm=(zn+zf)/2,zw=camZ+zm,sn=CAMBACK/zn,fog=Math.min(1,Math.pow(zm/FAR,1.7));
+   const a=roadAt(zw,seed),bs=a.bands,ln=a.lanes,biome=a.biome,X=u=>cx+(u-camX)*sn,lw=Math.max(1.1,2.2*sn),dash=Math.floor(zw/55)%2===0,pv=PAVE[biome];
+   fillSpan(GPAT[biome]===7?7:GPAT[biome],rgb(GCOL[biome]),-pad,420+pad,y,sn,zw,zm);
+   this.worldPro.groundDetail(c,{th:biome==='city'?0:biome==='country'?1:2,y,zw,sn,fog,pad});
+   // roadside strips beyond the five lanes: pavement and kerb in towns, a grass verge in the country, a hard shoulder on the motorway; river beyond a bridge or lake
+   for(const side of[-1,1]){const outer=ln[side<0?0:4],e=side<0?LL:RR;let jn=false;for(const m of marks)if(m.t==='junction'&&m.side===side&&zw>=m.z0&&zw<=m.z1)jn=true;
+    const wet=(outer.fk==='water'||outer.fk==='barrier')&&outer.o<.5;
+    if(wet){const x1=side<0?-pad-60:X(e),x2=side<0?X(e):420+pad+60;fillSpan(WATER,'#2f7aa6',x1,x2,y,sn,zw,zm,Math.sin(this.time*1.3+zw*.02)*7+this.time*14);c.fillStyle='rgba(40,150,215,.38)';c.fillRect(x1,yt,x2-x1,hh);continue;}
+    const xa=side<0?X(e-pv):X(e),xb=side<0?X(e):X(e+pv);
+    if(jn){fillSpan(ASPHALT,'#42454a',side<0?-pad-60:X(e),side<0?X(e):420+pad+60,y,sn,zw,zm);continue;}
+    if(biome==='city'){c.fillStyle='rgb(196,190,178)';c.fillRect(xa,yt,xb-xa,hh);if(Math.floor(zw/34)%2){c.fillStyle='rgba(120,114,104,.30)';c.fillRect(xa,yt,xb-xa,hh);}}
+    else if(biome==='urban'){const pw=26,xm=side<0?X(e-pw):X(e+pw);c.fillStyle='rgb(190,184,172)';c.fillRect(side<0?xm:xa,yt,Math.abs(xm-xa),hh);}
+    else if(biome==='country'){c.fillStyle='rgb(112,168,76)';c.fillRect(xa,yt,xb-xa,hh);}
+    else{c.fillStyle='rgb(92,94,98)';c.fillRect(xa,yt,xb-xa,hh);c.fillStyle='#f4f1e6';c.fillRect(side<0?X(e)-lw*1.6:X(e)+lw*.6,yt,lw,hh);}
+    if(biome==='city'||biome==='urban'){const kb=Math.max(2,5*sn);c.fillStyle='rgb(150,147,142)';c.fillRect(side<0?X(e)-kb:X(e),yt,kb,hh);c.fillStyle='rgb(104,102,98)';c.fillRect(side<0?X(e)-kb*.3:X(e),yt,kb*.3,hh);}
    }
-   // tarmac and mud: the real drivable bands, so the edges taper smoothly where the road narrows or widens; the lane lines stay fixed and straight
-   for(const bd of bs){const L=bd.left,R=bd.right,kind=bd.surface==='mud'?2:1,xl=X(L),xr=X(R);if(xr<=xl)continue;
-    fillSpan(kind===2?MUD:ASPHALT,kind===2?'#68482c':'#42454a',xl,xr,y,sn,zw,zm);
-    const lw=Math.max(1.2,2.4*sn),kb=Math.max(2,6*sn),dash=Math.floor(zw/55)%2===0;
-    c.fillStyle=Math.floor(zw/40)%2?'#d94a3a':'#f4f1e6';c.fillRect(xl-kb,y-step,kb,step+.6);c.fillRect(xr,y-step,kb,step+.6);
-    c.fillStyle='#f4f1e6';c.fillRect(xl+kb*.4,y-step,lw,step+.6);c.fillRect(xr-kb*.4-lw,y-step,lw,step+.6);
-    if(dash&&kind===1)for(let m=1;m<5;m++){const u=L0+LANE*m;if(u>L+10&&u<R-10){const x=X(u);c.fillStyle='rgba(244,241,230,.9)';c.fillRect(x-lw/2,y-step,lw,step+.6);}}
-    this.worldPro.roadDetail(c,{X,kind,k:Math.max(0,Math.ceil((L-54)/LANE)),j:Math.min(4,Math.floor((R-54)/LANE)),xl,xr,y,step,zw,sn,fog});}
-   fogRows.push(y,fog,sn,zw);
+   // lane slots that are not (fully) road: water, works, parked cars, central reservation, parapets, verge
+   for(let k=0;k<5;k++){const Lk=ln[k];if(Lk.o>=.999)continue;const fk=Lk.fk,x1=X(LL+LANE*k),x2=X(LL+LANE*(k+1)),ex=side=>0;
+    if(fk==='water')fillSpan(WATER,'#2f7aa6',x1,x2,y,sn,zw,zm,Math.sin(this.time*1.3+zw*.02)*7+this.time*14),(c.fillStyle='rgba(40,150,215,.38)',c.fillRect(x1,yt,x2-x1,hh));
+    else if(fk==='closed'){fillSpan(ASPHALT,'#3a3d42',x1,x2,y,sn,zw,zm);c.fillStyle='rgba(240,150,40,.16)';c.fillRect(x1,yt,x2-x1,hh);}
+    else if(fk==='parked'){fillSpan(ASPHALT,'#3d4046',x1,x2,y,sn,zw,zm);if(Math.floor(zw/66)%1===0&&Math.floor(zw/22)%3===0){c.fillStyle='rgba(244,241,230,.55)';c.fillRect(x1,yt,x2-x1,Math.max(.8,step*.45));}}
+    else if(fk==='median'){c.fillStyle='rgb(78,128,60)';c.fillRect(x1,yt,x2-x1,hh);const kb=Math.max(2,5*sn);c.fillStyle='rgb(176,172,164)';c.fillRect(x1,yt,kb,hh);c.fillRect(x2-kb,yt,kb,hh);}
+    else if(fk==='barrier'){c.fillStyle='rgb(176,174,168)';c.fillRect(x1,yt,x2-x1,hh);c.fillStyle='rgb(120,118,112)';c.fillRect(x1,yt,Math.max(1.5,4*sn),hh);}
+    else if(fk==='hedge'){c.fillStyle='rgba(36,84,34,.62)';c.fillRect(x1,yt,x2-x1,hh);}
+   }
+   // tarmac, bus lanes and oncoming lanes: the real drivable bands (edges taper smoothly where the road narrows or widens)
+   for(const bd of bs){const L=bd.left,R=bd.right,xl=X(L),xr=X(R);if(xr<=xl)continue;
+    fillSpan(ASPHALT,'#42454a',xl,xr,y,sn,zw,zm);
+    if(bd.rule==='bus'){c.fillStyle='rgba(178,48,42,.55)';c.fillRect(xl,yt,xr-xl,hh);}
+    // water bank where a band meets a lake
+    for(const [side,xe] of[[-1,xl],[1,xr]]){const k=side<0?bd.lanes[0]-1:bd.lanes[1]+1;if(k>=0&&k<5&&ln[k].fk==='water'&&ln[k].o<.5){c.fillStyle=rgb(mix([98,128,72],HAZE,fog*.8));c.fillRect(side<0?xe-14*sn:xe,yt,14*sn,hh);}}
+    // edge lines (not against a kerb)
+    const atKerb=(biome==='city'||biome==='urban');
+    if(!(atKerb&&L<=LL+1)){c.fillStyle='#f4f1e6';c.fillRect(xl+lw*.6,yt,lw,hh);}
+    if(!(atKerb&&R>=RR-1)){c.fillStyle='#f4f1e6';c.fillRect(xr-lw*1.6,yt,lw,hh);}
+    this.worldPro.roadDetail(c,{X,kind:1,k:Math.max(0,Math.ceil((L-54)/LANE)),j:Math.min(4,Math.floor((R-54)/LANE)),xl,xr,y,step,zw,sn,fog});}
+   // lane lines: dashed white between same-way lanes, double yellow against oncoming traffic, solid white beside a bus lane
+   for(let m=1;m<5;m++){if(ln[m-1].o<.5||ln[m].o<.5)continue;const u=LL+LANE*m,ra=ln[m-1].rk,rb=ln[m].rk,x=X(u);
+    if(ra===rb){if(dash){c.fillStyle='rgba(244,241,230,.9)';c.fillRect(x-lw/2,yt,lw,hh);}}
+    else if(ra==='oncoming'||rb==='oncoming'){c.fillStyle='#f0c52e';c.fillRect(x-lw*1.4,yt,lw,hh);c.fillRect(x+lw*.4,yt,lw,hh);}
+    else{c.fillStyle='#f4f1e6';c.fillRect(x-lw/2,yt,lw,hh);}}
+   // zebra crossings: bars along the road, gaps between
+   for(const m of marks)if(m.t==='zebra'&&zw>=m.z0&&zw<=m.z1){c.fillStyle='rgba(248,246,238,.92)';for(const bd of bs)for(let u=Math.ceil(bd.left/16)*16;u<bd.right-8;u+=16){const x=X(u);c.fillRect(x,yt,Math.max(1,8*sn),hh);}}
+   fogRows.push(yt,fog,hh,zw);
   }
   // fog as a second pass over the finished rows (no seams between rows); rows with the same fog level are merged into one fill
-  {const Q=28;let runA=-1,runTop=0,runBot=0;const flush=()=>{if(runA>0){c.fillStyle=(g.night?'rgba(51,70,91,':'rgba(222,233,226,')+(runA/Q*.97).toFixed(3)+')';c.fillRect(-pad-60,runTop,W+120,runBot-runTop+.6);}};
-   for(let i=0;i<fogRows.length;i+=4){const y=fogRows[i],q=Math.round(Math.min(1,fogRows[i+1]*.95)*Q);
-    if(q===runA&&Math.abs(runTop-y)<step+.01){runTop=y-step;}else{flush();runA=q;runTop=y-step;runBot=y;}}
+  {const Q=28;let runA=-1,runTop=0,runBot=0;const flush=()=>{if(runA>0){c.fillStyle=(g.night?'rgba(51,70,91,':'rgba(222,233,226,')+(runA/Q*.97).toFixed(3)+')';c.fillRect(-pad-60,runTop,W+120,runBot-runTop);}};
+   for(let i=0;i<fogRows.length;i+=4){const yt=fogRows[i],hh=fogRows[i+2],q=Math.round(Math.min(1,fogRows[i+1]*.95)*Q);
+    if(q===runA&&Math.abs(runTop-(yt+hh))<.001){runTop=yt;}else{flush();runA=q;runTop=yt;runBot=yt+hh;}}
    flush();}
    }
    c.save();c.setTransform(1,0,0,1,0,0);c.imageSmoothingEnabled=true;c.drawImage(this._rows,0,0,rw,rh,0,0,cv.width,cv.height);c.restore();}
@@ -1729,11 +2094,9 @@ class ChaseRenderer extends Renderer{
   this.worldPro.farHaze(c,{g,y0,W,pad});
   // ---- everything that stands on the road, far to near ----
   const L=[];
-  for(const p of sceneryProps(camZ+CAMBACK-60,camZ+FAR,seed)){const zr=p.z-camZ;if(zr<CAMBACK-40)continue;L.push({zr,k:'scenery',p});}
-  if(pad>1)for(const p of sideProps(camZ+CAMBACK-60,camZ+FAR,seed,pad)){const zr=p.z-camZ;if(zr<CAMBACK-40)continue;L.push({zr,k:'scenery',p});}
-  // extra roadside trees and hedges outside the carriageway (decoration only, no collisions), so the verges are not empty
-  if(!(this.q>0))for(let n=Math.floor((camZ+CAMBACK-60)/64);n<=Math.ceil((camZ+FAR)/64);n++){if(n<0)continue;const h=hash2(n*31+seed);if(h%5<2)continue;const z=n*64+(h>>>3)%40,a=roadAt(z,seed),side=h&1?1:-1;if(waterSide(a)===side)continue;const th=roadTheme(z),edge=roadEdge(z,side,seed)+side*(46+(h>>>9)%120);const zr=z-camZ;if(zr<CAMBACK-40)continue;
-   L.push({zr,k:'scenery',p:{id:'d'+n,x:edge,z,sprite:th===3?(h%3?5:4):(th===0&&h%4===0?3:1),sheet:'routeProps',decor:1}});}
+  for(const lot of lotsAt(camZ+CAMBACK-200,camZ+FAR,seed)){const zr=lot.z+lot.len*.5-camZ;if(zr<40||lot.z+lot.len-camZ<48)continue;
+   let skip=false;for(const m of marks)if(m.t==='junction'&&m.side===lot.side&&lot.z+lot.len>m.z0-10&&lot.z<m.z1+10)skip=true;if(!skip)L.push({zr,k:'lot',lot});}
+  for(const d of decoAt(camZ+CAMBACK-60,camZ+FAR,seed)){if(d.type==='zebra'||d.type==='junction')continue;const zr=d.z-camZ;if(zr<CAMBACK-40)continue;L.push({zr,k:'deco',d});}
   for(const e of g.items){if(e.done)continue;const zr=e.z-camZ;if(zr<CAMBACK-30||zr>FAR)continue;L.push({zr,k:'item',e});}
   if(g.sheep){const zr=g.sheep.z-camZ;if(zr>CAMBACK-30&&zr<FAR)L.push({zr,k:'herd',s:g.sheep});}
   for(const d of g.leaving||[]){const zr=d.z-camZ;if(zr>CAMBACK-30&&zr<FAR)L.push({zr,k:'leaving',d});}
@@ -1744,7 +2107,9 @@ class ChaseRenderer extends Renderer{
    if(o.k==='truck'){this.drawTruck(g,cx+(tx-camX),y,dt);continue;}
    c.save();c.globalAlpha=1-fog*.85;
    const sh=0;
-   if(o.k==='scenery')this.drawScenery(c,o.p,cx+(o.p.x+sh-camX)*sc,y,sc);
+   if(o.k==='lot')this.drawLot(c,o.lot,camZ,fog);
+   else if(o.k==='deco')this.drawDeco(c,o.d,cx+(o.d.x-camX)*sc,y,sc,o.zr);
+   else if(o.k==='scenery')this.drawScenery(c,o.p,cx+(o.p.x+sh-camX)*sc,y,sc);
    else if(o.k==='item')this.drawItem(c,o.e,cx+(laneX(o.e.lane,o.e.z)+sh-camX)*sc,y,sc,o.zr);
    else if(o.k==='herd'){const s=o.s;for(let i=0;i<5;i++){let wx=54+78*i+sh,off=0;if(s.cleared)off=(i<2?-1:1)*Math.max(0,(g.time-s.baaAt-.3))*140;const bx=cx+(wx+off-camX)*sc,sz=SIZE[s.kind==='cows'?'cow':'sheep'];c.save();c.translate(bx,y);this.billboard(c,s.kind==='cows'?'cow':'sheep',sz[0]*sc,sz[1]*sc,this.time+i,i);c.restore();}}
    else if(o.k==='leaving'){const d=o.d,sz=SIZE[d.type]||[50,50];c.globalAlpha=Math.max(0,1-d.age/1.4);c.save();c.translate(cx+(laneX(d.lane,d.z)+sh+d.dir*d.age*130-camX)*sc,y);this.billboard(c,d.type,sz[0]*sc,sz[1]*sc,this.time*3,7);c.restore();}
@@ -1765,6 +2130,23 @@ class ChaseRenderer extends Renderer{
    c.save();c.strokeStyle='#ff4b3a';c.lineWidth=4;c.shadowColor='#ff4b3a';c.shadowBlur=14;c.beginPath();c.ellipse(h.x,h.y,h.rx*pulse,h.ry*pulse,0,0,TAU);c.stroke();c.shadowBlur=0;
    c.font='900 15px -apple-system,sans-serif';c.textAlign='center';const w=c.measureText(h.label).width+26,ly=Math.max(30,h.y-h.ry-30),lx=Math.min(420-w/2-8,Math.max(w/2+8,h.x));c.fillStyle='#1c0b0b';c.strokeStyle='#ff4b3a';c.lineWidth=2.5;c.beginPath();c.roundRect(lx-w/2,ly-17,w,28,9);c.fill();c.stroke();c.fillStyle='#fff3e0';c.fillText(h.label,lx,ly+3);c.restore();}
   c.restore();
+ }
+ /* Night driving from behind: everything is dark except the headlight beams thrown up the road. How far the beam reaches depends on the
+    light-bar upgrade, so the standard lights show just enough road to play on and every upgrade buys a longer view. */
+ nightLight(g){
+  if(!g.night)return;const c=this.ctx,pad=this.pad,full=Math.ceil(420+2*pad),H=this.H,L=Math.min(3,g.upgrades&&g.upgrades.lights||0);
+  if(!this.dark)this.dark=document.createElement('canvas');if(this.dark.width!==full)this.dark.width=full;if(this.dark.height!==Math.ceil(H))this.dark.height=Math.ceil(H);
+  const m=this.dark.getContext('2d');m.setTransform(1,0,0,1,0,0);m.clearRect(0,0,full,H);m.fillStyle='rgba(4,9,26,.90)';m.fillRect(0,0,full,H);
+  const D=[460,680,950,1350][L],spread=.22+.04*L,hw0=44+6*L,y0=this.y0,A=this.A,tx=210+(laneX(g.x,g.distance)-this.camX)+pad;
+  const yN=this.yT+34,yF=y0+A/(CAMBACK+D),swF=(hw0+D*spread)*CAMBACK/(CAMBACK+D),swN=hw0+34*.2;
+  m.globalCompositeOperation='destination-out';
+  for(const [k,al] of[[1.5,.28],[1.2,.5],[1,.95]]){const gr=m.createLinearGradient(0,yN,0,yF);gr.addColorStop(0,'rgba(0,0,0,'+al+')');gr.addColorStop(.55,'rgba(0,0,0,'+al*.62+')');gr.addColorStop(1,'rgba(0,0,0,0)');
+   m.fillStyle=gr;m.beginPath();m.moveTo(tx-swN*k,yN);m.lineTo(tx+swN*k,yN);m.lineTo(tx+swF*k,yF);m.lineTo(tx-swF*k,yF);m.closePath();m.fill();}
+  const gr2=m.createRadialGradient(tx,this.yT-20,6,tx,this.yT-20,96);gr2.addColorStop(0,'rgba(0,0,0,.95)');gr2.addColorStop(1,'rgba(0,0,0,0)');m.fillStyle=gr2;m.fillRect(tx-100,this.yT-120,200,200);
+  m.globalCompositeOperation='source-over';
+  c.drawImage(this.dark,-pad,0,full,H);
+  // warm glow where the beams land
+  c.save();c.globalCompositeOperation='screen';const wg=c.createLinearGradient(0,yN,0,yF);wg.addColorStop(0,'rgba(255,226,150,.16)');wg.addColorStop(1,'rgba(255,226,150,0)');c.fillStyle=wg;c.beginPath();c.moveTo(tx-pad-swN,yN);c.lineTo(tx-pad+swN,yN);c.lineTo(tx-pad+swF,yF);c.lineTo(tx-pad-swF,yF);c.closePath();c.fill();c.restore();
  }
  drawTruck(g,x,y,dt){
   const c=this.ctx,bare=g.hasTrailer===false,img=bare?null:this.truckSprite(g);
@@ -1788,6 +2170,33 @@ class ChaseRenderer extends Renderer{
   if(g.boost>0){for(const s of[-1,1]){const fx=s*tw*.34,len=18+Math.random()*26;const gr=c.createLinearGradient(0,-th*.05,0,len);gr.addColorStop(0,'rgba(255,240,170,.95)');gr.addColorStop(.4,'rgba(255,150,40,.8)');gr.addColorStop(1,'rgba(255,90,20,0)');c.fillStyle=gr;c.beginPath();c.moveTo(fx-5,-th*.05);c.lineTo(fx,len);c.lineTo(fx+5,-th*.05);c.fill();}}
   if(g.shield){const t=this.time;c.strokeStyle='rgba(255,230,120,'+(.55+.2*Math.sin(t*8))+')';c.lineWidth=4;c.beginPath();c.ellipse(0,-th*.45,tw*.78,th*.6,0,0,TAU);c.stroke();c.fillStyle='rgba(255,230,120,.12)';c.fill();}
   if(g.crashKind==='water'){c.strokeStyle='rgba(255,255,255,.9)';c.fillStyle='rgba(220,240,255,.8)';c.lineWidth=3;const t=(this.time*3)%1;for(let i=0;i<9;i++){const a=-Math.PI*(i/8),r=24+t*50;c.beginPath();c.arc(Math.cos(a)*r*.9,-10+Math.sin(a)*r,3+((i*7)%3),0,TAU);c.fill();}}
+ }
+ drawLot(c,lot,camZ,fog){
+  const st=lot.style,y0=this.y0,A=this.A,camX=this.camX,pad=this.pad,zs=lot.z-camZ,ze=zs+lot.len,dxp=lot.x-camX;
+  if(!NOFACADE.includes(st)){
+   const tex=facadeTexture(st,lot.v,lot.h,lot.side);let za=Math.max(zs,48);const far=za>1300;
+   c.save();c.globalAlpha=Math.max(.05,1-fog*.9);
+   while(za<ze){const dz=Math.max(2,Math.min(far?140:70,1.5*za*za/(Math.abs(dxp)*CAMBACK+1))),zb=Math.min(ze,za+dz),sa=CAMBACK/za,sb=CAMBACK/zb,xa=210+dxp*sa,xb=210+dxp*sb,xl=Math.min(xa,xb),xr=Math.max(xa,xb);
+    if(xr>-pad-20&&xl<440+pad){const zm=(za+zb)/2,yb=y0+A/zm,hp=lot.h*CAMBACK/zm;let u0=(za-zs)/lot.len,u1=(zb-zs)/lot.len;if(lot.side<0){u0=1-u0;u1=1-u1;}
+     const sx=Math.min(u0,u1)*tex.width,sw=Math.max(.6,Math.abs(u1-u0)*tex.width);c.drawImage(tex,sx,0,Math.min(sw,tex.width-sx),tex.height,xl,yb-hp,xr-xl+.8,hp);}
+    za=zb;}
+   c.restore();}
+  // trees, hedges and street lamps that go with the lot
+  const hs=lot.hs,trees=st==='park'?3:st==='wood'?4:st==='field'?2:st==='cottage'||st==='barn'||st==='semi'?1:st==='embank'?2:0,lamp=(st==='terrace'||st==='semi'||st==='shops'||st==='flats'||st==='tower'||st==='park');
+  if(this.q>0&&trees>1)return;
+  for(let i=0;i<trees+(lamp?2:0);i++){const isLamp=i>=trees,zz=lot.z+lot.len*(isLamp?(.15+.7*(i-trees)):(.1+.8*(((hs>>>(i*3))&7)/7))),zr=zz-camZ;if(zr<CAMBACK*.6||zr>FAR)continue;
+   const off=isLamp?(lot.side<0?lot.pave*.35:-lot.pave*.35):lot.side*(24+((hs>>>(i*4+2))&15)*(st==='wood'?9:5)),X=isLamp?(lot.side<0?15-lot.pave*.3:405+lot.pave*.3):lot.x+off,sc=CAMBACK/zr,y=y0+A/zr,x=210+(X-camX)*sc;if(x<-100||x>520+pad)continue;
+   c.save();c.globalAlpha=Math.max(.05,1-Math.min(1,Math.pow(zr/FAR,1.7))*.9);
+   if(isLamp){this.castShadow(c,x,y,10*sc,60*sc,'lamp');ART.lamp(c,16*sc,64*sc,this.time,{});}
+   else{const k=(st==='wood'||((hs>>>5)&1))?'tree':'poplar',sz=SIZE.tree;this.castShadow(c,x,y,sz[0]*sc*.8,sz[1]*sc*.8,'tree');this.billboard(c,k==='poplar'?'tree':'tree',sz[0]*sc*.9,sz[1]*sc*.9,this.time,hs+i);}
+   c.restore();}
+ }
+ drawDeco(c,d,x,y,sc,zr){
+  if(x<-120||x>560+this.pad)return;const t=d.type;let w,h,key=t;
+  if(t==='cone'){w=SIZE.cone[0]*sc*.9;h=SIZE.cone[1]*sc*.9;}else if(t==='barrier'){w=SIZE.barrier[0]*sc;h=SIZE.barrier[1]*sc;}else if(t==='digger'){w=SIZE.digger[0]*sc;h=SIZE.digger[1]*sc;}
+  else if(t==='car'){w=SIZE.car[0]*sc*1.05;h=SIZE.car[1]*sc*1.05;}else if(t==='busstop'){w=44*sc;h=56*sc;}else return;
+  this.castShadow(c,x,y,w,h,t);c.save();c.translate(x,y);
+  if(t==='busstop')ART.busstop(c,w,h,this.time,{side:d.side});else this.billboard(c,key,w,h,this.time,d.id);c.restore();
  }
  /* Contact shadow plus a long soft shadow thrown to the left (the sun is high on the right), so props sit on the ground. */
  castShadow(c,x,y,w,h,k,a=1){
@@ -1951,7 +2360,7 @@ module.exports={JOKES,jokeOrder};
 },
 "./garage.js":function(module,exports,require){
 const {Wheel}=require("./wheel.js");
-const {CATALOG,DECALS,TRUCKS,DECAL_TAGS,STATS}=require("./upgrades.js");
+const {CATALOG,DECALS,TRUCKS,DECAL_TAGS,STATS,upgradePrice}=require("./upgrades.js");
 const {Renderer}=require("./render.js");
 const {ChaseRenderer}=require("./chase.js");
 const {drawRig,thumb}=require("./rigart.js");
@@ -1980,7 +2389,7 @@ class Garage{
  st(it){const p=this.profile,w=p.wallet;
   if(it.kind==='truck'||it.kind==='trailer'){const owned=p.owned.includes(it.id),sel=it.kind==='truck'?p.truck===it.id:p.trailerPaint===it.id;return {owned,selected:sel,price:it.cost,locked:!owned&&w<it.cost};}
   if(it.kind==='decal'){const owned=p.ownedDecals.includes(it.id),t=this.target,sel=t==='cab'?p.decal===it.id:t==='trailer'?p.trailerDecal===it.id:p.decal===it.id&&p.trailerDecal===it.id;return {owned,selected:sel,price:it.cost,locked:!owned&&w<it.cost};}
-  const lv=p.upgrades[it.id],maxed=lv>=3,price=maxed?0:it.cost*(lv+1);return {lv,maxed,price,owned:lv>0,locked:!maxed&&w<price};
+  const lv=p.upgrades[it.id],maxed=lv>=3,price=maxed?0:upgradePrice(it.cost,lv);return {lv,maxed,price,owned:lv>0,locked:!maxed&&w<price};
  }
  art(it){
   if(it.kind==='truck')return "<img class='paint-thumb cab' alt='' draggable='false' src='"+thumb(this.images_r,'cab',it.id,0)+"'>";

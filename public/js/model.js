@@ -1,10 +1,11 @@
 import {laneX,rigPose,roadTheme,RIG} from './geometry.js';
 import {chooseRoadScenario} from './road-events.js';
-import {ROUTE_VERSION,CHUNK_LENGTH,roadAt,surfaceAt,routeLanes,laneCorridor,nearestLane,reachableCorridor,steeringX,sceneryProps,rewardPath,waterSide} from './route-world.js';
+import {ROUTE_VERSION,CHUNK_LENGTH,roadAt,surfaceAt,routeLanes,laneCorridor,nearestLane,reachableCorridor,steeringX,sceneryProps,rewardPath,waterSide,routeMode} from './route-world.js';
+import {terrainAt} from './route-map.js';
 import {HAZARD_SPECS,sweptOverlap} from './route-hazards.js';
 import {normalize,deliveryBonus} from './upgrades.js';
 export const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-export const themes=['THE TOWN RUN','COUNTRY MILES','SUBURBAN SHORTCUT','HARD HAT HAUL'];
+export const themes=['THE CITY RUN','COUNTRY MILES','SUBURBAN SHORTCUT','MOTORWAY MILES'];
 export const ROAD_TYPES=['lowbridge','weakbridge','bus','noentry','narrow','grass','house','works'];
 /* Hazards that end the shift outright, each with its own comic vignette (see COMICS in game.js) and result-sheet line. */
 export const CRASHES={car:'Not a bumper car.',lowbridge:'Height restriction. Not a suggestion.',weakbridge:'Weight limit: less than you.',oil:'Slick move, driver.',house:'Planning permission denied.',sheep:'Ewe had one job.',cow:'Holy cow. Literally.',icecream:'Chocolate flake-ing disaster.',binlorry:'Bin there, done that.',water:'Silly dipping.'};
@@ -23,6 +24,9 @@ const pickWeighted=(list,r)=>{let t=list.reduce((a,b)=>a+b[1],0)*r;for(const [k,
 export function seeded(seed){const fn=()=>{seed|=0;seed=(seed+0x6D2B79F5)|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;fn.state=seed;return((t^t>>>14)>>>0)/4294967296;};fn.state=seed;return fn;}
 export function jobPath(lane,rng,count=10){const p=[];for(let i=0;i<count;i++){if(i%2)lane=clamp(lane+(rng()>.5?1:-1),0,4);p.push(lane);}return p;}
 export function biomeAt(z){return roadTheme(z);}
+const THEME_OF={city:0,country:1,urban:2,highway:3};
+/* Which of the funny hazards make sense where: cows and tractors belong in the country, not on a motorway. */
+const FUNNY_AT={city:['icecream','morris','cyclists','binlorry'],urban:['icecream','morris','cyclists','binlorry','caravan','geese'],country:['cow','icecream','morris','cyclists','geese','tractor','caravan','binlorry'],highway:['caravan','binlorry']};
 export function hazardKinds(z){return [['car','cone','bus','noentry','lowbridge'],['grass','weakbridge','oil','lowbridge','narrow'],['house','car','noentry','narrow'],['barrier','cone','oil','works']][biomeAt(z)];}
 export class Drive {
  constructor(options={}){
@@ -102,7 +106,7 @@ export class Drive {
   // 1-3 hazards per row. Always at least two open lanes in the corridor, and the reachability test below keeps one of them steerable.
   let count=1+(this.rng()<.32+.4*r?1:0)+(this.rng()<.08+.34*r?1:0);
   count=Math.min(count,Math.max(1,corridor.length-2),busy?2:3);
-  const biome=biomeAt(z),mix=route.motif==='roadworks'?[['works',3],['pit',2],['barrier',3],['cone',2]]:MIX[biome];
+  const mapped=routeMode()==='map',biome=mapped?THEME_OF[route.biome]:biomeAt(z),mix=(mapped?route.features.includes('works'):route.motif==='roadworks')?[['works',3],['pit',2],['barrier',3],['cone',2]]:MIX[biome];
   const order=corridor.slice();for(let i=order.length-1;i>0;i--){const j=Math.floor(this.rng()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
   const placed=[];
   for(const lane of order){
@@ -142,8 +146,9 @@ export class Drive {
  freeLane(z,pref=2){const lanes=routeLanes(z,this.seed,{legal:true}).sort((a,b)=>Math.abs(a-pref)-Math.abs(b-pref));return lanes.find(l=>!this.laneBusy(l,z-170,z+170,100))??null;}
  /* One funny encounter, taken from the shuffled bag. Honkable ones can be shooed; cow, ice-cream van and bin lorry end the shift if you hit them. */
  spawnFunny(z){
-  if(!this.funnyBag.length){const a=FUNNY.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(this.rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}if(!this.funnyStarted){a.splice(a.indexOf('cow'),1);a.unshift('cow');this.funnyStarted=true;}this.funnyBag=a;}
-  const kind=this.funnyBag[0],spec=HAZARD_SPECS[kind],reserve=kind==='tractor'||kind==='caravan'?650:0;
+  if(!this.funnyBag.length){const a=FUNNY.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(this.rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}if(!this.funnyStarted){const f=FUNNY_AT[routeMode()==='map'?roadAt(z,this.seed).biome:'country']||FUNNY,first=f.includes('cow')?'cow':f[0];a.splice(a.indexOf(first),1);a.unshift(first);this.funnyStarted=true;}this.funnyBag=a;}
+  const here=routeMode()==='map'?roadAt(z,this.seed).biome:'country',okKinds=FUNNY_AT[here]||FUNNY,pick=this.funnyBag.findIndex(k=>okKinds.includes(k));if(pick<0)return false;
+  const kind=this.funnyBag[pick],spec=HAZARD_SPECS[kind],reserve=kind==='tractor'||kind==='caravan'?650:0;
   const corridor=laneCorridor(z-100,z+260,this.seed,true);if(corridor.length<3)return false;
   const order=corridor.slice();for(let i=order.length-1;i>0;i--){const j=Math.floor(this.rng()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
   for(const lane of order){
@@ -151,7 +156,7 @@ export class Drive {
    const cand={type:kind,lane,z,length:0,reserve,done:false,collectible:false};
    if(!reachableCorridor([...this.items.filter(e=>!e.collectible&&!e.done),cand],z-500,z+650,this.seed))continue;
    const props={length:0,warning:430};if(kind==='tractor'||kind==='caravan'){props.drift=kind==='caravan'?85:95;props.reserve=reserve;}if(['cow','geese','morris','cyclists'].includes(kind))props.honkable=true;
-   this.add(kind,z,lane,props);this.funnyBag.shift();return true;}
+   this.add(kind,z,lane,props);this.funnyBag.splice(pick,1);return true;}
   return false;
  }
  spawn(){const busy=this.job||this.sheep||this.night,pending=this.items.some(e=>['job','night'].includes(e.type)&&!e.done);
@@ -160,19 +165,21 @@ export class Drive {
   if(!busy&&!this.shield&&this.distance>this.nextShield-700&&!this.items.some(e=>e.type==='shield'&&!e.done)){const z=this.distance+620,l=nearestLane(z,Math.floor(this.rng()*5),this.seed);if(!this.laneBusy(l,z-100,z+100,100)){this.add('shield',z,l);this.nextShield=this.distance+6200+this.rng()*2500;}}
   if(!this.hasTrailer&&this.nextHitch&&this.distance>this.nextHitch-700&&!this.items.some(e=>e.type==='hitch'&&!e.done)){const z=this.distance+650,lane=nearestLane(z,this.lane,this.seed);if(!this.laneBusy(lane,z-100,z+100,100)){this.add('hitch',z,lane);this.nextHitch=z+1500;}}
   if(!this.sheep&&!this.night&&this.distance>this.nextFunny-1300){const z=Math.max(this.nextFunny,this.distance+900);if(this.spawnFunny(z))this.nextFunny=z+1250+this.rng()*750-this.ramp()*300;else this.nextFunny=this.distance+200;}
+  if(routeMode()==='map'&&this.distance>(this.nextOncoming||0)){const ah=roadAt(this.distance+950,this.seed),bd=ah.bands.find(b=>b.rule==='oncoming');this.nextOncoming=this.distance+420+this.rng()*520;
+   if(bd){const lanes=[];for(let l=bd.lanes[0];l<=bd.lanes[1];l++)lanes.push(l);const lane=lanes[Math.floor(this.rng()*lanes.length)],z=this.distance+950,type=this.rng()<.22?'bus':'car';if(!this.laneBusy(lane,z-60,z+160,60))this.add(type,z,lane,{oncoming:true,traffic:true,speed:210+this.rng()*120,length:0});}}
   while(this.row<this.distance+1300){
    const r=this.ramp(),gapSec=Math.max(.5,.9-.38*r);
    const nearJob=this.items.some(e=>['job','night'].includes(e.type)&&!e.done&&Math.abs(e.z-this.row)<520);
    if(this.sheep||nearJob){this.row+=this.cruise*(gapSec+this.rng()*.4);continue;}
    if(this.spawnEncounter(this.row)){this.row+=600+this.cruise*(.9+this.rng()*.5);continue;}
    this.row+=this.makeRow(this.row,gapSec)+this.cruise*(gapSec+this.rng()*.4);}
-  if(this.distance>this.nextSheep-850&&!busy&&!this.items.some(e=>e.type==='night'&&!e.done)){const kind=((this.herdN=(this.herdN||0)+1)%2===1)!==(this.rng()<.25)?'sheep':'cows';this.sheep={z:this.distance+850,baa:false,baaAt:Infinity,cleared:false,kind};this.emit('sheepWarning',{kind});for(const e of this.items)if(e.type==='job'&&!e.done&&e.z>this.distance)e.z=this.sheep.z+900;this.items=this.items.filter(e=>e.type==='job'||e.z+(e.length||0)<this.sheep.z-450||e.z>this.sheep.z+400);this.nextSheep=this.distance+7600+this.rng()*1800;}
+  if(this.distance>this.nextSheep-850&&!busy&&(routeMode()!=='map'||(roadAt(this.distance+900,this.seed).biome==='country'||(this.nextSheep+=1,false)))&&!this.items.some(e=>e.type==='night'&&!e.done)){const kind=((this.herdN=(this.herdN||0)+1)%2===1)!==(this.rng()<.25)?'sheep':'cows';this.sheep={z:this.distance+850,baa:false,baaAt:Infinity,cleared:false,kind};this.emit('sheepWarning',{kind});for(const e of this.items)if(e.type==='job'&&!e.done&&e.z>this.distance)e.z=this.sheep.z+900;this.items=this.items.filter(e=>e.type==='job'||e.z+(e.length||0)<this.sheep.z-450||e.z>this.sheep.z+400);this.nextSheep=this.distance+7600+this.rng()*1800;}
  }
  /* 0 at the depot gate -> 1 after ~7 miles: hazards bunch up and the rig gets quicker so long shifts end on skill, not boredom */
  ramp(){return clamp(this.distance/48000,0,1);}
  tick(dt){if(this.finished)return;dt=clamp(dt,0,.05);this.time+=dt;for(const d of this.leaving)d.age+=dt;this.leaving=this.leaving.filter(d=>d.age<1.4);
   for(const k of ['invulnerable','slow','boost','rested','grip','dropCooldown'])this[k]=Math.max(0,this[k]-dt);
-  const base=250+Math.min(80,this.time*.8)+95*this.ramp();this.cruise=base;this.speed=Math.min(560,base*(this.slow>0?.65:this.boost>0?1.3:1)*(this.hasTrailer?1:1.38)*(this.grip>0?.92:1));const oldDistance=this.distance,oldX=this.x;this.distance+=this.speed*dt;this.stage=biomeAt(this.distance);
+  const base=250+Math.min(80,this.time*.8)+95*this.ramp();this.cruise=base;this.speed=Math.min(560,base*(this.slow>0?.65:this.boost>0?1.3:1)*(this.hasTrailer?1:1.38)*(this.grip>0?.92:1));const oldDistance=this.distance,oldX=this.x;this.distance+=this.speed*dt;this.stage=routeMode()==='map'?THEME_OF[roadAt(this.distance,this.seed).biome]:biomeAt(this.distance);
   this.rapid=Math.max(0,this.rapid-dt*(this.job?.double?.19:.43)*(1+.2*this.upgrades.stability)*(this.rested>0?1.2:1));
   this.x+=(this.lane-this.x)*(1-Math.exp(-dt*(this.grip>0?6.2:11)*(this.hasTrailer?1:1.3)*(1+.12*this.upgrades.steering)));
   this.trailer+=(this.x-this.trailer)*(1-Math.exp(-dt*(this.job?.double?2.2:4)));
@@ -192,13 +199,24 @@ export class Drive {
   const trailerContact=this.hasTrailer?surfaceAt(pose.trailer.x,this.distance-pose.trailer.y,this.seed,15):contact;
   if(contact.surface==='mud'||trailerContact.surface==='mud'){if(this.grip<.1)this.emit('mud');this.grip=4.8;}
   if(!contact.onRoad||!trailerContact.onRoad){this.offroad+=dt;if(this.offroad>.55){this.fine(35,'Keep it on the road.');if([1,3].includes(this.stage))this.grip=Math.max(this.grip,2.5);this.offroad=-1.7;}}else this.offroad=Math.max(0,this.offroad-dt*2);
-  // Water: the river bend has no road under it. Nothing steers you away; drive in and it's a dip.
+  // The map: water, parked cars and parapets are not roads. Nothing steers you away; drive into one and that's the end of the run (or a bailout).
+  if(routeMode()==='map'){
+   const T=terrainAt(laneX(this.x,this.distance),this.distance,this.seed);
+   if(!T.onRoad&&this.invulnerable<=0){
+    if(T.kind==='water'&&T.beyond>14){this.lastHit={type:'water',lane:this.x,z:this.distance,x:laneX(this.x,this.distance)};this.crash('water');}
+    else if((T.kind==='parked'||T.kind==='barrier')&&T.beyond>8){this.lastHit={type:'car',lane:this.x,z:this.distance,x:laneX(this.x,this.distance)};this.crash('car');}
+    if(!this.finished&&this.invulnerable>0)this.lane=nearestLane(this.distance,this.lane,this.seed,false);
+   }
+   const A=terrainAt(laneX(this.lane,this.distance),this.distance+850,this.seed);
+   if(!A.onRoad&&A.kind==='water'&&A.beyond>14&&this.waterWarned!==A.route.worldId){this.waterWarned=A.route.worldId;this.emit('hint',{text:'WATER AHEAD · MOVE OVER'});}
+  }else{
   {const wa=roadAt(this.distance,this.seed),ws=waterSide(wa);
    if(ws&&this.invulnerable<=0){const edge=ws>0?Math.max(...wa.bands.map(b=>b.right)):Math.min(...wa.bands.map(b=>b.left)),lx=laneX(this.x,this.distance);
     if((lx-edge)*ws>20){this.lastHit={type:'water',lane:this.x,z:this.distance,x:lx};this.crash('water');if(!this.finished)this.lane=nearestLane(this.distance,this.lane,this.seed,false);}}
    const ah=roadAt(this.distance+850,this.seed),aw=waterSide(ah);
    if(aw&&this.waterWarned!==ah.id){const edge=aw>0?Math.max(...ah.bands.map(b=>b.right)):Math.min(...ah.bands.map(b=>b.left));this.waterWarned=ah.id;if((laneX(this.lane,this.distance)-edge)*aw>6)this.emit('hint',{text:'WATER AHEAD · MOVE OVER'});}}
-  if(contact.rule&&!this.routeFines[contact.route.id]){this.routeFines[contact.route.id]=true;this.fine(contact.rule==='oneway'?120:90,contact.rule==='oneway'?'One way. The other way.':'Residents and public access only.');}
+  }
+  if(contact.rule&&!this.routeFines[contact.route.id]){this.routeFines[contact.route.id]=true;const R={oneway:[120,'One way. The other way.'],bus:[60,'Bus lane. Bus fine.'],oncoming:[150,'Wrong side of the road.']}[contact.rule]||[90,'Residents and public access only.'];this.fine(R[0],R[1]);}
   if(contact.route.gate>.97&&!this.routeChoice[contact.route.id]){this.routeChoice[contact.route.id]=contact.branch;this.emit('routeChoice',{branch:contact.branch,motif:contact.route.motif});}
   for(const key of Object.keys(this.routeFines))if(+key<contact.route.id-2)delete this.routeFines[key];
   for(const key of Object.keys(this.routeChoice))if(+key<contact.route.id-2)delete this.routeChoice[key];

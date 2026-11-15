@@ -1,5 +1,5 @@
 import {Wheel} from './wheel.js';
-import {CATALOG,DECALS,TRUCKS,DECAL_TAGS,STATS} from './upgrades.js';
+import {CATALOG,DECALS,TRUCKS,DECAL_TAGS,STATS,upgradePrice} from './upgrades.js';
 import {Renderer} from './render.js';
 import {ChaseRenderer} from './chase.js';
 import {drawRig,thumb} from './rigart.js';
@@ -28,7 +28,7 @@ export class Garage{
  st(it){const p=this.profile,w=p.wallet;
   if(it.kind==='truck'||it.kind==='trailer'){const owned=p.owned.includes(it.id),sel=it.kind==='truck'?p.truck===it.id:p.trailerPaint===it.id;return {owned,selected:sel,price:it.cost,locked:!owned&&w<it.cost};}
   if(it.kind==='decal'){const owned=p.ownedDecals.includes(it.id),t=this.target,sel=t==='cab'?p.decal===it.id:t==='trailer'?p.trailerDecal===it.id:p.decal===it.id&&p.trailerDecal===it.id;return {owned,selected:sel,price:it.cost,locked:!owned&&w<it.cost};}
-  const lv=p.upgrades[it.id],maxed=lv>=3,price=maxed?0:it.cost*(lv+1);return {lv,maxed,price,owned:lv>0,locked:!maxed&&w<price};
+  const lv=p.upgrades[it.id],maxed=lv>=3,price=maxed?0:upgradePrice(it.cost,lv);return {lv,maxed,price,owned:lv>0,locked:!maxed&&w<price};
  }
  art(it){
   if(it.kind==='truck')return "<img class='paint-thumb cab' alt='' draggable='false' src='"+thumb(this.images_r,'cab',it.id,0)+"'>";

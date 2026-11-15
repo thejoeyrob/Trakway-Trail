@@ -9,7 +9,7 @@ await cp(path.join(root,'public/assets/chase-pro'),path.join(dst,'assets/chase-p
 await cp(path.join(root,'public/assets/menu'),path.join(dst,'assets/menu'),{recursive:true});
 for(const f of ['sprites.webp','roads.webp','restrictions.webp','cover.webp','intro-jw.png','icon.png','farmer.webp','terrain.webp','extras.webp','icon-180.png'])await copyFile(path.join(root,'public/assets',f),path.join(dst,'assets',f));
 await copyFile(path.join(root,'public/game.css'),path.join(dst,'game.css'));await copyFile(path.join(root,'public/ui-v3.css'),path.join(dst,'ui-v3.css'));await cp(path.join(root,'public/assets/fonts'),path.join(dst,'assets/fonts'),{recursive:true});
-const files=['chase-atlas.js','chase-finish-pro.js','chase-detail-pro.js','chase-world-pro.js','route-atlas.js','propart.js','route-world.js','route-hazards.js','route-render.js','showroom.js','atlas.js','geometry.js','rigart.js','road-events.js','upgrades.js','model.js','audio.js','render.js','chaseart.js','chase.js','wheel.js','jokes.js','garage.js','game.js'];
+const files=['chase-atlas.js','chase-finish-pro.js','chase-detail-pro.js','chase-world-pro.js','route-atlas.js','propart.js','route-map.js','facades.js','route-world.js','route-hazards.js','route-render.js','showroom.js','atlas.js','geometry.js','rigart.js','road-events.js','upgrades.js','model.js','audio.js','render.js','chaseart.js','chase.js','wheel.js','jokes.js','garage.js','game.js'];
 const functions=[];
 for(const name of files){let source=await readFile(path.join(root,'public/js',name),'utf8');const exports=[];
  source=source.replace(/import\s*\{([^}]+)\}\s*from\s*['"]([^'"]+)['"];?/g,(_,names,loc)=>{
