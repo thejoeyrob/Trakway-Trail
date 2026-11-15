@@ -306,9 +306,9 @@ class ChaseWorldPro {
   if(!pat||x2<=x1||sn<.035||Math.floor(y/2)%2)return;
   // 4-pixel slices reduce mobile fill rate vs a 2-pixel overlay on every row.
   const zr=260/sn,d=-this.r.A/(zr*zr);
-  c.save();c.globalAlpha=(1-fog)*opacity;
+  const ga=c.globalAlpha;c.globalAlpha=(1-fog)*opacity;
   pat.setTransform({a:sn,b:0,c:0,d,e:210-(this.r.camX||210)*sn,f:y-(zw%512)*d});
-  c.fillStyle=pat;c.fillRect(x1,y-4,x2-x1,4.6);c.restore();
+  c.fillStyle=pat;c.fillRect(x1,y-4,x2-x1,4.6);c.globalAlpha=ga;
  }
  groundDetail(c,{th,y,zw,sn,fog,pad}){
   if(!this.pats||!(th===1||th===2))return;
@@ -377,7 +377,7 @@ class ChaseWorldPro {
   // Capped frequency to avoid expensive per-pixel work on mobile screens.
   const row=y|0;if((row&7)!==0||sn<.07)return;
   const alpha=clamp((1-fog)*.34,0,.34);
-  c.save();c.globalAlpha=alpha;
+  const ga0=c.globalAlpha;c.globalAlpha=alpha;
   if(kind===1){
    // World-locked wheel-polished grooves, occasional tar seam and reflective chips.
    for(let m=k;m<=j;m++){
@@ -394,20 +394,20 @@ class ChaseWorldPro {
    for(let m=k;m<=j;m++)for(const u of[-20,19])c.fillRect(X(54+78*m+u),y-step,Math.max(1,4*sn),step);
    if(Math.floor(zw/34)%6===0){c.fillStyle='rgba(48,39,26,.26)';c.fillRect(X(54+78*k-12),y-step,45*sn,1);}
   }
-  c.restore();
+  c.globalAlpha=ga0;
  }
  waterDetail(c,{x1,x2,y,zw,sn,step,fog,time}){
   if(this.pats)this.material(c,this.pats[3],x1,x2,y,zw,sn,fog,.23);
   if((y|0)%6!==0||x2-x1<2)return;
   const w=x2-x1,phase=zw*.074+time*1.5;
-  c.save();c.globalAlpha=clamp((1-fog)*.35,0,.35);
+  const ga1=c.globalAlpha;c.globalAlpha=clamp((1-fog)*.35,0,.35);
   const strips=1+Math.min(3,Math.floor(w/100));
   for(let i=0;i<strips;i++){
    const x=x1+hash(Math.floor(zw/44)*11+i*3)*w;
    const sw=Math.max(3,(12+Math.sin(phase+i)*12)*sn);
    c.fillStyle=i%2?'#75d5e8':'#e1fbff';c.fillRect(x,y-step,sw,.8);
   }
-  c.restore();
+  c.globalAlpha=ga1;
  }
 }
 
@@ -1438,7 +1438,7 @@ class Renderer {
  constructor(canvas,images,settings,opts={}){this.opts=opts;this.pad=0;this.canvas=canvas;this.ctx=canvas.getContext('2d',{alpha:false});this.images=images;this.settings=settings;this.W=420;this.H=800;this.fx=[];this.shake=0;this.time=0;this.resize();this.world=new RoutePainter(this);}
  /* The road column is always 420 world units wide and at least 747 tall (iPhone SE proportions). A taller phone just shows more road.
     A wider screen (iPad) or the "tall phone preview" shrinks the world to fit and the spare width becomes side scenery (this.pad on each side). */
- resize(){const r=this.canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);
+ resize(){const r=this.canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,this.maxDpr||2);
   let k,pad=0;
   if(this.opts.fixedWidth){k=r.width/420;this.H=420*r.height/r.width;}
   else{const hreq=this.settings.tall?909:747;k=Math.min(r.width/420,r.height/hreq);const Wc=r.width/k;pad=Math.max(0,(Wc-420)/2);this.H=r.height/k;}
@@ -1603,10 +1603,11 @@ const CAB_COL=['#d6dde2','#f2f2ee','#e0601c','#6a2fb8','#b02a24','#2a8a44'];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const mix=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
 const rgb=c=>'rgb('+c[0]+','+c[1]+','+c[2]+')';
-const THEME_GROUND=[[124,128,134],[82,158,58],[92,170,66],[201,166,107]];   // town paving, country grass, suburban lawn, building-site sand
+const THEME_GROUND=[[160,154,144],[82,158,58],[92,170,66],[201,166,107]];   // town paving, country grass, suburban lawn, building-site sand
 const HAZE=[222,233,226];
 const FLAT={pit:1,mud:1,oil:1,grass:1};
 class ChaseRenderer extends Renderer{
+ maxDpr=1.5;
  resize(){super.resize();this.yT=this.H*.80;this.playerY=this.yT-120;this.worldScale=.72;this.camX=this.camX||210;}
  /* screen x of a lane at the truck's depth (used for cash pop-ups and night lights) */
  x(lane){return 210+(54+78*lane-(this.camX||210));}
@@ -1667,6 +1668,7 @@ class ChaseRenderer extends Renderer{
   this._cs={key,c,col};return this._cs;
  }
  draw(g,dt,truckIndex){
+  {const e=this._ema=(this._ema||.016)*.94+Math.min(.1,dt||.016)*.06,q=e>.034?2:e>.024?1:0;if((this.q||0)<q){this.q=q;this.maxDpr=q>1?1:1.25;this.resize();}}
   this.g=g;const c=this.ctx,pad=this.pad,W=420+2*pad,H=this.H;this.time+=dt;
   const y0=this.y0=H*.31,A=this.A=(this.yT-y0)*CAMBACK,camZ=g.distance-CAMBACK,tx=laneX(g.x,g.distance);
   const camX=this.camX=210+(tx-210)*.55,cx=210,seed=g.seed;
@@ -1675,18 +1677,25 @@ class ChaseRenderer extends Renderer{
   this.worldPro ||= new ChaseWorldPro(this);
   c.save();if(this.shake>0&&this.settings.motion){c.translate((Math.random()-.5)*this.shake,(Math.random()-.5)*this.shake);this.shake*=Math.exp(-dt*12);}
   // ---- cinematic sky, atmospheric depth, far scenery ----
-  this.worldPro.sky(c,{g,camZ,y0,W,pad,cx});
+  {const cv=this.canvas,key=roadTheme(camZ+1150)+(g.night?'n':'d')+cv.width+'x'+cv.height;
+   if(!this._sky||this._sky.width!==cv.width||this._sky.height!==cv.height){this._sky=document.createElement('canvas');this._sky.width=cv.width;this._sky.height=cv.height;this._skyKey='';}
+   if(this._skyKey!==key||(this._skyN=(this._skyN||0)+1)%4===0){const sc2=this._sky.getContext('2d');sc2.setTransform(1,0,0,1,0,0);sc2.clearRect(0,0,cv.width,cv.height);sc2.setTransform(c.getTransform());this.worldPro.sky(sc2,{g,camZ,y0,W,pad,cx});this._skyKey=key;}
+   c.save();c.setTransform(1,0,0,1,0,0);c.drawImage(this._sky,0,0);c.restore();}
   // ---- the ground and the road, row by row. The road never bends or sways: five fixed lanes. A lane is tarmac where the map has a
   //      drivable surface under it, and grass or river where it doesn't (that is the hazard: you have to move over). ----
-  const fogRows=[],step=H>850?3:2,pats=this.world&&this.world.patterns&&this.world.patterns.length?this.world.patterns:null,kinds=[0,0,0,0,0];
+  {const cv=this.canvas,RS=(this.q||0)>0?.5:.62,rw=Math.round(cv.width*RS),rh=Math.round(cv.height*RS);   // the ground and road are drawn at reduced resolution (fill-rate), the painted sprites stay sharp
+   if(!this._rows||this._rows.width!==rw||this._rows.height!==rh){this._rows=document.createElement('canvas');this._rows.width=rw;this._rows.height=rh;}
+   const rc=this._rows.getContext('2d');rc.setTransform(1,0,0,1,0,0);rc.clearRect(0,0,rw,rh);const T=c.getTransform();rc.setTransform(T.a*RS,T.b*RS,T.c*RS,T.d*RS,T.e*RS,T.f*RS);
+   {const c=rc;
+  const fogRows=[],step=(this.q||0)>0?4:H>850?3:2,pats=this.world&&this.world.patterns&&this.world.patterns.length?this.world.patterns:null,kinds=[0,0,0,0,0];
   const fillSpan=(pi,col,x1,x2,y,sn,zw,zr,wob)=>{
-   if(x2<=x1)return;const p=sn<.16?null:pats&&pats[pi];
+   if(x2<=x1)return;const p=sn<(pi===ASPHALT?.2:.28)?null:pats&&pats[pi];
    if(p){const K=pi===WATER?1.6:pi===ASPHALT?2.1:1.9,d=-A/(zr*zr)/K,v=((zw+(wob||0))*K)%256;p.setTransform({a:sn/K,b:0,c:0,d,e:cx-camX*sn,f:y-v*d});c.fillStyle=p;}else c.fillStyle=col;
    c.fillRect(x1,y-step,x2-x1,step+.6);};
   for(let y=H;y>y0+3;y-=step){
    const zn=A/(y-y0),zf=A/(y-step-y0);if(zf>FAR*9)break;const zm=(zn+zf)/2,zw=camZ+zm,sn=CAMBACK/zn,fog=Math.min(1,Math.pow(zm/FAR,1.7));
    const th=roadTheme(zw),a=roadAt(zw,seed),ws=waterSide(a),bs=a.bands,edge=ws?(ws>0?Math.max(...bs.map(b=>b.right)):Math.min(...bs.map(b=>b.left))):0;
-   fillSpan(GROUND_PAT[th],rgb(THEME_GROUND[th]),-pad,420+pad,y,sn,zw,zm);this.worldPro.groundDetail(c,{th,y,zw,sn,fog,pad});
+   fillSpan(GROUND_PAT[th],rgb(THEME_GROUND[th]),-pad,420+pad,y,sn,zw,zm);if(th===0&&sn>=.28){c.fillStyle='rgba(238,224,196,.34)';c.fillRect(-pad,y-step,W,step+.6);}   // pale pavement, clearly not tarmacthis.worldPro.groundDetail(c,{th,y,zw,sn,fog,pad});
    let lo=5,hi=-1;
    for(let k=0;k<5;k++){const lx=54+LANE*k;let kind=0;
     for(const b of bs)if(lx-14>=b.left&&lx+14<=b.right){kind=b.surface==='mud'?2:1;break;}
@@ -1712,11 +1721,13 @@ class ChaseRenderer extends Renderer{
     k=j+1;}
    fogRows.push(y,fog,sn,zw);
   }
-  // fog and a faint mowing stripe, as a second pass over the finished rows (no seams between rows)
-  for(let i=0;i<fogRows.length;i+=4){const y=fogRows[i],fog=fogRows[i+1],sn=fogRows[i+2],zw=fogRows[i+3];
-   c.fillStyle=(g.night?'rgba(51,70,91,':'rgba(222,233,226,')+Math.min(.97,fog*.92).toFixed(3)+')';c.fillRect(-pad-60,y-step,W+120,step+.6);
-   if(sn>.5&&Math.floor(zw/70)%2){c.fillStyle='rgba(0,0,0,'+(.05*(1-fog)).toFixed(3)+')';c.fillRect(-pad-60,y-step,W+120,step+.6);}
-  }
+  // fog as a second pass over the finished rows (no seams between rows); rows with the same fog level are merged into one fill
+  {const Q=28;let runA=-1,runTop=0,runBot=0;const flush=()=>{if(runA>0){c.fillStyle=(g.night?'rgba(51,70,91,':'rgba(222,233,226,')+(runA/Q*.97).toFixed(3)+')';c.fillRect(-pad-60,runTop,W+120,runBot-runTop+.6);}};
+   for(let i=0;i<fogRows.length;i+=4){const y=fogRows[i],q=Math.round(Math.min(1,fogRows[i+1]*.95)*Q);
+    if(q===runA&&Math.abs(runTop-y)<step+.01){runTop=y-step;}else{flush();runA=q;runTop=y-step;runBot=y;}}
+   flush();}
+   }
+   c.save();c.setTransform(1,0,0,1,0,0);c.imageSmoothingEnabled=true;c.drawImage(this._rows,0,0,rw,rh,0,0,cv.width,cv.height);c.restore();}
   // haze over the far distance
   this.worldPro.farHaze(c,{g,y0,W,pad});
   // ---- everything that stands on the road, far to near ----
@@ -1724,7 +1735,7 @@ class ChaseRenderer extends Renderer{
   for(const p of sceneryProps(camZ+CAMBACK-60,camZ+FAR,seed)){const zr=p.z-camZ;if(zr<CAMBACK-40)continue;L.push({zr,k:'scenery',p});}
   if(pad>1)for(const p of sideProps(camZ+CAMBACK-60,camZ+FAR,seed,pad)){const zr=p.z-camZ;if(zr<CAMBACK-40)continue;L.push({zr,k:'scenery',p});}
   // extra roadside trees and hedges outside the carriageway (decoration only, no collisions), so the verges are not empty
-  for(let n=Math.floor((camZ+CAMBACK-60)/64);n<=Math.ceil((camZ+FAR)/64);n++){if(n<0)continue;const h=hash2(n*31+seed);if(h%5<2)continue;const z=n*64+(h>>>3)%40,a=roadAt(z,seed),side=h&1?1:-1;if(waterSide(a)===side)continue;const th=roadTheme(z),edge=roadEdge(z,side,seed)+side*(46+(h>>>9)%120);const zr=z-camZ;if(zr<CAMBACK-40)continue;
+  if(!(this.q>0))for(let n=Math.floor((camZ+CAMBACK-60)/64);n<=Math.ceil((camZ+FAR)/64);n++){if(n<0)continue;const h=hash2(n*31+seed);if(h%5<2)continue;const z=n*64+(h>>>3)%40,a=roadAt(z,seed),side=h&1?1:-1;if(waterSide(a)===side)continue;const th=roadTheme(z),edge=roadEdge(z,side,seed)+side*(46+(h>>>9)%120);const zr=z-camZ;if(zr<CAMBACK-40)continue;
    L.push({zr,k:'scenery',p:{id:'d'+n,x:edge,z,sprite:th===3?(h%3?5:4):(th===0&&h%4===0?3:1),sheet:'routeProps',decor:1}});}
   for(const e of g.items){if(e.done)continue;const zr=e.z-camZ;if(zr<CAMBACK-30||zr>FAR)continue;L.push({zr,k:'item',e});}
   if(g.sheep){const zr=g.sheep.z-camZ;if(zr>CAMBACK-30&&zr<FAR)L.push({zr,k:'herd',s:g.sheep});}
@@ -1763,7 +1774,7 @@ class ChaseRenderer extends Renderer{
   // sway: the trailer swings out behind the cab when you change lane (the model's own trailer angle), the whole rig leans into the move,
   // and the chassis bobs on its springs. Pivot is the rear axle, at the base of the sprite.
   const vx=dt>0?(x-(this._px??x))/dt:0;this._px=x;this._vx=(this._vx||0)*.82+clamp(vx,-900,900)*.18;
-  const lean=clamp(this._vx/5200,-.1,.1)+clamp((g.lane-g.x)*.03,-.08,.08),swing=clamp((g.angle||0)*.3,-.26,.26)+clamp((g.sway||0)*.2,-.15,.15);
+  const lean=clamp(this._vx/9000,-.045,.045)+clamp((g.lane-g.x)*.014,-.04,.04),swing=clamp((g.angle||0)*.12,-.07,.07);
   const bob=this.settings.motion?Math.sin(this.time*(g.boost>0?24:13))*(1+Math.min(1,g.speed/700))*.7:0,shake=this.settings.motion&&g.boost>0?Math.sin(this.time*60)*1.2:0;
   c.save();c.translate(x,y+bob);c.fillStyle='rgba(6,14,10,.38)';c.beginPath();c.ellipse(0,2,bare?44:64,bare?9:13,0,0,TAU);c.fill();
   c.globalAlpha=g.invulnerable>0&&Math.floor(this.time*13)%2===0?.55:1;
@@ -1772,7 +1783,7 @@ class ChaseRenderer extends Renderer{
    if(cs){const rw=tw*.92,rh=rw*cs.c.height/cs.c.width;c.drawImage(cs.c,-rw/2,-th*.9-rh*.12,rw,rh);}this.truckFx(g,c,tw,th,bare);this.detailPro.truckTrim(c,g,tw,th,bare);}
   else if(img){const th=tw*img.height/img.width;c.rotate(lean);c.translate(shake,0);
    // shear the body about its base so the top (the trailer) lags the steering, in thin slices to keep the edges clean
-   c.save();c.transform(1,0,-swing,1,0,0);c.drawImage(img,-tw/2,-th+6,tw,th);c.restore();
+   c.rotate(swing*.5);c.drawImage(img,-tw/2,-th+6,tw,th);
    this.truckFx(g,c,tw,th,bare);this.detailPro.truckTrim(c,g,tw,th,bare);}
   c.restore();
  }
@@ -1783,14 +1794,16 @@ class ChaseRenderer extends Renderer{
  }
  /* Contact shadow plus a long soft shadow thrown to the left (the sun is high on the right), so props sit on the ground. */
  castShadow(c,x,y,w,h,k,a=1){
-  if(this.g&&this.g.night||w<4)return;const tall=/tree|house|shop|garage|cabin|digger|bus|binlorry|icecream|tractor|caravan|lowbridge|weakbridge|hedge|barn|pub|cottage|poplar/.test(k);
+  if(this.g&&this.g.night||w<4)return;const tall=!(this.q>1)&&/tree|house|shop|garage|cabin|digger|bus|binlorry|icecream|tractor|caravan|lowbridge|weakbridge|hedge|barn|pub|cottage|poplar/.test(k);
   c.save();c.fillStyle='rgba(14,24,16,'+(.30*a*c.globalAlpha).toFixed(3)+')';c.beginPath();c.ellipse(x-w*.06,y,w*.46,Math.max(1.5,w*.085),0,0,TAU);c.fill();
   if(tall){c.fillStyle='rgba(14,24,16,'+(.15*a*c.globalAlpha).toFixed(3)+')';c.beginPath();c.moveTo(x+w*.30,y+1);c.lineTo(x-w*.30,y-1);c.lineTo(x-w*.30-h*.55,y+h*.07);c.lineTo(x+w*.10-h*.4,y+h*.09);c.closePath();c.fill();}
   c.restore();
  }
  drawScenery(c,p,x,y,sc){
   let k;if(p.sheet==='routeProps'){k={0:'house',1:'tree',2:'garage',3:'hedge',4:'digger',5:'cabin'}[p.sprite]||'tree';}else{k={0:'shop',7:'shop',1:'shop',2:'tree',3:'house',4:'cabin',5:'tree'}[p.sprite]||'tree';}
-  const sz=SIZE[k];if(!sz||x<-120||x>540+this.pad)return;this.detailPro.sceneryBase(c,p,x,y,sc,k);this.castShadow(c,x,y,sz[0]*sc*1.25,sz[1]*sc*1.25,k);c.save();c.translate(x,y);if(!this.billboard(c,k,sz[0]*sc*1.25,sz[1]*sc*1.25,this.time,parseInt(p.id)||p.z|0))this.detailPro.sceneryOverlay(c,p,sz[0]*sc*1.25,sz[1]*sc*1.25,k);c.restore();
+  const isl=String(p.id).endsWith(':island');if(isl)k='tree';
+  const sz=SIZE[k];if(!sz)return;const side=p.x>210?1:-1,hw=sz[0]*.5,edge=p.decor||isl?p.x:roadEdge(p.z,side,this.g.seed),X=isl?p.x:(side*(p.x-edge)<hw+10?edge+side*(hw+10):p.x);   // never stand on the carriageway
+  x=210+(X-this.camX)*sc;if(x<-160||x>580+this.pad)return;const w=sz[0]*sc,h=sz[1]*sc;this.detailPro.sceneryBase(c,p,x,y,sc,k);this.castShadow(c,x,y,w,h,k);c.save();c.translate(x,y);if(!this.billboard(c,k,w,h,this.time,parseInt(p.id)||p.z|0))this.detailPro.sceneryOverlay(c,p,w,h,k);c.restore();
  }
  drawItem(c,e,x,y,sc,zr){
   const t=this.time+e.id;
