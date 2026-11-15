@@ -25,7 +25,7 @@ const HAZE=[222,233,226];
 const FLAT={pit:1,mud:1,oil:1,grass:1};
 export class ChaseRenderer extends Renderer{
  maxDpr=1.5;
- resize(){super.resize();this.yT=this.H*.80;this.playerY=this.yT-120;this.worldScale=.72;this.camX=this.camX||210;}
+ resize(){super.resize();this.yT=this.H*(this.yTf||.8);this.playerY=this.yT-120;this.worldScale=.72;this.camX=this.camX||210;}
  /* screen x of a lane at the truck's depth (used for cash pop-ups and night lights) */
  x(lane){return 210+(54+78*lane-(this.camX||210));}
  project(lane,z,rawX){const g=this.g,zr=z-(g.distance-CAMBACK),sc=CAMBACK/zr,wx=rawX??(54+78*lane);return {x:210+(wx-this.camX)*sc,y:this.y0+this.A/zr,s:sc};}
@@ -87,7 +87,7 @@ export class ChaseRenderer extends Renderer{
  draw(g,dt,truckIndex){
   {const e=this._ema=(this._ema||.016)*.94+Math.min(.1,dt||.016)*.06,q=e>.034?2:e>.024?1:0;if((this.q||0)<q){this.q=q;this.maxDpr=q>1?1:1.25;this.resize();}}
   this.g=g;const c=this.ctx,pad=this.pad,W=420+2*pad,H=this.H;this.time+=dt;
-  const y0=this.y0=H*.31,A=this.A=(this.yT-y0)*CAMBACK,camZ=g.distance-CAMBACK,tx=laneX(g.x,g.distance);
+  const y0=this.y0=H*(this.y0f||.31),A=this.A=(this.yT-y0)*CAMBACK,camZ=g.distance-CAMBACK,tx=laneX(g.x,g.distance);
   const camX=this.camX=210+(tx-210)*.55,cx=210,seed=g.seed;
   this.finishPro ||= new ChaseFinishPro(this);this.finishPro.begin(g,dt);
   this.detailPro ||= new ChaseDetailPro(this);
@@ -228,9 +228,9 @@ export class ChaseRenderer extends Renderer{
   // sway: the trailer swings out behind the cab when you change lane (the model's own trailer angle), the whole rig leans into the move,
   // and the chassis bobs on its springs. Pivot is the rear axle, at the base of the sprite.
   const vx=dt>0?(x-(this._px??x))/dt:0;this._px=x;this._vx=(this._vx||0)*.82+clamp(vx,-900,900)*.18;
-  const lean=clamp(this._vx/9000,-.045,.045)+clamp((g.lane-g.x)*.014,-.04,.04),swing=clamp((g.angle||0)*.12,-.07,.07);
+  const lean=clamp(this._vx/9000,-.045,.045)+clamp((g.lane-g.x)*.014,-.04,.04),swing=clamp((g.angle||0)*.16,-.1,.1);
   const bob=this.settings.motion?Math.sin(this.time*(g.boost>0?24:13))*(1+Math.min(1,g.speed/700))*.7:0,shake=this.settings.motion&&g.boost>0?Math.sin(this.time*60)*1.2:0;
-  c.save();c.translate(x,y+bob);c.fillStyle='rgba(6,14,10,.38)';c.beginPath();c.ellipse(0,2,bare?44:64,bare?9:13,0,0,TAU);c.fill();
+  c.save();c.translate(x,y+bob);{const ks=this.truckScale||1;if(ks!==1)c.scale(ks,ks);}c.fillStyle='rgba(6,14,10,.38)';c.beginPath();c.ellipse(0,2,bare?44:64,bare?9:13,0,0,TAU);c.fill();
   c.globalAlpha=g.invulnerable>0&&Math.floor(this.time*13)%2===0?.55:1;
   const tw=bare?64:90;
   if(bare){const th=tw*1.02,cs=this.cabSprite(g);c.rotate(lean*.8);c.translate(shake,0);ART.cabRear(c,tw,th,this.time,{col:cs?cs.col:(CAB_COL[g.truck]||CAB_COL[0]),boost:g.boost>0});
