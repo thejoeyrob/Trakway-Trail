@@ -38,9 +38,9 @@ export class ChaseWorldPro {
   if(!pat||x2<=x1||sn<.035||Math.floor(y/2)%2)return;
   // 4-pixel slices reduce mobile fill rate vs a 2-pixel overlay on every row.
   const zr=260/sn,d=-this.r.A/(zr*zr);
-  c.save();c.globalAlpha=(1-fog)*opacity;
+  const ga=c.globalAlpha;c.globalAlpha=(1-fog)*opacity;
   pat.setTransform({a:sn,b:0,c:0,d,e:210-(this.r.camX||210)*sn,f:y-(zw%512)*d});
-  c.fillStyle=pat;c.fillRect(x1,y-4,x2-x1,4.6);c.restore();
+  c.fillStyle=pat;c.fillRect(x1,y-4,x2-x1,4.6);c.globalAlpha=ga;
  }
  groundDetail(c,{th,y,zw,sn,fog,pad}){
   if(!this.pats||!(th===1||th===2))return;
@@ -109,7 +109,7 @@ export class ChaseWorldPro {
   // Capped frequency to avoid expensive per-pixel work on mobile screens.
   const row=y|0;if((row&7)!==0||sn<.07)return;
   const alpha=clamp((1-fog)*.34,0,.34);
-  c.save();c.globalAlpha=alpha;
+  const ga0=c.globalAlpha;c.globalAlpha=alpha;
   if(kind===1){
    // World-locked wheel-polished grooves, occasional tar seam and reflective chips.
    for(let m=k;m<=j;m++){
@@ -126,19 +126,19 @@ export class ChaseWorldPro {
    for(let m=k;m<=j;m++)for(const u of[-20,19])c.fillRect(X(54+78*m+u),y-step,Math.max(1,4*sn),step);
    if(Math.floor(zw/34)%6===0){c.fillStyle='rgba(48,39,26,.26)';c.fillRect(X(54+78*k-12),y-step,45*sn,1);}
   }
-  c.restore();
+  c.globalAlpha=ga0;
  }
  waterDetail(c,{x1,x2,y,zw,sn,step,fog,time}){
   if(this.pats)this.material(c,this.pats[3],x1,x2,y,zw,sn,fog,.23);
   if((y|0)%6!==0||x2-x1<2)return;
   const w=x2-x1,phase=zw*.074+time*1.5;
-  c.save();c.globalAlpha=clamp((1-fog)*.35,0,.35);
+  const ga1=c.globalAlpha;c.globalAlpha=clamp((1-fog)*.35,0,.35);
   const strips=1+Math.min(3,Math.floor(w/100));
   for(let i=0;i<strips;i++){
    const x=x1+hash(Math.floor(zw/44)*11+i*3)*w;
    const sw=Math.max(3,(12+Math.sin(phase+i)*12)*sn);
    c.fillStyle=i%2?'#75d5e8':'#e1fbff';c.fillRect(x,y-step,sw,.8);
   }
-  c.restore();
+  c.globalAlpha=ga1;
  }
 }
