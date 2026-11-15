@@ -109,30 +109,26 @@ export class ChaseRenderer extends Renderer{
   for(let y=H;y>y0+3;y-=step){
    const zn=A/(y-y0),zf=A/(y-step-y0);if(zf>FAR*9)break;const zm=(zn+zf)/2,zw=camZ+zm,sn=CAMBACK/zn,fog=Math.min(1,Math.pow(zm/FAR,1.7));
    const th=roadTheme(zw),a=roadAt(zw,seed),ws=waterSide(a),bs=a.bands,edge=ws?(ws>0?Math.max(...bs.map(b=>b.right)):Math.min(...bs.map(b=>b.left))):0;
-   fillSpan(GROUND_PAT[th],rgb(THEME_GROUND[th]),-pad,420+pad,y,sn,zw,zm);if(th===0&&sn>=.28){c.fillStyle='rgba(238,224,196,.34)';c.fillRect(-pad,y-step,W,step+.6);}   // pale pavement, clearly not tarmacthis.worldPro.groundDetail(c,{th,y,zw,sn,fog,pad});
-   let lo=5,hi=-1;
-   for(let k=0;k<5;k++){const lx=54+LANE*k;let kind=0;
-    for(const b of bs)if(lx-14>=b.left&&lx+14<=b.right){kind=b.surface==='mud'?2:1;break;}
-    if(!kind&&ws&&(lx-edge)*ws>0)kind=3;kinds[k]=kind;if(kind===3){lo=Math.min(lo,k);hi=Math.max(hi,k);}}
+   fillSpan(GROUND_PAT[th],rgb(THEME_GROUND[th]),-pad,420+pad,y,sn,zw,zm);if(th===0&&sn>=.28){c.fillStyle='rgba(238,224,196,.34)';c.fillRect(-pad,y-step,W,step+.6);}   // pale pavement, clearly not tarmac
+   this.worldPro.groundDetail(c,{th,y,zw,sn,fog,pad});
    const X=u=>cx+(u-camX)*sn;
-   if(hi>=0){ // river: every lane on the water side that has no road, and everything beyond it
-    const ripple=Math.sin(this.time*1.3+zw*.02)*7+this.time*14;
-    let x1=ws<0?-pad-60:X(L0+LANE*lo),x2=ws<0?X(L0+LANE*(hi+1)):420+pad+60;if(ws<0)x1=-pad-60;
+   if(ws){ // river: from 20 units beyond the road edge outwards (that is where the model says "dip"), with a grassy bank between
+    const wb=edge+ws*20,ripple=Math.sin(this.time*1.3+zw*.02)*7+this.time*14;
+    const x1=ws<0?-pad-60:X(wb),x2=ws<0?X(wb):420+pad+60;
     fillSpan(WATER,'#2f7aa6',x1,x2,y,sn,zw,zm,ripple);c.fillStyle='rgba(40,150,215,.38)';c.fillRect(x1,y-step,x2-x1,step+.6);
     this.worldPro.waterDetail(c,{x1,x2,y,zw,sn,step,fog,time:this.time});
-    // grassy bank where the river meets the road, a pale ripple line and a glint
-    const bx=ws<0?x2:x1;c.fillStyle=rgb(mix([88,120,70],HAZE,fog*.8));c.fillRect(bx-(ws<0?0:5*sn),y-step,5*sn,step+.6);
-    if(Math.floor((zw+this.time*40)/46)%3===0){c.fillStyle='rgba(255,255,255,'+(.35*(1-fog))+')';const gx=(ws<0?x1:x2)+((hash2(Math.floor(zw/46))%100)/100-(ws<0?1:0))*(Math.abs(x2-x1)*.8);c.fillRect(gx,y-step,Math.max(2,18*sn),1.4);}
+    const b1=X(Math.min(edge,wb)),b2=X(Math.max(edge,wb));c.fillStyle=rgb(mix([96,126,72],HAZE,fog*.8));c.fillRect(b1,y-step,b2-b1,step+.6);   // bank
+    c.fillStyle='rgba(255,255,255,'+(.5*(1-fog)).toFixed(3)+')';c.fillRect(ws<0?x2-Math.max(1,2*sn):x1,y-step,Math.max(1,2*sn),step+.6);   // foam line
+    if(Math.floor((zw+this.time*40)/46)%3===0){c.fillStyle='rgba(255,255,255,'+(.35*(1-fog)).toFixed(3)+')';const gx=(ws<0?x1:x2)+((hash2(Math.floor(zw/46))%100)/100-(ws<0?1:0))*(Math.abs(x2-x1)*.8);c.fillRect(gx,y-step,Math.max(2,18*sn),1.4);}
    }
-   // tarmac and mud, merged into runs
-   for(let k=0;k<5;){const kind=kinds[k];if(kind!==1&&kind!==2){k++;continue;}let j=k;while(j+1<5&&kinds[j+1]===kind)j++;
-    fillSpan(kind===2?MUD:ASPHALT,kind===2?'#68482c':'#42454a',X(L0+LANE*k),X(L0+LANE*(j+1)),y,sn,zw,zm);
-    // kerb + edge lines at the ends of the run, dashed dividers between lanes
+   // tarmac and mud: the real drivable bands, so the edges taper smoothly where the road narrows or widens; the lane lines stay fixed and straight
+   for(const bd of bs){const L=bd.left,R=bd.right,kind=bd.surface==='mud'?2:1,xl=X(L),xr=X(R);if(xr<=xl)continue;
+    fillSpan(kind===2?MUD:ASPHALT,kind===2?'#68482c':'#42454a',xl,xr,y,sn,zw,zm);
     const lw=Math.max(1.2,2.4*sn),kb=Math.max(2,6*sn),dash=Math.floor(zw/55)%2===0;
-    for(const [u,s2] of[[L0+LANE*k,-1],[L0+LANE*(j+1),1]]){const x=X(u);c.fillStyle=Math.floor(zw/40)%2?'#d94a3a':'#f4f1e6';c.fillRect(s2<0?x-kb:x,y-step,kb,step+.6);c.fillStyle='#f4f1e6';c.fillRect(s2<0?x+kb*.4:x-kb*.4-lw,y-step,lw,step+.6);}
-    if(dash&&kind===1)for(let m=k+1;m<=j;m++){const x=X(L0+LANE*m);c.fillStyle='rgba(244,241,230,.9)';c.fillRect(x-lw/2,y-step,lw,step+.6);}
-    this.worldPro.roadDetail(c,{X,kind,k,j,y,step,zw,sn,fog});
-    k=j+1;}
+    c.fillStyle=Math.floor(zw/40)%2?'#d94a3a':'#f4f1e6';c.fillRect(xl-kb,y-step,kb,step+.6);c.fillRect(xr,y-step,kb,step+.6);
+    c.fillStyle='#f4f1e6';c.fillRect(xl+kb*.4,y-step,lw,step+.6);c.fillRect(xr-kb*.4-lw,y-step,lw,step+.6);
+    if(dash&&kind===1)for(let m=1;m<5;m++){const u=L0+LANE*m;if(u>L+10&&u<R-10){const x=X(u);c.fillStyle='rgba(244,241,230,.9)';c.fillRect(x-lw/2,y-step,lw,step+.6);}}
+    this.worldPro.roadDetail(c,{X,kind,k:Math.max(0,Math.ceil((L-54)/LANE)),j:Math.min(4,Math.floor((R-54)/LANE)),xl,xr,y,step,zw,sn,fog});}
    fogRows.push(y,fog,sn,zw);
   }
   // fog as a second pass over the finished rows (no seams between rows); rows with the same fog level are merged into one fill

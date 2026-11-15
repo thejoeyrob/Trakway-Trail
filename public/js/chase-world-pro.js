@@ -104,8 +104,9 @@ export class ChaseWorldPro {
   haze.addColorStop(1,'rgba(222,233,226,0)');
   c.fillStyle=haze;c.fillRect(-pad,y0-46,W,116);
  }
- roadDetail(c,{X,kind,k,j,y,step,zw,sn,fog}){
-  if(this.pats){this.material(c,this.pats[kind===1?0:1],X(15+78*k),X(15+78*(j+1)),y,zw,sn,fog,kind===1?.23:.31);}
+ roadDetail(c,{X,kind,k,j,xl,xr,y,step,zw,sn,fog}){
+  if(this.pats){this.material(c,this.pats[kind===1?0:1],xl??X(15+78*k),xr??X(15+78*(j+1)),y,zw,sn,fog,kind===1?.23:.31);}
+  if(j<k)return;
   // Capped frequency to avoid expensive per-pixel work on mobile screens.
   const row=y|0;if((row&7)!==0||sn<.07)return;
   const alpha=clamp((1-fog)*.34,0,.34);
