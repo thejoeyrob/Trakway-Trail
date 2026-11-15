@@ -116,7 +116,10 @@ function bandsFrom(lanes){
 }
 const mapCache=new Map();
 /* Everything the game needs to know about the road at distance z (same shape as the old route-world roadAt, plus the map). */
+export const GARAGE_SEED=-7;
+let garageRoad=null;
 export function mapAt(z,seed=1){
+ if(seed===GARAGE_SEED){if(!garageRoad){const lanes=[0,1,2,3,4].map(()=>({o:1,rk:'road',fk:'grass'}));garageRoad={id:0,worldId:0,start:0,end:1e9,motif:'map',biome:'highway',variant:0,side:0,restricted:'',prizeSide:'',signZ:-1e9,decisionZ:-1e9,p:0,gate:0,bands:bandsFrom(lanes),sign:null,lanes,features:[],zw:0};}return garageRoad;}
  z=Math.max(0,z);const zw=z+offsetOf(seed),q=Math.round(zw*4)/4,key=seed+':'+q;
  let r=mapCache.get(key);if(r)return r;
  const {lanes,seg,lz,active}=lanesAt(zw,seed),bands=bandsFrom(lanes);
@@ -144,6 +147,7 @@ const STYLE={
 };
 const PAVE={city:50,urban:58,country:22,highway:64};
 export function sideStyle(zw,side,seed=1){
+ if(seed===GARAGE_SEED){const o=['wood','noise','embank','wood'];return {biome:'highway',style:o[hash(Math.floor(zw/380)*5+(side>0?3:1),9)%o.length],pave:64};}
  const n=Math.floor(zw/SEG),s=segInfo(n,seed),lz=zw-s.start;let biome=s.biome;
  if(lz<RAMP_START&&n>0&&hash(Math.floor(zw/110),seed+side)%100<(1-lz/RAMP_START)*100)biome=segInfo(n-1,seed).biome;   // suburban fringe: the old biome fades out
  const lanes=lanesAt(zw,seed).lanes,outer=lanes[side<0?0:4],second=lanes[side<0?1:3];
@@ -156,7 +160,7 @@ export function sideStyle(zw,side,seed=1){
 const CELL=192;
 /* Building and tree lots along both sides: deterministic, each facing the road. */
 export function lotsAt(z0,z1,seed=1){
- const off=offsetOf(seed),out=[];
+ const off=seed===GARAGE_SEED?0:offsetOf(seed),out=[];
  for(let n=Math.floor((z0+off)/CELL);n<=Math.ceil((z1+off)/CELL);n++){
   if(n<0)continue;
   for(const side of[-1,1]){
@@ -172,6 +176,7 @@ export function lotsAt(z0,z1,seed=1){
 }
 /* Painted-in road dressing: cones along closures, parked cars, bus shelters, crossings. */
 export function decoAt(z0,z1,seed=1){
+ if(seed===GARAGE_SEED)return [];
  const off=offsetOf(seed),out=[];
  for(let n=Math.floor((z0+off)/SEG);n<=Math.floor((z1+off)/SEG);n++){
   if(n<0)continue;const s=segInfo(n,seed);

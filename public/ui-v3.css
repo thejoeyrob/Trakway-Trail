@@ -152,3 +152,12 @@ html,body,button,input{font-family:var(--body)}
  .gnote{display:none}
  #garage .garage-panel{padding-top:8px}
 }
+
+/* Garage in the chase view: the live road fills the screen and the swipe menu is a glass sheet laid over the bottom of it. VIEW slides the sheet away. */
+#garage .peek-btn{display:none}
+#garage.chase .peek-btn{display:inline-block}
+#garage.chase .stage{position:absolute;inset:0;flex:none;min-height:0}
+#garage.chase .garage-panel{margin-top:auto;background:linear-gradient(180deg,rgba(20,64,70,.80),rgba(9,33,38,.95));backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);transition:transform .45s cubic-bezier(.2,.9,.25,1)}
+#garage.chase.peek .garage-panel{transform:translateY(calc(100% - 58px))}
+#garage.chase .stage-badge{bottom:auto;top:calc(var(--safe-top) + 66px)}
+#garage.chase .garage-bg{display:none}

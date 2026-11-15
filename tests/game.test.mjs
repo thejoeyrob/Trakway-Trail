@@ -68,7 +68,7 @@ test('hazards are long road sections with prior lane-specific warnings',()=>{
  const g=new Drive();for(const type of ROAD_TYPES){const e=g.add(type,1200,2);assert.ok(e.road&&e.length>=190&&e.warning>=350);}assert.ok(hazardKinds(100).includes('bus'));assert.ok(hazardKinds(6000).includes('weakbridge'));assert.ok(hazardKinds(18100).includes('works'));
 });
 test('upgrades migrate, improve earnings and have bounded levels',()=>{
- let u=normalize({bunk:3,exhaust:3,lights:99,insurance:-4});assert.equal(u.lights,3);assert.equal(u.insurance,0);assert.equal(Object.keys(u).length,9);assert.ok(deliveryBonus(u,3,1)>.1);
+ let u=normalize({bunk:3,exhaust:3,lights:99,insurance:-4});assert.equal(u.lights,3);assert.equal(u.insurance,0);assert.equal(Object.keys(u).length,10);assert.ok(deliveryBonus(u,3,1)>.1);
  const g=new Drive({upgrades:u,truck:3,decal:1});g.collect(g.add('taco',0,2));assert.equal(g.money,600);g.collect(g.add('coin',0,2));assert.equal(g.money,617);assert.ok(g.rested>0);
 });
 test('burst of speed and taco cooldown have priority and expire',()=>{

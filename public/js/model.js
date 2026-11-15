@@ -179,7 +179,7 @@ export class Drive {
  ramp(){return clamp(this.distance/48000,0,1);}
  tick(dt){if(this.finished)return;dt=clamp(dt,0,.05);this.time+=dt;for(const d of this.leaving)d.age+=dt;this.leaving=this.leaving.filter(d=>d.age<1.4);
   for(const k of ['invulnerable','slow','boost','rested','grip','dropCooldown'])this[k]=Math.max(0,this[k]-dt);
-  const base=250+Math.min(80,this.time*.8)+95*this.ramp();this.cruise=base;this.speed=Math.min(560,base*(this.slow>0?.65:this.boost>0?1.3:1)*(this.hasTrailer?1:1.38)*(this.grip>0?.92:1));const oldDistance=this.distance,oldX=this.x;this.distance+=this.speed*dt;this.stage=routeMode()==='map'?THEME_OF[roadAt(this.distance,this.seed).biome]:biomeAt(this.distance);
+  const base=250+Math.min(80,this.time*.8)+95*this.ramp();this.cruise=base;const E=this.upgrades.engine||0;this.speed=Math.min(560*(1+.05*E),base*(this.slow>0?.65:this.boost>0?1.3:1)*(this.hasTrailer?(this.job&&this.job.double?.86+.045*E:1):1.38)*(1+.05*E)*(this.grip>0?.92:1));const oldDistance=this.distance,oldX=this.x;this.distance+=this.speed*dt;this.stage=routeMode()==='map'?THEME_OF[roadAt(this.distance,this.seed).biome]:biomeAt(this.distance);
   this.rapid=Math.max(0,this.rapid-dt*(this.job?.double?.19:.43)*(1+.2*this.upgrades.stability)*(this.rested>0?1.2:1));
   this.x+=(this.lane-this.x)*(1-Math.exp(-dt*(this.grip>0?6.2:11)*(this.hasTrailer?1:1.3)*(1+.12*this.upgrades.steering)));
   this.trailer+=(this.x-this.trailer)*(1-Math.exp(-dt*(this.job?.double?2.2:4)));

@@ -1,4 +1,5 @@
 export const CATALOG=[
+ ['engine','TURBO DIESEL','Bigger engine: +5% top speed per level, and a heavy double trailer drags you far less (full pace at level 3).',1100,1],
  ['stability','STEADY EDDIE','Trailer stabiliser: sway settles 20% faster per level.',700,10],
  ['suspension','AIR-RIDE','Air suspension: 8% less trailer angle per level.',800,10],
  ['steering','QUICK HANDS','Better wheel: steering response 12% quicker per level.',750,9],
@@ -32,6 +33,7 @@ export const PAINT_IDS=TRUCKS.map(t=>t.id);
 export const DECAL_IDS=DECALS.map(d=>d.id);
 export const deliveryBonus=(u,truck,decal)=>u.bunk*.03+((TRUCKS.find(t=>t.id===truck)?.bonus)||0)/100+(decal>0?.02:0);
 export const STATS={
+ engine:{label:'TOP SPEED',f:l=>l?'+'+l*5+'%':'stock'},
  stability:{label:'SWAY SETTLES',f:l=>l?l*20+'% faster':'stock'},
  suspension:{label:'TRAILER ANGLE',f:l=>l?l*8+'% less':'stock'},
  steering:{label:'STEERING SNAP',f:l=>l?l*12+'% quicker':'stock'},

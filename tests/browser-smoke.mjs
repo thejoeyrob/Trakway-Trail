@@ -35,7 +35,7 @@ try{
   const perf=await page.evaluate(()=>{const qa=window.truckinQA,g=qa.game;g.seed=19;g.items=[];g.sheep=null;g.night=null;const start=performance.now();for(let i=0;i<90;i++){g.distance=5200+i*7;qa.renderer.draw(g,.016,0);}return (performance.now()-start)/90;});report.timings.push({width:viewport.width,meanDrawMs:perf});
   await page.evaluate(()=>{window.truckinQA.home();window.truckinQA.openGarage();});
   const before=await page.locator('#showroom').evaluate(el=>el.toDataURL());const box=await page.locator('#showroom').boundingBox();await page.mouse.move(box.x+box.width*.4,box.y+box.height*.5);await page.mouse.down();await page.mouse.move(box.x+box.width*.8,box.y+box.height*.5,{steps:8});await page.mouse.up();await page.waitForTimeout(80);const after=await page.locator('#showroom').evaluate(el=>el.toDataURL());check(viewport.width+': garage drag changes rendered perspective',before!==after);
-  await page.locator('[data-tab="upgrades"]').click();check(viewport.width+': original nine upgrades retained',await page.locator('#garageWheel .wheel-item').count()===9);
+  await page.locator('[data-tab="upgrades"]').click();check(viewport.width+': original upgrades plus engine retained',await page.locator('#garageWheel .wheel-item').count()===10);
   check(viewport.width+': no horizontal overflow',await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   const action=await page.locator('#gAction').boundingBox();check(viewport.width+': garage purchase control fits viewport',action.y+action.height<=viewport.height+1);
   for(const id of ['routeDecision','trailerButton','hornButton'])check(viewport.width+': '+id+' exists',await page.locator('#'+id).count()===1);

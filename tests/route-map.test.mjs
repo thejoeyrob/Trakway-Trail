@@ -31,3 +31,8 @@ test('water, oncoming and bus lanes are described by the map',()=>{
  // a lane that is water is not drivable and the model sees it as off the road
  for(let seed=1;seed<=40;seed++)for(let z=0;z<80000;z+=60){const r=mapAt(z,seed);r.lanes.forEach((l,k)=>{if(l.fk==='water'&&l.o<=.02){const t=terrainAt(54+78*k,z,seed);assert.equal(t.onRoad,false);assert.equal(t.kind,'water');}});}
 });
+test('cab and trailer paints are separate purchases and the engine helps with a double trailer',async()=>{
+ const {Drive}=await import('../public/js/model.js');
+ const speed=E=>{const g=new Drive({seed:3,upgrades:{engine:E}});g.job={double:true,pay:1,end:1e9,start:0,label:'x',count:1,done:0};g.tick(.1);return g.speed;};
+ assert.ok(speed(3)>speed(0)*1.2,'engine L3 should be clearly faster with a double trailer');
+});

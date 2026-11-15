@@ -706,7 +706,10 @@ function bandsFrom(lanes){
 }
 const mapCache=new Map();
 /* Everything the game needs to know about the road at distance z (same shape as the old route-world roadAt, plus the map). */
+const GARAGE_SEED=-7;
+let garageRoad=null;
 function mapAt(z,seed=1){
+ if(seed===GARAGE_SEED){if(!garageRoad){const lanes=[0,1,2,3,4].map(()=>({o:1,rk:'road',fk:'grass'}));garageRoad={id:0,worldId:0,start:0,end:1e9,motif:'map',biome:'highway',variant:0,side:0,restricted:'',prizeSide:'',signZ:-1e9,decisionZ:-1e9,p:0,gate:0,bands:bandsFrom(lanes),sign:null,lanes,features:[],zw:0};}return garageRoad;}
  z=Math.max(0,z);const zw=z+offsetOf(seed),q=Math.round(zw*4)/4,key=seed+':'+q;
  let r=mapCache.get(key);if(r)return r;
  const {lanes,seg,lz,active}=lanesAt(zw,seed),bands=bandsFrom(lanes);
@@ -734,6 +737,7 @@ const STYLE={
 };
 const PAVE={city:50,urban:58,country:22,highway:64};
 function sideStyle(zw,side,seed=1){
+ if(seed===GARAGE_SEED){const o=['wood','noise','embank','wood'];return {biome:'highway',style:o[hash(Math.floor(zw/380)*5+(side>0?3:1),9)%o.length],pave:64};}
  const n=Math.floor(zw/SEG),s=segInfo(n,seed),lz=zw-s.start;let biome=s.biome;
  if(lz<RAMP_START&&n>0&&hash(Math.floor(zw/110),seed+side)%100<(1-lz/RAMP_START)*100)biome=segInfo(n-1,seed).biome;   // suburban fringe: the old biome fades out
  const lanes=lanesAt(zw,seed).lanes,outer=lanes[side<0?0:4],second=lanes[side<0?1:3];
@@ -746,7 +750,7 @@ function sideStyle(zw,side,seed=1){
 const CELL=192;
 /* Building and tree lots along both sides: deterministic, each facing the road. */
 function lotsAt(z0,z1,seed=1){
- const off=offsetOf(seed),out=[];
+ const off=seed===GARAGE_SEED?0:offsetOf(seed),out=[];
  for(let n=Math.floor((z0+off)/CELL);n<=Math.ceil((z1+off)/CELL);n++){
   if(n<0)continue;
   for(const side of[-1,1]){
@@ -762,6 +766,7 @@ function lotsAt(z0,z1,seed=1){
 }
 /* Painted-in road dressing: cones along closures, parked cars, bus shelters, crossings. */
 function decoAt(z0,z1,seed=1){
+ if(seed===GARAGE_SEED)return [];
  const off=offsetOf(seed),out=[];
  for(let n=Math.floor((z0+off)/SEG);n<=Math.floor((z1+off)/SEG);n++){
   if(n<0)continue;const s=segInfo(n,seed);
@@ -786,7 +791,7 @@ function decoAt(z0,z1,seed=1){
  return out;
 }
 
-module.exports={hash,LANE_W,LANE_X0,laneCentre,recipe,segInfo,lanesAt,mapAt,terrainAt,segLength,biomeAt,sideStyle,lotsAt,decoAt};
+module.exports={hash,LANE_W,LANE_X0,laneCentre,recipe,segInfo,lanesAt,GARAGE_SEED,mapAt,terrainAt,segLength,biomeAt,sideStyle,lotsAt,decoAt};
 
 },
 "./facades.js":function(module,exports,require){
@@ -1415,6 +1420,7 @@ module.exports={SCENARIO_NAMES,chooseRoadScenario};
 },
 "./upgrades.js":function(module,exports,require){
 const CATALOG=[
+ ['engine','TURBO DIESEL','Bigger engine: +5% top speed per level, and a heavy double trailer drags you far less (full pace at level 3).',1100,1],
  ['stability','STEADY EDDIE','Trailer stabiliser: sway settles 20% faster per level.',700,10],
  ['suspension','AIR-RIDE','Air suspension: 8% less trailer angle per level.',800,10],
  ['steering','QUICK HANDS','Better wheel: steering response 12% quicker per level.',750,9],
@@ -1448,6 +1454,7 @@ const PAINT_IDS=TRUCKS.map(t=>t.id);
 const DECAL_IDS=DECALS.map(d=>d.id);
 const deliveryBonus=(u,truck,decal)=>u.bunk*.03+((TRUCKS.find(t=>t.id===truck)?.bonus)||0)/100+(decal>0?.02:0);
 const STATS={
+ engine:{label:'TOP SPEED',f:l=>l?'+'+l*5+'%':'stock'},
  stability:{label:'SWAY SETTLES',f:l=>l?l*20+'% faster':'stock'},
  suspension:{label:'TRAILER ANGLE',f:l=>l?l*8+'% less':'stock'},
  steering:{label:'STEERING SNAP',f:l=>l?l*12+'% quicker':'stock'},
@@ -1648,7 +1655,7 @@ class Drive {
  ramp(){return clamp(this.distance/48000,0,1);}
  tick(dt){if(this.finished)return;dt=clamp(dt,0,.05);this.time+=dt;for(const d of this.leaving)d.age+=dt;this.leaving=this.leaving.filter(d=>d.age<1.4);
   for(const k of ['invulnerable','slow','boost','rested','grip','dropCooldown'])this[k]=Math.max(0,this[k]-dt);
-  const base=250+Math.min(80,this.time*.8)+95*this.ramp();this.cruise=base;this.speed=Math.min(560,base*(this.slow>0?.65:this.boost>0?1.3:1)*(this.hasTrailer?1:1.38)*(this.grip>0?.92:1));const oldDistance=this.distance,oldX=this.x;this.distance+=this.speed*dt;this.stage=routeMode()==='map'?THEME_OF[roadAt(this.distance,this.seed).biome]:biomeAt(this.distance);
+  const base=250+Math.min(80,this.time*.8)+95*this.ramp();this.cruise=base;const E=this.upgrades.engine||0;this.speed=Math.min(560*(1+.05*E),base*(this.slow>0?.65:this.boost>0?1.3:1)*(this.hasTrailer?(this.job&&this.job.double?.86+.045*E:1):1.38)*(1+.05*E)*(this.grip>0?.92:1));const oldDistance=this.distance,oldX=this.x;this.distance+=this.speed*dt;this.stage=routeMode()==='map'?THEME_OF[roadAt(this.distance,this.seed).biome]:biomeAt(this.distance);
   this.rapid=Math.max(0,this.rapid-dt*(this.job?.double?.19:.43)*(1+.2*this.upgrades.stability)*(this.rested>0?1.2:1));
   this.x+=(this.lane-this.x)*(1-Math.exp(-dt*(this.grip>0?6.2:11)*(this.hasTrailer?1:1.3)*(1+.12*this.upgrades.steering)));
   this.trailer+=(this.x-this.trailer)*(1-Math.exp(-dt*(this.job?.double?2.2:4)));
@@ -1950,7 +1957,7 @@ const HAZE=[222,233,226];
 const FLAT={pit:1,mud:1,oil:1,grass:1};
 class ChaseRenderer extends Renderer{
  maxDpr=1.5;
- resize(){super.resize();this.yT=this.H*.80;this.playerY=this.yT-120;this.worldScale=.72;this.camX=this.camX||210;}
+ resize(){super.resize();this.yT=this.H*(this.yTf||.8);this.playerY=this.yT-120;this.worldScale=.72;this.camX=this.camX||210;}
  /* screen x of a lane at the truck's depth (used for cash pop-ups and night lights) */
  x(lane){return 210+(54+78*lane-(this.camX||210));}
  project(lane,z,rawX){const g=this.g,zr=z-(g.distance-CAMBACK),sc=CAMBACK/zr,wx=rawX??(54+78*lane);return {x:210+(wx-this.camX)*sc,y:this.y0+this.A/zr,s:sc};}
@@ -2012,7 +2019,7 @@ class ChaseRenderer extends Renderer{
  draw(g,dt,truckIndex){
   {const e=this._ema=(this._ema||.016)*.94+Math.min(.1,dt||.016)*.06,q=e>.034?2:e>.024?1:0;if((this.q||0)<q){this.q=q;this.maxDpr=q>1?1:1.25;this.resize();}}
   this.g=g;const c=this.ctx,pad=this.pad,W=420+2*pad,H=this.H;this.time+=dt;
-  const y0=this.y0=H*.31,A=this.A=(this.yT-y0)*CAMBACK,camZ=g.distance-CAMBACK,tx=laneX(g.x,g.distance);
+  const y0=this.y0=H*(this.y0f||.31),A=this.A=(this.yT-y0)*CAMBACK,camZ=g.distance-CAMBACK,tx=laneX(g.x,g.distance);
   const camX=this.camX=210+(tx-210)*.55,cx=210,seed=g.seed;
   this.finishPro ||= new ChaseFinishPro(this);this.finishPro.begin(g,dt);
   this.detailPro ||= new ChaseDetailPro(this);
@@ -2153,9 +2160,9 @@ class ChaseRenderer extends Renderer{
   // sway: the trailer swings out behind the cab when you change lane (the model's own trailer angle), the whole rig leans into the move,
   // and the chassis bobs on its springs. Pivot is the rear axle, at the base of the sprite.
   const vx=dt>0?(x-(this._px??x))/dt:0;this._px=x;this._vx=(this._vx||0)*.82+clamp(vx,-900,900)*.18;
-  const lean=clamp(this._vx/9000,-.045,.045)+clamp((g.lane-g.x)*.014,-.04,.04),swing=clamp((g.angle||0)*.12,-.07,.07);
+  const lean=clamp(this._vx/9000,-.045,.045)+clamp((g.lane-g.x)*.014,-.04,.04),swing=clamp((g.angle||0)*.16,-.1,.1);
   const bob=this.settings.motion?Math.sin(this.time*(g.boost>0?24:13))*(1+Math.min(1,g.speed/700))*.7:0,shake=this.settings.motion&&g.boost>0?Math.sin(this.time*60)*1.2:0;
-  c.save();c.translate(x,y+bob);c.fillStyle='rgba(6,14,10,.38)';c.beginPath();c.ellipse(0,2,bare?44:64,bare?9:13,0,0,TAU);c.fill();
+  c.save();c.translate(x,y+bob);{const ks=this.truckScale||1;if(ks!==1)c.scale(ks,ks);}c.fillStyle='rgba(6,14,10,.38)';c.beginPath();c.ellipse(0,2,bare?44:64,bare?9:13,0,0,TAU);c.fill();
   c.globalAlpha=g.invulnerable>0&&Math.floor(this.time*13)%2===0?.55:1;
   const tw=bare?64:90;
   if(bare){const th=tw*1.02,cs=this.cabSprite(g);c.rotate(lean*.8);c.translate(shake,0);ART.cabRear(c,tw,th,this.time,{col:cs?cs.col:(CAB_COL[g.truck]||CAB_COL[0]),boost:g.boost>0});
@@ -2363,6 +2370,7 @@ const {Wheel}=require("./wheel.js");
 const {CATALOG,DECALS,TRUCKS,DECAL_TAGS,STATS,upgradePrice}=require("./upgrades.js");
 const {Renderer}=require("./render.js");
 const {ChaseRenderer}=require("./chase.js");
+const {GARAGE_SEED}=require("./route-map.js");
 const {drawRig,thumb}=require("./rigart.js");
 const {RIG}=require("./geometry.js");
 const LOCK="<svg class='padlock' viewBox='0 0 24 24' aria-hidden='true'><path d='M7 10V7a5 5 0 0 1 10 0v3' fill='none' stroke='currentColor' stroke-width='2.6' stroke-linecap='round'/><rect x='4.5' y='10' width='15' height='11' rx='3' fill='currentColor'/><circle cx='12' cy='15.5' r='1.7' fill='#10343a'/></svg>";
@@ -2373,6 +2381,8 @@ class Garage{
  constructor(o){Object.assign(this,o);this.tab='trucks';this.target='both';this.idx={trucks:0,trailers:0,livery:0,upgrades:0};this.pop=0;this.running=false;this.spark=[];this.sway=0;this.rigView='full';this.rigView='full';
   const q=s=>this.root.querySelector(s);this.q=q;this.canvas=q('#showroom');
   q('#garageBack').onclick=()=>this.close();
+  q('#gPeek').onclick=()=>{this.root.classList.toggle('peek');this.sound.play('click');setTimeout(()=>this.fitStage(),480);};
+  addEventListener('resize',()=>this._fit=0);
   q('#garageTabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b&&b.dataset.tab!==this.tab){this.sound.play('click');this.sound.rev(1);this.setTab(b.dataset.tab);}});
   q('#gTarget').addEventListener('click',e=>{const b=e.target.closest('[data-t]');if(b){this.target=b.dataset.t;this.sound.play('click');this.update();}});
   q('#gRig').addEventListener('click',e=>{const b=e.target.closest('[data-r]');if(b){this.rigView=b.dataset.r;this.sound.play('click');this.update();}});
@@ -2387,8 +2397,8 @@ class Garage{
   return CATALOG.map(u=>({kind:'upgrade',id:u.id,name:u.name,desc:u.description,cost:u.cost,icon:u.icon}));
  }
  st(it){const p=this.profile,w=p.wallet;
-  if(it.kind==='truck'||it.kind==='trailer'){const owned=p.owned.includes(it.id),sel=it.kind==='truck'?p.truck===it.id:p.trailerPaint===it.id;return {owned,selected:sel,price:it.cost,locked:!owned&&w<it.cost};}
-  if(it.kind==='decal'){const owned=p.ownedDecals.includes(it.id),t=this.target,sel=t==='cab'?p.decal===it.id:t==='trailer'?p.trailerDecal===it.id:p.decal===it.id&&p.trailerDecal===it.id;return {owned,selected:sel,price:it.cost,locked:!owned&&w<it.cost};}
+  if(it.kind==='truck'||it.kind==='trailer'){const owned=(it.kind==='truck'?p.owned:p.ownedTrailer).includes(it.id),sel=it.kind==='truck'?p.truck===it.id:p.trailerPaint===it.id;return {owned,selected:sel,price:it.cost,locked:!owned&&w<it.cost};}
+  if(it.kind==='decal'){const t=this.target,oc=p.ownedDecals.includes(it.id),ot=p.ownedDecalsTrailer.includes(it.id),parts=t==='both'?['cab','trailer']:[t],missing=parts.filter(x=>!(x==='cab'?oc:ot)).length,price=it.cost*Math.max(1,missing),sel=t==='cab'?p.decal===it.id:t==='trailer'?p.trailerDecal===it.id:p.decal===it.id&&p.trailerDecal===it.id;return {owned:missing===0,selected:sel,price,locked:missing>0&&w<price};}
   const lv=p.upgrades[it.id],maxed=lv>=3,price=maxed?0:upgradePrice(it.cost,lv);return {lv,maxed,price,owned:lv>0,locked:!maxed&&w<price};
  }
  art(it){
@@ -2401,7 +2411,7 @@ class Garage{
   else meta=s.selected?'ON THE ROAD':s.owned?'OWNED':this.money(s.price);
   return "<div class='gcard "+(s.locked?'locked':'')+" "+(s.selected?'equipped':'')+"'>"+this.art(it)+(s.locked?"<b class='lockbadge'>"+LOCK+"</b>":'')+"<span class='gname'>"+it.name.replace(/^THE /,'')+"</span><span class='gmeta'>"+meta+"</span></div>";}
  open(){this.root.classList.remove('hidden');this.root.classList.add('opening');setTimeout(()=>this.root.classList.remove('opening'),600);this.running=true;
-  this.chase=this.profile.settings.view==='chase'||/[?&]chase/.test(location.search);this.preview=new (this.chase?ChaseRenderer:Renderer)(this.canvas,this.images,this.profile.settings,{fixedWidth:true});this.images_r=this.preview;
+  this.chase=this.profile.settings.view==='chase'||/[?&]chase/.test(location.search);this.root.classList.toggle('chase',this.chase);this.root.classList.remove('peek');this.preview=new (this.chase?ChaseRenderer:Renderer)(this.canvas,this.images,this.profile.settings,{fixedWidth:true});this.images_r=this.preview;
   this.setTab(this.tab,true);this.last=performance.now();const loop=t=>{if(!this.running)return;this.draw((t-this.last)/1000);this.last=t;requestAnimationFrame(loop);};requestAnimationFrame(loop);}
  close(){this.running=false;this.root.classList.add('hidden');this.sound.play('click');this.onExit?.();}
  setTab(tab,first){this.tab=tab;const items=this.items();
@@ -2438,18 +2448,23 @@ class Garage{
   else if(s.selected){a.className='big-button done';a.innerHTML="<span>ON THE ROAD ✓ · "+part+"</span>";a.disabled=true;}
   else if(s.owned){a.innerHTML="<span>FIT TO "+part+"</span><b>➜</b>";}
   else{a.innerHTML="<span>BUY · "+this.money(s.price)+" · "+part+"</span><b>➜</b>";badge.className='stage-badge try';badge.innerHTML="<span>TRYING IT ON</span>";}
-  // "Match both": an owned paint can be fitted to the cab and the trailer in one go.
-  if((it.kind==='truck'||it.kind==='trailer')&&s.owned&&!(p.truck===it.id&&p.trailerPaint===it.id)){both.classList.remove('hidden');both.textContent='FIT TO CAB + TRAILER';}
-  this.locked=!!s.locked;this.wheel.refresh();
+  // Cab and trailer paints are bought separately; one button buys or fits the pair.
+  if(it.kind==='truck'||it.kind==='trailer'){const oc=p.owned.includes(it.id),ot=p.ownedTrailer.includes(it.id);if(!(p.truck===it.id&&p.trailerPaint===it.id)){const miss=(oc?0:1)+(ot?0:1),price=it.cost*miss;both.classList.remove('hidden');both.textContent=miss?'BUY CAB + TRAILER · '+this.money(price):'FIT TO CAB + TRAILER';both.classList.toggle('locked',miss>0&&p.wallet<price);}}
+  if(this.chase&&it.kind==='upgrade')this._badgeKey='';
+  this._fit=0;this.locked=!!s.locked;this.wheel.refresh();
  }
  tapCenter(){const it=this.cur(),s=this.st(it);if(it.kind!=='upgrade'&&s.owned&&!s.selected)this.act();else{this.sound.honk();this.bump();}}
  bump(){this.pop=1;}
- act(both){const it=this.cur(),s=this.st(it),p=this.profile;
-  if(s.locked){this.sound.play('flush',.6);this.bump();this.root.classList.add('shake');setTimeout(()=>this.root.classList.remove('shake'),400);this.haptic('heavy');return;}
-  const buy=(list)=>{if(!s.owned){p.wallet-=s.price;list.push(it.id);this.celebrate();}else this.sound.honk();};
-  if(it.kind==='upgrade'){if(s.maxed)return;p.wallet-=s.price;p.upgrades[it.id]++;this.celebrate();}
-  else if(it.kind==='truck'||it.kind==='trailer'){buy(p.owned);if(both){p.truck=it.id;p.trailerPaint=it.id;}else if(it.kind==='truck')p.truck=it.id;else p.trailerPaint=it.id;}
-  else{buy(p.ownedDecals);if(this.target!=='trailer')p.decal=it.id;if(this.target!=='cab')p.trailerDecal=it.id;}
+ act(both){const it=this.cur(),s=this.st(it),p=this.profile,shake=()=>{this.sound.play('flush',.6);this.bump();this.root.classList.add('shake');setTimeout(()=>this.root.classList.remove('shake'),400);this.haptic('heavy');};
+  if(it.kind==='upgrade'){if(s.locked)return shake();if(s.maxed)return;p.wallet-=s.price;p.upgrades[it.id]++;this.celebrate();}
+  else{
+   const isPaint=it.kind!=='decal',parts=it.kind==='truck'?(both?['cab','trailer']:['cab']):it.kind==='trailer'?(both?['cab','trailer']:['trailer']):(this.target==='both'?['cab','trailer']:[this.target]);
+   const own=pt=>isPaint?(pt==='cab'?p.owned:p.ownedTrailer):(pt==='cab'?p.ownedDecals:p.ownedDecalsTrailer);
+   const missing=parts.filter(pt=>!own(pt).includes(it.id)),price=it.cost*missing.length;
+   if(p.wallet<price)return shake();
+   if(missing.length){p.wallet-=price;for(const pt of missing)own(pt).push(it.id);this.celebrate();}else this.sound.honk();
+   for(const pt of parts){if(isPaint){if(pt==='cab')p.truck=it.id;else p.trailerPaint=it.id;}else{if(pt==='cab')p.decal=it.id;else p.trailerDecal=it.id;}}
+  }
   this.save();this.onChange?.();this.update();}
  celebrate(){this.sound.play('cash');this.sound.honk();this.sound.rev(1);this.haptic('heavy');this.bump();
   for(let i=0;i<46;i++){const a=Math.random()*6.283,v=70+Math.random()*190;this.spark.push({x:0,y:0,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:.8+Math.random()*.7,age:0,r:2+Math.random()*4});}
@@ -2472,19 +2487,41 @@ class Garage{
  }
  /* Chase-view preview: the real chase camera on a quiet, slow-rolling road, zoomed in on the rig so paint, decals and either rig
     configuration (with trailer / cab only) are shown exactly as they will look when driving. */
+ /* keep the truck in the part of the screen the menu sheet leaves free */
+ fitStage(){const r=this.preview;if(!r||!this.chase)return;const cb=this.canvas.getBoundingClientRect(),pb=this.q('.garage-panel').getBoundingClientRect();if(!cb.height)return;
+  const free=Math.max(120,pb.top-cb.top-6),f=Math.max(.3,Math.min(.82,free/cb.height));r.y0f=.03;r.truckScale=Math.max(.8,Math.min(1.2,free/330));r.yTf=f;r.yT=r.H*f;r.playerY=r.yT-120;}
  drawChase(r,c,W,H,dt){
-  this.pop=Math.max(0,this.pop-dt*2.4);const pv=this.pv(),t=r.time+dt,bare=this.rigView==='cab';
-  this.cdist=(this.cdist||4000)+dt*260;this.sway=Math.sin(t*.9)*.9;
-  const g={seed:11,distance:this.cdist,x:2+this.sway*.12,lane:2,trailer:2,rear:2,angle:Math.sin(t*.9-.5)*.1,sway:Math.sin(t*1.3)*.4,speed:260,time:t,items:[],sheep:null,leaving:[],hasTrailer:!bare,job:null,grip:0,boost:Math.max(0,Math.sin(t*.7)*3),shield:false,invulnerable:0,night:null,
-   upgrades:pv.upgrades,truck:pv.truck,decal:pv.decal,trailerPaint:pv.trailerPaint,trailerDecal:pv.trailerDecal,hornAge:this.pop>0?(1-this.pop)*.35:9,finished:false,lives:0,combo:0,money:0,multiplier:1,stage:0,offroad:0,surface:'asphalt',detached:[],effects:[]};
-  const z=1.35+this.pop*.05;c.save();c.translate(W/2,H*.99);c.scale(z,z);c.translate(-W/2,-H*.99);
+  this.pop=Math.max(0,this.pop-dt*2.4);
+  if(!this._fit||this._fit<t0()){this._fit=t0()+400;this.fitStage();}
+  const it=this.cur(),pv=this.pv(),p=this.profile,t=this.ct=(this.ct||0)+dt,bare=this.rigView==='cab',id=it.kind==='upgrade'?it.id:'';
+  // Upgrades are shown by doing them: it alternates (5 s each) between what you have now and the next level.
+  const up={...p.upgrades};let next=false,cur=0;
+  if(id){cur=p.upgrades[id];if(cur<3){next=Math.floor(t/5)%2===1;up[id]=next?cur+1:cur;}}
+  else Object.assign(up,pv.upgrades);
+  const S=this.sim||(this.sim={x:2,tr:2,dist:5000,flame:0}),steer=up.steering||0,stab=up.stability||0,susp=up.suspension||0,eng=up.engine||0;
+  const swoop=id==='steering'||id==='stability'||id==='suspension';
+  const target=swoop?2+Math.tanh(3.2*Math.sin(t*1.25))*1.5:2+Math.sin(t*.7)*.32;
+  S.x+=(target-S.x)*(1-Math.exp(-dt*(swoop?3.4:5)*(1+.12*steer)));
+  S.tr+=(S.x-S.tr)*(1-Math.exp(-dt*3*(1+.2*stab)));
+  const surge=(id==='engine'||id==='exhaust')?Math.max(0,Math.sin(t*1.1)):0;
+  S.dist+=dt*(250+90*surge)*(1+.05*eng);
+  const night=id==='lights',items=[];
+  if(night||id==='horn'||id==='insurance'){const base=Math.ceil(S.dist/230)*230;for(let k=0;k<10;k++){const z=base+k*230,h=(z/230)*2654435761>>>0,lane=h%5,ty=h%7===0?'cone':h%11===0?'car':'coin';items.push({id:z,type:ty,lane,z,done:false,collectible:ty==='coin'});}}
+  const g={seed:GARAGE_SEED,distance:S.dist,x:S.x,lane:2,trailer:S.tr,rear:2,angle:clamp2((S.x-S.tr)*.62*(1-.08*susp),.85),sway:Math.abs(S.x-S.tr)*.3,speed:250*(1+.05*eng),time:t,items,sheep:null,leaving:[],hasTrailer:!bare,job:null,grip:0,
+   boost:(id==='engine'||id==='exhaust')&&surge>.55?1:Math.max(0,Math.sin(t*.7)*3)*(id?0:1),shield:id==='insurance'&&Math.floor(t*3)%6<4,invulnerable:0,night:night?{start:0,end:1e9}:null,
+   upgrades:up,truck:pv.truck,decal:pv.decal,trailerPaint:pv.trailerPaint,trailerDecal:pv.trailerDecal,hornAge:this.pop>0?(1-this.pop)*.35:9,finished:false,lives:0,combo:0,money:0,multiplier:1,stage:1,offroad:0,surface:'asphalt',detached:[],effects:[]};
   try{r.draw(g,dt,pv.truck);}catch(e){console.error(e);}
-  c.restore();
   if(this.locked){c.save();c.fillStyle='#8ff3ff1c';const off2=(t*28)%6;for(let y=off2;y<H;y+=6)c.fillRect(0,y,W,2);c.restore();}
-  c.save();c.translate(W/2,H*.62);for(const sp of this.spark){sp.age+=dt;sp.x+=sp.vx*dt;sp.y+=sp.vy*dt;sp.vy+=140*dt;const a=Math.max(0,1-sp.age/sp.life);c.globalAlpha=a;c.fillStyle='#fff3b0';c.beginPath();c.arc(sp.x,sp.y,sp.r,0,6.283);c.fill();}c.restore();
+  c.save();c.translate(W/2,H*.4);for(const sp of this.spark){sp.age+=dt;sp.x+=sp.vx*dt;sp.y+=sp.vy*dt;sp.vy+=140*dt;const a=Math.max(0,1-sp.age/sp.life);c.globalAlpha=a;c.fillStyle='#fff3b0';c.beginPath();c.arc(sp.x,sp.y,sp.r,0,6.283);c.fill();}c.restore();
   this.spark=this.spark.filter(sp=>sp.age<sp.life);
+  // A / B label
+  const badge=this.q('#stageBadge'),key=id&&cur<3?(next?'B':'A')+id+cur:'';
+  if(key&&this._badgeKey!==key){this._badgeKey=key;badge.className='stage-badge '+(next?'try':'');badge.innerHTML=next?'<span>▲ WITH UPGRADE · LEVEL '+(cur+1)+'</span>':'<span>NOW · LEVEL '+cur+'</span>';}
+  else if(!key)this._badgeKey='';
  }
 }
+const clamp2=(v,m)=>Math.max(-m,Math.min(m,v));
+const t0=()=>performance.now();
 
 module.exports={Garage};
 
@@ -2503,13 +2540,13 @@ const {JOKES,jokeOrder}=require("./jokes.js");
 const $=id=>document.getElementById(id),money=v=>'£'+Math.max(0,Math.round(v)).toLocaleString('en-GB');
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const KEY='truckin-save-v1';
-const defaults={version:1,name:'',player:globalThis.crypto?.randomUUID?.()||'driver-'+Date.now()+'-'+Math.random().toString(36).slice(2),wallet:0,best:0,truck:0,trailerPaint:1,owned:[0,1],upgrades:defaultUpgrades(),decal:0,trailerDecal:0,ownedDecals:[0],scores:[],stats:{jobs:0,horns:0,tacos:0,doubles:0},settings:{music:.7,sfx:.8,haptics:true,tall:false,view:'top',motion:!matchMedia('(prefers-reduced-motion: reduce)').matches},tutorial:false};
+const defaults={version:1,name:'',player:globalThis.crypto?.randomUUID?.()||'driver-'+Date.now()+'-'+Math.random().toString(36).slice(2),wallet:0,best:0,truck:0,trailerPaint:1,owned:[0,1],ownedTrailer:[0,1],ownedDecalsTrailer:[0],upgrades:defaultUpgrades(),decal:0,trailerDecal:0,ownedDecals:[0],scores:[],stats:{jobs:0,horns:0,tacos:0,doubles:0},settings:{music:.7,sfx:.8,haptics:true,tall:false,view:'top',motion:!matchMedia('(prefers-reduced-motion: reduce)').matches},tutorial:false};
 let saved={};try{saved=JSON.parse(localStorage.getItem(KEY)||'{}');}catch{}
 const profile={...defaults,...saved,upgrades:normalizeUpgrades(saved.upgrades),settings:{...defaults.settings,...saved.settings},stats:{...defaults.stats,...saved.stats}};
 profile.wallet=clamp(Number(profile.wallet)||0,0,1e9);profile.best=clamp(Number(profile.best)||0,0,1e9);
 profile.scores=Array.isArray(profile.scores)?profile.scores.slice(0,30):[];
-profile.owned=Array.isArray(profile.owned)?profile.owned.filter(v=>PAINT_IDS.includes(v)):[0];for(const id of [0,1])if(!profile.owned.includes(id))profile.owned.push(id);if(!profile.owned.includes(profile.truck))profile.truck=0;if(!profile.owned.includes(profile.trailerPaint))profile.trailerPaint=1;
-profile.ownedDecals=Array.isArray(profile.ownedDecals)?profile.ownedDecals.filter(v=>DECAL_IDS.includes(v)):[0];if(!profile.ownedDecals.includes(0))profile.ownedDecals.push(0);if(!profile.ownedDecals.includes(profile.decal))profile.decal=0;if(!profile.ownedDecals.includes(profile.trailerDecal))profile.trailerDecal=0;
+profile.owned=Array.isArray(profile.owned)?profile.owned.filter(v=>PAINT_IDS.includes(v)):[0];for(const id of [0,1])if(!profile.owned.includes(id))profile.owned.push(id);if(!profile.owned.includes(profile.truck))profile.truck=0;profile.ownedTrailer=Array.isArray(saved.ownedTrailer)?saved.ownedTrailer.filter(v=>PAINT_IDS.includes(v)):[...profile.owned];for(const id of [0,1])if(!profile.ownedTrailer.includes(id))profile.ownedTrailer.push(id);if(!profile.ownedTrailer.includes(profile.trailerPaint))profile.trailerPaint=1;
+profile.ownedDecals=Array.isArray(profile.ownedDecals)?profile.ownedDecals.filter(v=>DECAL_IDS.includes(v)):[0];if(!profile.ownedDecals.includes(0))profile.ownedDecals.push(0);if(!profile.ownedDecals.includes(profile.decal))profile.decal=0;profile.ownedDecalsTrailer=Array.isArray(saved.ownedDecalsTrailer)?saved.ownedDecalsTrailer.filter(v=>DECAL_IDS.includes(v)):[...profile.ownedDecals];if(!profile.ownedDecalsTrailer.includes(0))profile.ownedDecalsTrailer.push(0);if(!profile.ownedDecalsTrailer.includes(profile.trailerDecal))profile.trailerDecal=0;
 let storageWarning=false;function save(){if(game&&!game.finished&&['playing','paused','countdown'].includes(state)){profile.active={data:game.snapshot(),id:onlineId};}else if(game?.finished){delete profile.active;}try{localStorage.setItem(KEY,JSON.stringify(profile));bridge('saveProgress',{data:JSON.stringify(profile)});}catch{storageWarning=true;}}
 const sound=new Sound(profile.settings);sound.preload();let renderer,game=null,state='home',activeSheet='',lastTime=0,toastUntil=0,onlineId=null,runRequest=null,runSerial=0,ending=false,scoreMode='all',leaderTimer=null,wasFocus=null,lastHorn=-10,comicTimer=null,countdownTimer=null;
 const native=()=>!!window.webkit?.messageHandlers?.truckin;
