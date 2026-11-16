@@ -87,7 +87,7 @@ export class ChaseRenderer extends Renderer{
  draw(g,dt,truckIndex){
   {const e=this._ema=(this._ema||.016)*.94+Math.min(.1,dt||.016)*.06,q=e>.034?2:e>.024?1:0;if((this.q||0)<q){this.q=q;this.maxDpr=q>1?1:1.5;this.resize();}}
   this.g=g;const c=this.ctx,pad=this.pad,W=420+2*pad,H=this.H;c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';this.time+=dt;
-  const S=this.zoomF||1.3,CB=this.CB=CAMBACK*S,yb0=H*(this.y0f||.34),y0=this.y0=this.yT-(this.yT-yb0)*S,A=this.A=(this.yT-y0)*CAMBACK,camZ=g.distance-CAMBACK,tx=laneX(g.x,g.distance);
+  const S=this.zoomF||1.3,CB=this.CB=CAMBACK*S,yb0=H*(this.y0f||.34),y0=this.y0=this.yT-(this.yT-yb0)*(this.zoomY||S*1.1),A=this.A=(this.yT-y0)*CAMBACK,camZ=g.distance-CAMBACK,tx=laneX(g.x,g.distance);
   const camX=this.camX=210+(tx-210)*.55,cx=210,seed=g.seed;
   this.finishPro ||= new ChaseFinishPro(this);this.finishPro.begin(g,dt);
   this.detailPro ||= new ChaseDetailPro(this);

@@ -2019,7 +2019,7 @@ class ChaseRenderer extends Renderer{
  draw(g,dt,truckIndex){
   {const e=this._ema=(this._ema||.016)*.94+Math.min(.1,dt||.016)*.06,q=e>.034?2:e>.024?1:0;if((this.q||0)<q){this.q=q;this.maxDpr=q>1?1:1.5;this.resize();}}
   this.g=g;const c=this.ctx,pad=this.pad,W=420+2*pad,H=this.H;c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';this.time+=dt;
-  const S=this.zoomF||1.3,CB=this.CB=CAMBACK*S,yb0=H*(this.y0f||.34),y0=this.y0=this.yT-(this.yT-yb0)*S,A=this.A=(this.yT-y0)*CAMBACK,camZ=g.distance-CAMBACK,tx=laneX(g.x,g.distance);
+  const S=this.zoomF||1.3,CB=this.CB=CAMBACK*S,yb0=H*(this.y0f||.34),y0=this.y0=this.yT-(this.yT-yb0)*(this.zoomY||S*1.1),A=this.A=(this.yT-y0)*CAMBACK,camZ=g.distance-CAMBACK,tx=laneX(g.x,g.distance);
   const camX=this.camX=210+(tx-210)*.55,cx=210,seed=g.seed;
   this.finishPro ||= new ChaseFinishPro(this);this.finishPro.begin(g,dt);
   this.detailPro ||= new ChaseDetailPro(this);
@@ -2489,7 +2489,7 @@ class Garage{
     configuration (with trailer / cab only) are shown exactly as they will look when driving. */
  /* keep the truck in the part of the screen the menu sheet leaves free */
  fitStage(){const r=this.preview;if(!r||!this.chase)return;const cb=this.canvas.getBoundingClientRect(),pb=this.q('.garage-panel').getBoundingClientRect();if(!cb.height)return;
-  const free=Math.max(120,pb.top-cb.top-6),f=Math.max(.3,Math.min(.82,free/cb.height));r.zoomF=1;r.y0f=.03;r.truckScale=Math.max(.8,Math.min(1.2,free/330));r.yTf=f;r.yT=r.H*f;r.playerY=r.yT-120;}
+  const free=Math.max(120,pb.top-cb.top-6),f=Math.max(.3,Math.min(.82,free/cb.height));r.zoomF=1;r.zoomY=1;r.y0f=.03;r.truckScale=Math.max(.8,Math.min(1.2,free/330));r.yTf=f;r.yT=r.H*f;r.playerY=r.yT-120;}
  drawChase(r,c,W,H,dt){
   this.pop=Math.max(0,this.pop-dt*2.4);
   if(!this._fit||this._fit<t0()){this._fit=t0()+400;this.fitStage();}
