@@ -1957,7 +1957,7 @@ const HAZE=[222,233,226];
 const FLAT={pit:1,mud:1,oil:1,grass:1};
 class ChaseRenderer extends Renderer{
  maxDpr=2;
- resize(){super.resize();this.yT=this.H*(this.yTf||.875);this.playerY=this.yT-120;this.worldScale=.72;this.camX=this.camX||210;}
+ resize(){super.resize();this.yT=this.H*(this.yTf||.985);this.playerY=this.yT-120;this.worldScale=.72;this.camX=this.camX||210;}
  /* screen x of a lane at the truck's depth (used for cash pop-ups and night lights) */
  x(lane){return 210+(54+78*lane-(this.camX||210))*(this.zoomF||1.3);}
  project(lane,z,rawX){const g=this.g,zr=z-(g.distance-CAMBACK),sc=(this.CB||CAMBACK)/zr,wx=rawX??(54+78*lane);return {x:210+(wx-this.camX)*sc,y:this.y0+this.A/zr,s:sc};}
