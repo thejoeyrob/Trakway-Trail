@@ -24,11 +24,11 @@ const THEME_GROUND=[[160,154,144],[82,158,58],[92,170,66],[201,166,107]];   // t
 const HAZE=[222,233,226];
 const FLAT={pit:1,mud:1,oil:1,grass:1};
 export class ChaseRenderer extends Renderer{
- maxDpr=1.5;
+ maxDpr=2;
  resize(){super.resize();this.yT=this.H*(this.yTf||.8);this.playerY=this.yT-120;this.worldScale=.72;this.camX=this.camX||210;}
  /* screen x of a lane at the truck's depth (used for cash pop-ups and night lights) */
- x(lane){return 210+(54+78*lane-(this.camX||210));}
- project(lane,z,rawX){const g=this.g,zr=z-(g.distance-CAMBACK),sc=CAMBACK/zr,wx=rawX??(54+78*lane);return {x:210+(wx-this.camX)*sc,y:this.y0+this.A/zr,s:sc};}
+ x(lane){return 210+(54+78*lane-(this.camX||210))*(this.zoomF||1.3);}
+ project(lane,z,rawX){const g=this.g,zr=z-(g.distance-CAMBACK),sc=(this.CB||CAMBACK)/zr,wx=rawX??(54+78*lane);return {x:210+(wx-this.camX)*sc,y:this.y0+this.A/zr,s:sc};}
  billboard(c,key,w,h,t,id=0){
   const variants={car:['car','carBlue','carVan'],house:['house','cottage'],shop:['shop','pub'],
    garage:['garage','barn'],tree:['tree','poplar']};
@@ -85,9 +85,9 @@ export class ChaseRenderer extends Renderer{
   this._cs={key,c,col};return this._cs;
  }
  draw(g,dt,truckIndex){
-  {const e=this._ema=(this._ema||.016)*.94+Math.min(.1,dt||.016)*.06,q=e>.034?2:e>.024?1:0;if((this.q||0)<q){this.q=q;this.maxDpr=q>1?1:1.25;this.resize();}}
-  this.g=g;const c=this.ctx,pad=this.pad,W=420+2*pad,H=this.H;this.time+=dt;
-  const y0=this.y0=H*(this.y0f||.2),A=this.A=(this.yT-y0)*CAMBACK,camZ=g.distance-CAMBACK,tx=laneX(g.x,g.distance);
+  {const e=this._ema=(this._ema||.016)*.94+Math.min(.1,dt||.016)*.06,q=e>.034?2:e>.024?1:0;if((this.q||0)<q){this.q=q;this.maxDpr=q>1?1:1.5;this.resize();}}
+  this.g=g;const c=this.ctx,pad=this.pad,W=420+2*pad,H=this.H;c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';this.time+=dt;
+  const S=this.zoomF||1.3,CB=this.CB=CAMBACK*S,yb0=H*(this.y0f||.34),y0=this.y0=this.yT-(this.yT-yb0)*S,A=this.A=(this.yT-y0)*CAMBACK,camZ=g.distance-CAMBACK,tx=laneX(g.x,g.distance);
   const camX=this.camX=210+(tx-210)*.55,cx=210,seed=g.seed;
   this.finishPro ||= new ChaseFinishPro(this);this.finishPro.begin(g,dt);
   this.detailPro ||= new ChaseDetailPro(this);
@@ -101,7 +101,7 @@ export class ChaseRenderer extends Renderer{
   const LL=15,RR=405,marks=[];for(const d of decoAt(camZ,camZ+FAR*3,seed)){if(d.type==='zebra')marks.push({t:'zebra',z0:d.z,z1:d.z+d.len,side:d.side});else if(d.type==='junction')marks.push({t:'junction',z0:d.z,z1:d.z+d.len,side:d.side});}
   // ---- the ground and the road, row by row. The road never bends or sways: five fixed lanes. A lane is tarmac where the map has a
   //      drivable surface under it, and grass or river where it doesn't (that is the hazard: you have to move over). ----
-  {const cv=this.canvas,RS=(this.q||0)>0?.5:.62,rw=Math.round(cv.width*RS),rh=Math.round(cv.height*RS);   // the ground and road are drawn at reduced resolution (fill-rate), the painted sprites stay sharp
+  {const cv=this.canvas,RS=(this.q||0)>0?.5:.78,rw=Math.round(cv.width*RS),rh=Math.round(cv.height*RS);   // the ground and road are drawn at reduced resolution (fill-rate), the painted sprites stay sharp
    if(!this._rows||this._rows.width!==rw||this._rows.height!==rh){this._rows=document.createElement('canvas');this._rows.width=rw;this._rows.height=rh;}
    const rc=this._rows.getContext('2d');rc.setTransform(1,0,0,1,0,0);rc.clearRect(0,0,rw,rh);const T=c.getTransform();rc.setTransform(T.a*RS,T.b*RS,T.c*RS,T.d*RS,T.e*RS,T.f*RS);
    {const c=rc;
@@ -113,7 +113,7 @@ export class ChaseRenderer extends Renderer{
    c.fillRect(x1,curYt,x2-x1,curHh);};
   for(let y=H;y>y0+3;y-=step){
    const yt=snap(y-step),hh=snap(y)-yt;curYt=yt;curHh=hh;
-   const zn=A/(y-y0),zf=A/(yt-y0);if(zf>FAR*9)break;const zm=(zn+zf)/2,zw=camZ+zm,sn=CAMBACK/zn,fog=Math.min(1,Math.pow(zm/FAR,1.7));
+   const zn=A/(y-y0),zf=A/(yt-y0);if(zf>FAR*9)break;const zm=(zn+zf)/2,zw=camZ+zm,sn=CB/zn,fog=Math.min(1,Math.pow(zm/FAR,1.7));
    const a=roadAt(zw,seed),bs=a.bands,ln=a.lanes,biome=a.biome,X=u=>cx+(u-camX)*sn,lw=Math.max(1.1,2.2*sn),dash=Math.floor(zw/55)%2===0,pv=PAVE[biome];
    fillSpan(GPAT[biome]===7?7:GPAT[biome],rgb(GCOL[biome]),-pad,420+pad,y,sn,zw,zm);
    this.worldPro.groundDetail(c,{th:biome==='city'?0:biome==='country'?1:2,y,zw,sn,fog,pad});
@@ -178,8 +178,8 @@ export class ChaseRenderer extends Renderer{
   L.push({zr:CAMBACK,k:'truck'});
   L.sort((a,b)=>b.zr-a.zr);
   for(const o of L){
-   const sc=CAMBACK/o.zr,y=y0+A/o.zr,fog=Math.min(1,Math.pow(o.zr/FAR,1.4));
-   if(o.k==='truck'){this.drawTruck(g,cx+(tx-camX),y,dt);continue;}
+   const sc=CB/o.zr,y=y0+A/o.zr,fog=Math.min(1,Math.pow(o.zr/FAR,1.4));
+   if(o.k==='truck'){this.drawTruck(g,cx+(tx-camX)*S,y,dt);continue;}
    c.save();c.globalAlpha=1-fog*.55;
    const sh=0;
    if(o.k==='lot')this.drawLot(c,o.lot,camZ,fog);
@@ -212,8 +212,8 @@ export class ChaseRenderer extends Renderer{
   if(!g.night)return;const c=this.ctx,pad=this.pad,full=Math.ceil(420+2*pad),H=this.H,L=Math.min(3,g.upgrades&&g.upgrades.lights||0);
   if(!this.dark)this.dark=document.createElement('canvas');if(this.dark.width!==full)this.dark.width=full;if(this.dark.height!==Math.ceil(H))this.dark.height=Math.ceil(H);
   const m=this.dark.getContext('2d');m.setTransform(1,0,0,1,0,0);m.clearRect(0,0,full,H);m.fillStyle='rgba(4,9,26,.90)';m.fillRect(0,0,full,H);
-  const D=[460,680,950,1350][L],spread=.22+.04*L,hw0=44+6*L,y0=this.y0,A=this.A,tx=210+(laneX(g.x,g.distance)-this.camX)+pad;
-  const yN=this.yT+34,yF=y0+A/(CAMBACK+D),swF=(hw0+D*spread)*CAMBACK/(CAMBACK+D),swN=hw0+34*.2;
+  const D=[460,680,950,1350][L],spread=.22+.04*L,hw0=44+6*L,y0=this.y0,A=this.A,tx=210+(laneX(g.x,g.distance)-this.camX)*(this.zoomF||1.3)+pad;
+  const yN=this.yT+34,yF=y0+A/(CAMBACK+D),swF=(hw0+D*spread)*(this.CB||CAMBACK)/(CAMBACK+D),swN=(hw0+7)*((this.CB||CAMBACK)/CAMBACK);
   m.globalCompositeOperation='destination-out';
   for(const [k,al] of[[1.5,.28],[1.2,.5],[1,.95]]){const gr=m.createLinearGradient(0,yN,0,yF);gr.addColorStop(0,'rgba(0,0,0,'+al+')');gr.addColorStop(.55,'rgba(0,0,0,'+al*.62+')');gr.addColorStop(1,'rgba(0,0,0,0)');
    m.fillStyle=gr;m.beginPath();m.moveTo(tx-swN*k,yN);m.lineTo(tx+swN*k,yN);m.lineTo(tx+swF*k,yF);m.lineTo(tx-swF*k,yF);m.closePath();m.fill();}
@@ -230,7 +230,7 @@ export class ChaseRenderer extends Renderer{
   const vx=dt>0?(x-(this._px??x))/dt:0;this._px=x;this._vx=(this._vx||0)*.82+clamp(vx,-900,900)*.18;
   const lean=clamp(this._vx/9000,-.045,.045)+clamp((g.lane-g.x)*.014,-.04,.04),swing=clamp((g.angle||0)*.16,-.1,.1);
   const bob=this.settings.motion?Math.sin(this.time*(g.boost>0?24:13))*(1+Math.min(1,g.speed/700))*.7:0,shake=this.settings.motion&&g.boost>0?Math.sin(this.time*60)*1.2:0;
-  c.save();c.translate(x,y+bob);{const ks=this.truckScale||1;if(ks!==1)c.scale(ks,ks);}c.fillStyle='rgba(6,14,10,.38)';c.beginPath();c.ellipse(0,2,bare?44:64,bare?9:13,0,0,TAU);c.fill();
+  c.save();c.translate(x,y+bob);{const ks=(this.truckScale||1)*(this.zoomF||1.3);if(ks!==1)c.scale(ks,ks);}c.fillStyle='rgba(6,14,10,.38)';c.beginPath();c.ellipse(0,2,bare?44:64,bare?9:13,0,0,TAU);c.fill();
   c.globalAlpha=g.invulnerable>0&&Math.floor(this.time*13)%2===0?.55:1;
   const tw=bare?64:90;
   if(bare){const th=tw*1.02,cs=this.cabSprite(g);c.rotate(lean*.8);c.translate(shake,0);ART.cabRear(c,tw,th,this.time,{col:cs?cs.col:(CAB_COL[g.truck]||CAB_COL[0]),boost:g.boost>0});
@@ -251,8 +251,8 @@ export class ChaseRenderer extends Renderer{
   if(!NOFACADE.includes(st)){
    const tex=facadeTexture(st,lot.v,lot.h,lot.side);let za=Math.max(zs,48);const far=za>1300;
    c.save();c.globalAlpha=Math.max(.05,1-fog*.9);
-   while(za<ze){const dz=Math.max(2,Math.min(far?140:70,1.5*za*za/(Math.abs(dxp)*CAMBACK+1))),zb=Math.min(ze,za+dz),sa=CAMBACK/za,sb=CAMBACK/zb,xa=210+dxp*sa,xb=210+dxp*sb,xl=Math.min(xa,xb),xr=Math.max(xa,xb);
-    if(xr>-pad-20&&xl<440+pad){const zm=(za+zb)/2,yb=y0+A/zm,hp=lot.h*CAMBACK/zm;let u0=(za-zs)/lot.len,u1=(zb-zs)/lot.len;if(lot.side<0){u0=1-u0;u1=1-u1;}
+   while(za<ze){const dz=Math.max(2,Math.min(far?140:70,1.5*za*za/(Math.abs(dxp)*this.CB+1))),zb=Math.min(ze,za+dz),sa=this.CB/za,sb=this.CB/zb,xa=210+dxp*sa,xb=210+dxp*sb,xl=Math.min(xa,xb),xr=Math.max(xa,xb);
+    if(xr>-pad-20&&xl<440+pad){const zm=(za+zb)/2,yb=y0+A/zm,hp=lot.h*this.CB/zm;let u0=(za-zs)/lot.len,u1=(zb-zs)/lot.len;if(lot.side<0){u0=1-u0;u1=1-u1;}
      const sx=Math.min(u0,u1)*tex.width,sw=Math.max(.6,Math.abs(u1-u0)*tex.width);c.drawImage(tex,sx,0,Math.min(sw,tex.width-sx),tex.height,xl,yb-hp,xr-xl+.8,hp);}
     za=zb;}
    c.restore();}
@@ -260,7 +260,7 @@ export class ChaseRenderer extends Renderer{
   const hs=lot.hs,trees=st==='park'?3:st==='wood'?4:st==='field'?2:st==='cottage'||st==='barn'||st==='semi'?1:st==='embank'?2:0,lamp=(st==='terrace'||st==='semi'||st==='shops'||st==='flats'||st==='tower'||st==='park');
   if(this.q>0&&trees>1)return;
   for(let i=0;i<trees+(lamp?2:0);i++){const isLamp=i>=trees,zz=lot.z+lot.len*(isLamp?(.15+.7*(i-trees)):(.1+.8*(((hs>>>(i*3))&7)/7))),zr=zz-camZ;if(zr<CAMBACK*.6||zr>FAR)continue;
-   const off=isLamp?(lot.side<0?lot.pave*.35:-lot.pave*.35):lot.side*(24+((hs>>>(i*4+2))&15)*(st==='wood'?9:5)),X=isLamp?(lot.side<0?15-lot.pave*.3:405+lot.pave*.3):lot.x+off,sc=CAMBACK/zr,y=y0+A/zr,x=210+(X-camX)*sc;if(x<-100||x>520+pad)continue;
+   const off=isLamp?(lot.side<0?lot.pave*.35:-lot.pave*.35):lot.side*(24+((hs>>>(i*4+2))&15)*(st==='wood'?9:5)),X=isLamp?(lot.side<0?15-lot.pave*.3:405+lot.pave*.3):lot.x+off,sc=this.CB/zr,y=y0+A/zr,x=210+(X-camX)*sc;if(x<-100||x>520+pad)continue;
    c.save();c.globalAlpha=Math.max(.05,1-Math.min(1,Math.pow(zr/FAR,1.7))*.9);
    if(isLamp){this.castShadow(c,x,y,10*sc,60*sc,'lamp');ART.lamp(c,16*sc,64*sc,this.time,{});}
    else{const k=(st==='wood'||((hs>>>5)&1))?'tree':'poplar',sz=SIZE.tree;this.castShadow(c,x,y,sz[0]*sc*.8,sz[1]*sc*.8,'tree');this.billboard(c,k==='poplar'?'tree':'tree',sz[0]*sc*.9,sz[1]*sc*.9,this.time,hs+i);}
