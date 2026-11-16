@@ -87,7 +87,7 @@ export class ChaseRenderer extends Renderer{
  draw(g,dt,truckIndex){
   {const e=this._ema=(this._ema||.016)*.94+Math.min(.1,dt||.016)*.06,q=e>.034?2:e>.024?1:0;if((this.q||0)<q){this.q=q;this.maxDpr=q>1?1:1.25;this.resize();}}
   this.g=g;const c=this.ctx,pad=this.pad,W=420+2*pad,H=this.H;this.time+=dt;
-  const y0=this.y0=H*(this.y0f||.31),A=this.A=(this.yT-y0)*CAMBACK,camZ=g.distance-CAMBACK,tx=laneX(g.x,g.distance);
+  const y0=this.y0=H*(this.y0f||.2),A=this.A=(this.yT-y0)*CAMBACK,camZ=g.distance-CAMBACK,tx=laneX(g.x,g.distance);
   const camX=this.camX=210+(tx-210)*.55,cx=210,seed=g.seed;
   this.finishPro ||= new ChaseFinishPro(this);this.finishPro.begin(g,dt);
   this.detailPro ||= new ChaseDetailPro(this);
@@ -180,7 +180,7 @@ export class ChaseRenderer extends Renderer{
   for(const o of L){
    const sc=CAMBACK/o.zr,y=y0+A/o.zr,fog=Math.min(1,Math.pow(o.zr/FAR,1.4));
    if(o.k==='truck'){this.drawTruck(g,cx+(tx-camX),y,dt);continue;}
-   c.save();c.globalAlpha=1-fog*.85;
+   c.save();c.globalAlpha=1-fog*.55;
    const sh=0;
    if(o.k==='lot')this.drawLot(c,o.lot,camZ,fog);
    else if(o.k==='deco')this.drawDeco(c,o.d,cx+(o.d.x-camX)*sc,y,sc,o.zr);
@@ -288,7 +288,7 @@ export class ChaseRenderer extends Renderer{
  }
  drawItem(c,e,x,y,sc,zr){
   const t=this.time+e.id;
-  if(FLAT[e.type]){const spec=HAZARD_SPECS[e.type],w=spec.width*sc*1.1,d=spec.height,hs=Math.max(2,this.A*(1/zr-1/(zr+d))*.9);c.save();c.translate(x,y);
+  if(FLAT[e.type]){const spec=HAZARD_SPECS[e.type],w=spec.width*sc*1.3,d=spec.height,hs=Math.max(2,this.A*(1/zr-1/(zr+d))*.9);c.save();c.translate(x,y);
    const rect=PAINTED[e.type],image=rect&&this.images[rect[0]];
    if(image){
     c.drawImage(image,...rect.slice(1),-w/2,-hs,w,hs);
@@ -300,9 +300,9 @@ export class ChaseRenderer extends Renderer{
    c.restore();return;}
   const sz=SIZE[e.type]||SIZE[(HAZARD_SPECS[e.type]&&e.type)||'cone']||[40,40],fn=ART[e.type];if(!fn)return;
   const bob=['coin','crumb','taco','boost','night','hitch','shield','prize','job'].includes(e.type)?-14*sc-Math.sin(t*4)*3*sc:0;
-  this.castShadow(c,x,y,sz[0]*sc*1.1,sz[1]*sc*1.1,e.type,bob?.5:1);c.save();c.translate(x,y+bob);
+  this.castShadow(c,x,y,sz[0]*sc*1.3,sz[1]*sc*1.3,e.type,bob?.5:1);c.save();c.translate(x,y+bob);
   this.detailPro.itemUnderlay(c,e,sz,sc,zr,t);
-  const scale=sc*(e.type==='crumb'?1.2:1.1);
+  const scale=sc*(e.type==='crumb'?1.35:1.3);
   this.billboard(c,e.type,sz[0]*scale,sz[1]*scale,t,e.id);
   this.detailPro.itemOverlay(c,e,sz,sc,zr,t);
   if(e.honkable&&zr<620)this.label('HONK!',0,-sz[1]*sc*1.25-6,'#fff0a8',9);
