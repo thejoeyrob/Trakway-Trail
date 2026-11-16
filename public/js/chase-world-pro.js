@@ -37,7 +37,7 @@ export class ChaseWorldPro {
  material(c,pat,x1,x2,y,zw,sn,fog,opacity){
   if(!pat||x2<=x1||sn<.035||Math.floor(y/2)%2)return;
   // 4-pixel slices reduce mobile fill rate vs a 2-pixel overlay on every row.
-  const zr=260/sn,d=-this.r.A/(zr*zr);
+  const zr=(this.r.CB||260)/sn,d=-this.r.A/(zr*zr);
   const ga=c.globalAlpha;c.globalAlpha=(1-fog)*opacity;
   pat.setTransform({a:sn,b:0,c:0,d,e:210-(this.r.camX||210)*sn,f:y-(zw%512)*d});
   c.fillStyle=pat;c.fillRect(x1,y-4,x2-x1,4.6);c.globalAlpha=ga;
